@@ -18,12 +18,16 @@ clarification in `spec.md`.
 
 ### list_item_column
 
+A column id is a slug that is unique only *within* its list — two lists may both have a `year` column —
+so the key is the pair.
+
 | Column | Type | Rules |
 |---|---|---|
-| `id` | TEXT PK | slug of the column name, e.g. `year`, `box_office`; unique within the list |
+| `id` | TEXT | slug of the column name, e.g. `year`, `box_office`; unique within the list |
 | `list_id` | TEXT NOT NULL → `quiz_list.id` | ON DELETE CASCADE |
 | `name` | TEXT NOT NULL | 1-40 chars (FR-054) |
 | `position` | INTEGER NOT NULL | 0-based display order; `columns[0]` is the default value column (FR-054) |
+| PK | (`list_id`, `id`) | |
 
 ### quiz_list
 
@@ -57,7 +61,7 @@ one round read exactly one of them (FR-054).
 | Column | Type | Rules |
 |---|---|---|
 | `item_id` | TEXT NOT NULL → `item.id` | ON DELETE CASCADE |
-| `column_id` | TEXT NOT NULL → `list_item_column.id` | ON DELETE CASCADE |
+| `column_id` | TEXT NOT NULL | the slug of a `list_item_column.id` in the item's own list; validated in code, since the slug is only unique per list |
 | `display` | TEXT NOT NULL | what players see after reveal, e.g. `$2.26 Billion` |
 | `numeric` | REAL NOT NULL | the comparable value used for sorting and placement; falls back to row position when unparseable (FR-057, D-011) |
 | `was_defaulted` | INTEGER NOT NULL | 1 when `numeric` was derived rather than parsed; reported by import (FR-057) |
@@ -74,6 +78,9 @@ one round read exactly one of them (FR-054).
 | `current_round` | INTEGER NOT NULL | 1-based index of the round in play; 0 before the first round starts |
 | `status` | TEXT NOT NULL | `setup` → `running` → `finished` |
 | `muted` | INTEGER NOT NULL | 0/1; applies to every view of the session (FR-024b) |
+| `reveal_values` | INTEGER NOT NULL | 0/1; once 1, every view shows every value for the rest of the game (FR-024) |
+| `active_team_id` | TEXT | the team holding the turn; a team at 0 hearts is skipped (FR-018, FR-019) |
+| `last_message` | TEXT | the last board message, e.g. `Team Cyan Pulsar found Rank #4! (+10 pts)` |
 | `revision` | INTEGER NOT NULL | bumped on every state change; the value pushed over SSE (D-005) |
 | `created_at` | INTEGER NOT NULL | epoch milliseconds |
 

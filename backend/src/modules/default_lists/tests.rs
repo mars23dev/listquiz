@@ -1,0 +1,182 @@
+use super::*;
+
+#[test]
+fn three_default_lists_are_seeded() {
+    assert_eq!(DEFAULT_LISTS.len(), 3);
+    assert_eq!(DEFAULT_LISTS[0].title, "World History & Inventions");
+    assert_eq!(
+        DEFAULT_LISTS[1].title,
+        "Iconic Statues & Architectural Marvels"
+    );
+    assert_eq!(DEFAULT_LISTS[2].title, "Blockbuster Cinema Box Office");
+}
+
+#[test]
+fn every_default_list_satisfies_the_minimum_of_eleven_items() {
+    for list in DEFAULT_LISTS.iter() {
+        assert!(
+            list.items.len() >= MIN_ITEMS,
+            "{} has only {} items",
+            list.title,
+            list.items.len()
+        );
+        assert_eq!(list.items.len(), 11);
+        validate_list_size(list.items.len()).unwrap();
+    }
+}
+
+#[test]
+fn every_default_list_has_at_least_one_column() {
+    for list in DEFAULT_LISTS.iter() {
+        assert!(!list.columns.is_empty(), "{} has no columns", list.title);
+        validate_column_name(list.columns[0].name).unwrap();
+    }
+}
+
+#[test]
+fn every_default_value_row_has_a_matching_column() {
+    for list in DEFAULT_LISTS.iter() {
+        for item in list.items.iter() {
+            for (column_id, display, numeric) in item.values.iter() {
+                assert!(
+                    list.columns.iter().any(|c| c.id == *column_id),
+                    "{} item {} references unknown column {}",
+                    list.title,
+                    item.name,
+                    column_id
+                );
+                assert!(!display.is_empty());
+                assert!(numeric.is_finite());
+            }
+        }
+    }
+}
+
+#[test]
+fn default_item_ids_are_unique_within_each_list() {
+    for list in DEFAULT_LISTS.iter() {
+        let mut ids: Vec<&str> = list.items.iter().map(|i| i.id).collect();
+        let count = ids.len();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), count, "{} has duplicate item ids", list.title);
+    }
+}
+
+#[test]
+fn eleven_items_pass_and_ten_or_more_than_a_hundred_do_not() {
+    assert!(validate_list_size(11).is_ok());
+    assert!(validate_list_size(100).is_ok());
+
+    let too_small = validate_list_size(10).unwrap_err();
+    assert_eq!(too_small.code, crate::errors::ErrorCode::TooSmall);
+
+    let too_large = validate_list_size(101).unwrap_err();
+    assert_eq!(too_large.code, crate::errors::ErrorCode::TooLarge);
+}
+
+#[test]
+fn an_empty_list_is_too_small() {
+    assert!(validate_list_size(0).is_err());
+}
+
+#[test]
+fn list_titles_are_limited_to_eighty_characters() {
+    assert!(validate_list_title("Top Grossing Films").is_ok());
+    assert!(validate_list_title(&"x".repeat(80)).is_ok());
+    assert!(validate_list_title(&"x".repeat(81)).is_err());
+    assert!(validate_list_title("   ").is_err());
+}
+
+#[test]
+fn column_names_are_limited_to_forty_characters() {
+    assert!(validate_column_name("Year Built").is_ok());
+    assert!(validate_column_name(&"x".repeat(40)).is_ok());
+    assert!(validate_column_name(&"x".repeat(41)).is_err());
+    assert!(validate_column_name("").is_err());
+}
+
+#[test]
+fn seeding_writes_every_list_item_and_value() {
+    let conn = Connection::open_in_memory().unwrap();
+    crate::db::apply_schema(&conn).unwrap();
+    crate::db::seed_default_folder(&conn).unwrap();
+    seed_default_lists(&conn, "default").unwrap();
+
+    let lists: i64 = conn
+        .query_row("SELECT COUNT(*) FROM quiz_list", [], |r| r.get(0))
+        .unwrap();
+    let items: i64 = conn
+        .query_row("SELECT COUNT(*) FROM item", [], |r| r.get(0))
+        .unwrap();
+    let values: i64 = conn
+        .query_row("SELECT COUNT(*) FROM item_value", [], |r| r.get(0))
+        .unwrap();
+
+    assert_eq!(lists, 3);
+    assert_eq!(items, 33);
+    // 11 + 22 + 22 values for the three lists.
+    assert_eq!(values, 55);
+}
+
+#[test]
+fn seeding_twice_does_not_duplicate_anything() {
+    let conn = Connection::open_in_memory().unwrap();
+    crate::db::apply_schema(&conn).unwrap();
+    crate::db::seed_default_folder(&conn).unwrap();
+    seed_default_lists(&conn, "default").unwrap();
+    seed_default_lists(&conn, "default").unwrap();
+
+    let items: i64 = conn
+        .query_row("SELECT COUNT(*) FROM item", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(items, 33);
+}
+
+#[test]
+fn seeded_lists_live_in_the_default_folder_and_are_read_only() {
+    let conn = Connection::open_in_memory().unwrap();
+    crate::db::apply_schema(&conn).unwrap();
+    crate::db::seed_default_folder(&conn).unwrap();
+    seed_default_lists(&conn, "default").unwrap();
+
+    let row: (String, i64) = conn
+        .query_row(
+            "SELECT folder_id, is_default FROM quiz_list WHERE id = 'default_world_history'",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+
+    assert_eq!(row, ("default".to_string(), 1));
+}
+
+#[test]
+fn every_seeded_list_can_host_an_order_round() {
+    // FR-026 takes the anchor from the middle of the list, FR-027 then samples five
+    // items below and five above it, so each seeded column needs a median with at
+    // least five values on either side.
+    for list in DEFAULT_LISTS.iter() {
+        let column = list.columns[0].id;
+        let mut values: Vec<f64> = list
+            .items
+            .iter()
+            .filter_map(|i| {
+                i.values
+                    .iter()
+                    .find(|(c, _, _)| *c == column)
+                    .map(|(_, _, n)| *n)
+            })
+            .collect();
+        values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let median = values[values.len() / 2];
+        let below = values.iter().filter(|v| **v < median).count();
+        let above = values.iter().filter(|v| **v > median).count();
+
+        assert!(
+            below >= 5 && above >= 5,
+            "{}: median {median} has {below} below and {above} above",
+            list.title
+        );
+    }
+}
