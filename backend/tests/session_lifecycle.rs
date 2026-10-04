@@ -9,7 +9,8 @@ use axum::Router;
 use serde_json::{Value, json};
 
 use common::{
-    call, error_code, get_state, json_request, seeded_shared_db, test_app, valid_session_body,
+    call, error_code, get_state, gm_action_request, json_request, seeded_shared_db, test_app,
+    valid_session_body,
 };
 
 async fn create(app: &Router, body: Value) -> (u16, Value) {
@@ -26,11 +27,7 @@ async fn create_default_session(app: &Router) -> String {
 async fn act(app: &Router, session_id: &str, action: Value) -> (u16, Value) {
     let (status, response) = call(
         app,
-        json_request(
-            "POST",
-            &format!("/api/sessions/{session_id}/actions"),
-            Some(&action),
-        ),
+        gm_action_request(&format!("/api/sessions/{session_id}/actions"), &action),
     )
     .await;
     (status.as_u16(), response)

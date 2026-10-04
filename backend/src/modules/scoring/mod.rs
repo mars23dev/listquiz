@@ -4,6 +4,8 @@ pub const MAX_HEARTS: i32 = 3;
 pub const MIN_HEARTS: i32 = 0;
 
 pub const REASON_CORRECT_PLACEMENT: &str = "correct_placement";
+/// A placement on the wrong side of the bar: no points, one heart gone (FR-030).
+pub const REASON_INCORRECT_PLACEMENT: &str = "incorrect_placement";
 pub const REASON_TRIPMINE_HIT: &str = "tripmine_hit";
 pub const REASON_SEARCHED_ITEM_FOUND: &str = "searched_item_found";
 pub const REASON_SAFE_PICK: &str = "safe_pick";

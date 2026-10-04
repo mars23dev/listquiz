@@ -161,29 +161,29 @@ no points and `-1` heart for a wrong one, the turn passing either way, and a 0-h
 
 ### Tests for User Story 3
 
-- [ ] T059 [US3] Unit test: `sample_order_round` picks 5 items below the anchor and 5 above, never the anchor, in `backend/src/modules/order_round/tests.rs`
-- [ ] T060 [US3] Unit test: a correct left placement awards exactly 10 points and a correct right placement awards exactly 10 points in `backend/src/modules/order_round/tests.rs`
-- [ ] T061 [US3] Unit test: a wrong-side placement awards 0 points and removes exactly 1 heart in `backend/src/modules/order_round/tests.rs`
-- [ ] T062 [US3] Unit test: `validate_placement` accepts only left, between-two, and right positions, and rejects an out-of-range `slot_index` in `backend/src/modules/order_round/tests.rs`
-- [ ] T063 [US3] Unit test: an item with a value equal to an existing neighbour is accepted on the correct side in `backend/src/modules/order_round/tests.rs`
-- [ ] T064 [US3] Unit test: the bar keeps placement order and is never re-sorted by value in `backend/src/modules/order_round/tests.rs`
-- [ ] T065 [US3] Unit test: the round ends when all items are placed or when no team has hearts in `backend/src/modules/order_round/tests.rs`
-- [ ] T066 [US3] Integration test: `reveal_values` sets `revealValues` on the session and un-redacts values for player roles in `backend/tests/order_actions.rs`
-- [ ] T067 [US3] Integration test: `select_item` and `choose_slot` from a team that is not on turn return `not_ready` in `backend/tests/order_actions.rs`
+- [x] T059 [US3] Unit test: `sample_order_round` picks 5 items below the anchor and 5 above, never the anchor, in `backend/src/modules/order_round/tests.rs`
+- [x] T060 [US3] Unit test: a correct left placement awards exactly 10 points and a correct right placement awards exactly 10 points in `backend/src/modules/order_round/tests.rs`
+- [x] T061 [US3] Unit test: a wrong-side placement awards 0 points and removes exactly 1 heart in `backend/src/modules/order_round/tests.rs`
+- [x] T062 [US3] Unit test: `validate_placement` accepts only left, between-two, and right positions, and rejects an out-of-range `slot_index` in `backend/src/modules/order_round/tests.rs`
+- [x] T063 [US3] Unit test: an item with a value equal to an existing neighbour is accepted on the correct side in `backend/src/modules/order_round/tests.rs`
+- [x] T064 [US3] Unit test: the bar keeps placement order and is never re-sorted by value in `backend/src/modules/order_round/tests.rs`
+- [x] T065 [US3] Unit test: the round ends when all items are placed or when no team has hearts in `backend/src/modules/order_round/tests.rs`
+- [x] T066 [US3] Integration test: `reveal_values` sets `revealValues` on the session and un-redacts values for player roles in `backend/tests/order_actions.rs`
+- [x] T067 [US3] Integration test: `select_item` and `choose_slot` from a team that is not on turn return `not_ready` in `backend/tests/order_actions.rs`
 
 ### Implementation for User Story 3
 
-- [ ] T068 [US3] Implement `start_order_round(list, column_id, order_direction, rng)` in `backend/src/modules/order_round/mod.rs`: sort by the column's numeric value in the list's direction, take the middle item as the anchor with `FR-026`'s distinct-colour marker, then sample 5 at random from below and 5 at random from above
-- [ ] T069 [US3] Write unit tests in `backend/src/modules/order_round/tests.rs` for `start_order_round`'s anchor selection at list lengths 11 and 20, including topping up the shorter side when the anchor is not centred
-- [ ] T070 [US3] Implement `validate_placement(state, side, slot_index)` in `backend/src/modules/order_round/mod.rs` checking the anchor side, the sequence order of the affected side, and the equal-value case
-- [ ] T071 [US3] Implement `confirm_placement` and `return_to_pool` in `backend/src/modules/order_round/mod.rs`, delegating every point and heart change to `backend/src/modules/scoring/` and recording a `score_event` with reason `correct_placement` or `game_master`
-- [ ] T072 [US3] Persist `order_state` in `backend/src/modules/order_round/mod.rs` using the JSON columns `pool`, `left_ids`, `right_ids`, and `pending` from `data-model.md`
-- [ ] T073 [US3] Add the Order actions to `backend/src/routes/sessions.rs`: `select_item`, `choose_slot`, `cancel_selection`, `return_to_pool`, `reveal_values`
-- [ ] T074 [US3] Copy `the reference frontend's components/TopBarOrdering.tsx` to `frontend/src/components/TopBarOrdering.tsx` unchanged, including the 5-left / anchor / 5-right layout, the `CONFIRM PLACEMENT` and `CANCEL` buttons, and the pending slot
-- [ ] T075 [US3] Copy `the reference frontend's components/MiddleItemGrid.tsx` to `frontend/src/components/MiddleItemGrid.tsx` unchanged, including the 2-to-5 column responsive grid and hiding placed items
-- [ ] T076 [US3] Convert both board components to keyboard operation in `frontend/src/components/TopBarOrdering.tsx` and `frontend/src/components/MiddleItemGrid.tsx`: every pool item and bar slot becomes a `button` in DOM order with a visible focus ring, and confirm or cancel is reachable by keystroke
-- [ ] T077 [US3] Wire the Order board to the API in `frontend/src/pages/Session.tsx`, keeping the draft's waiting banner copy `Waiting for <team> to place an item...`
-- [ ] T078 [US3] Add the reveal control to the gamemaster dashboard in `frontend/src/pages/Session.tsx` calling `reveal_values` for both quiz types
+- [x] T068 [US3] Implement `start_order_round(list, column_id, order_direction, rng)` in `backend/src/modules/order_round/mod.rs`: sort by the column's numeric value in the list's direction, take the middle item as the anchor with `FR-026`'s distinct-colour marker, then sample 5 at random from below and 5 at random from above
+- [x] T069 [US3] Write unit tests in `backend/src/modules/order_round/tests.rs` for `start_order_round`'s anchor selection at list lengths 11 and 20, including topping up the shorter side when the anchor is not centred
+- [x] T070 [US3] Implement `validate_placement(state, side, slot_index)` in `backend/src/modules/order_round/mod.rs` checking the anchor side, the sequence order of the affected side, and the equal-value case
+- [x] T071 [US3] Implement `confirm_placement` and `return_to_pool` in `backend/src/modules/order_round/mod.rs`, delegating every point and heart change to `backend/src/modules/scoring/` and recording a `score_event` with reason `correct_placement` or `game_master`
+- [x] T072 [US3] Persist `order_state` in `backend/src/modules/order_round/mod.rs` using the JSON columns `pool`, `left_ids`, `right_ids`, and `pending` from `data-model.md`
+- [x] T073 [US3] Add the Order actions to `backend/src/routes/sessions.rs`: `select_item`, `choose_slot`, `cancel_selection`, `return_to_pool`, `reveal_values`
+- [x] T074 [US3] Copy `the reference frontend's components/TopBarOrdering.tsx` to `frontend/src/components/TopBarOrdering.tsx` unchanged, including the 5-left / anchor / 5-right layout, the `CONFIRM PLACEMENT` and `CANCEL` buttons, and the pending slot
+- [x] T075 [US3] Copy `the reference frontend's components/MiddleItemGrid.tsx` to `frontend/src/components/MiddleItemGrid.tsx` unchanged, including the 2-to-5 column responsive grid and hiding placed items
+- [x] T076 [US3] Convert both board components to keyboard operation in `frontend/src/components/TopBarOrdering.tsx` and `frontend/src/components/MiddleItemGrid.tsx`: every pool item and bar slot becomes a `button` in DOM order with a visible focus ring, and confirm or cancel is reachable by keystroke
+- [x] T077 [US3] Wire the Order board to the API in `frontend/src/pages/Session.tsx`, keeping the draft's waiting banner copy `Waiting for <team> to place an item...`
+- [x] T078 [US3] Add the reveal control to the gamemaster dashboard in `frontend/src/pages/Session.tsx` calling `reveal_values` for both quiz types
 
 **Checkpoint**: US1, US2, US3 independently functional.
 

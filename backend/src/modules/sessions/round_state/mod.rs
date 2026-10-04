@@ -11,12 +11,8 @@ use crate::errors::{ApiError, ApiResult};
 use crate::modules::scoring;
 use crate::modules::sessions::{QuizType, TripmineSide};
 
-/// Items on each side of the anchor in an Order round.
-pub const ORDER_SIDE_ITEMS: usize = 5;
 /// Items in a Tripmine grid.
 pub const TRIPMINE_SLOTS: usize = 10;
-/// The smallest list an Order round can be built from.
-pub const MIN_ITEMS_FOR_ORDER: usize = ORDER_SIDE_ITEMS * 2 + 1;
 
 /// One item of a list, as the round builder sees it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -25,15 +21,6 @@ pub struct ListItemValue {
     pub name: String,
     pub display: String,
     pub numeric: f64,
-}
-
-/// The pool/bar split stored in `order_state.pool` and `.left_ids`/`.right_ids`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct OrderLayout {
-    pub anchor: ListItemValue,
-    pub left: Vec<ListItemValue>,
-    pub right: Vec<ListItemValue>,
-    pub pool: Vec<ListItemValue>,
 }
 
 /// The item grid stored in `tripmine_state.items`, with its hidden answer key.
@@ -84,44 +71,6 @@ pub fn load_ordered_items(
     Ok(items)
 }
 
-/// Pick the anchor as the median item and take five items on each side. The
-/// leftovers stay in the pool, where the teams place them (FR-026, FR-028).
-pub fn build_order_layout(items: Vec<ListItemValue>) -> ApiResult<OrderLayout> {
-    if items.len() < MIN_ITEMS_FOR_ORDER {
-        return Err(ApiError::not_ready(format!(
-            "An Order round needs at least {MIN_ITEMS_FOR_ORDER} items with values."
-        )));
-    }
-
-    let median_index = items.len() / 2;
-    if median_index < ORDER_SIDE_ITEMS || items.len() - median_index - 1 < ORDER_SIDE_ITEMS {
-        return Err(ApiError::not_ready(format!(
-            "The median item needs at least {ORDER_SIDE_ITEMS} items on each side."
-        )));
-    }
-
-    let anchor = items[median_index].clone();
-    let left = items[median_index - ORDER_SIDE_ITEMS..median_index].to_vec();
-    let right = items[median_index + 1..median_index + 1 + ORDER_SIDE_ITEMS].to_vec();
-    let pool = items
-        .into_iter()
-        .filter(|item| {
-            item.item_id != anchor.item_id
-                && !left.iter().any(|l| l.item_id == item.item_id)
-                && !right.iter().any(|r| r.item_id == item.item_id)
-        })
-        .collect();
-
-    Ok(OrderLayout {
-        anchor,
-        left,
-        right,
-        pool,
-    })
-}
-
-/// Build a Tripmine grid: the first ten items, ranked by value.
-///
 /// `data-model.md` fixes the axis: `true_rank` runs 1 (lowest) to 10 (highest), so
 /// the grid is always sorted ascending. `side` only decides which end is mined and
 /// where the search starts (FR-037): `highest` hunts rank 10 downwards, `lowest`
@@ -320,24 +269,18 @@ pub fn store_round_start(
 
     match round.quiz_type {
         QuizType::Order => {
-            let layout = build_order_layout(items)?;
-            let pool: Vec<String> = layout.pool.iter().map(|i| i.item_id.clone()).collect();
-            let left: Vec<String> = layout.left.iter().map(|i| i.item_id.clone()).collect();
-            let right: Vec<String> = layout.right.iter().map(|i| i.item_id.clone()).collect();
-            conn.execute(
-                "INSERT OR REPLACE INTO order_state
-                    (session_id, anchor_item_id, anchor_value, pool, left_ids, right_ids, pending)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, NULL)",
-                params![
-                    session_id,
-                    layout.anchor.item_id,
-                    layout.anchor.numeric,
-                    serde_json::to_string(&pool).map_err(ApiError::from)?,
-                    serde_json::to_string(&left).map_err(ApiError::from)?,
-                    serde_json::to_string(&right).map_err(ApiError::from)?,
-                ],
-            )
-            .map_err(ApiError::from)?;
+            // US3 replaced the old "five items pre-placed on each side" layout: the
+            // bar starts with only the anchor and the ten candidates are sampled at
+            // random around it (FR-026, FR-027).
+            let setup = crate::modules::order_round::start_order_round(
+                conn,
+                &round.list_id,
+                &round.column_id,
+                round.low_to_high,
+                &mut rand::rng(),
+            )?;
+            let board = setup.into_board();
+            crate::modules::order_round::save_board(conn, session_id, &board)?;
         }
         QuizType::Tripmine => {
             let side = round.tripmine_side.unwrap_or(TripmineSide::Highest);

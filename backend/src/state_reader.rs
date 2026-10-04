@@ -229,7 +229,7 @@ fn read_order(
                 Ok(crate::app_state::AnchorItem {
                     item_id: anchor_item_id.clone(),
                     name,
-                    value: display.unwrap_or_else(|| format_number(anchor_value)),
+                    value: display.unwrap_or_else(|| format_value(anchor_value)),
                 })
             },
         )
@@ -239,7 +239,7 @@ fn read_order(
         anchor: anchor.unwrap_or(crate::app_state::AnchorItem {
             item_id: anchor_item_id,
             name: String::new(),
-            value: format_number(anchor_value),
+            value: format_value(anchor_value),
         }),
         pool: read_order_items(conn, &column_id, &parse_ids(&pool))?,
         left: read_order_items(conn, &column_id, &parse_ids(&left))?,
@@ -337,7 +337,7 @@ fn read_tripmine(
 }
 
 /// One decimal place at most, without a trailing `.0`.
-fn format_number(value: f64) -> String {
+pub fn format_value(value: f64) -> String {
     if (value.fract()).abs() < f64::EPSILON {
         format!("{}", value as i64)
     } else {

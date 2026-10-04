@@ -123,6 +123,20 @@ pub fn json_request(
     builder.body(Body::empty()).unwrap()
 }
 
+/// An authenticated session action request. Test sessions use `letmein` from
+/// `valid_session_body`, matching the REST contract's `X-Quiz-Password` header.
+pub fn gm_action_request(
+    path: &str,
+    body: &serde_json::Value,
+) -> axum::http::Request<axum::body::Body> {
+    let mut request = json_request("POST", path, Some(body));
+    request.headers_mut().insert(
+        "X-Quiz-Password",
+        axum::http::HeaderValue::from_static("letmein"),
+    );
+    request
+}
+
 /// `GET /api/sessions/{id}/state?role=<role>`, the redacted view a role sees.
 pub async fn get_state(
     app: &Router,

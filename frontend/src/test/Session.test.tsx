@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Session } from '../pages/Session';
 
@@ -47,6 +47,8 @@ class FakeEventSource {
   constructor(readonly url: string) {
     FakeEventSource.instances.push(this);
   }
+
+  addEventListener(_type: string, _listener: EventListenerOrEventListenerObject) {}
 
   close() {}
 }
@@ -155,5 +157,229 @@ describe('gamemaster password gate', () => {
     await user.click(screen.getByRole('button', { name: /switch to view/i }));
 
     expect(visited).toEqual(['/lq-abcd1234/view']);
+  });
+});
+
+const ORDER_POOL = [
+  { itemId: 'item_a', name: 'Alpha', value: '10', revealed: true },
+  { itemId: 'item_b', name: 'Bravo', value: '20', revealed: true },
+];
+
+function orderState(overrides: Record<string, unknown> = {}) {
+  return {
+    ...SESSION_STATE,
+    order: {
+      anchor: { itemId: 'anchor', name: 'Anchor', value: '15' },
+      pool: ORDER_POOL,
+      left: [],
+      right: [],
+      pending: null,
+      ...overrides,
+    },
+  };
+}
+
+/**
+ * The server holds a pending item with slotIndex -1 until a placement is
+ * confirmed, so the board must offer the ten slots before it draws the item.
+ */
+function pendingState(slotIndex = -1) {
+  return orderState({
+    pending: {
+      itemId: 'item_a',
+      name: 'Alpha',
+      side: 'left',
+      slotIndex,
+      teamId: 'team_1',
+    },
+  });
+}
+
+describe('order board actions', () => {
+  let posted: { url: string; body: Record<string, unknown>; passwordHeader: string | null }[] = [];
+  let stateResponse: () => unknown = () => orderState();
+
+  beforeEach(() => {
+    FakeEventSource.instances = [];
+    posted = [];
+    stateResponse = () => orderState();
+    vi.stubGlobal('EventSource', FakeEventSource as unknown as typeof EventSource);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes('/unlock')) return jsonResponse({ ok: true });
+        if (url.includes('/actions')) {
+          posted.push({
+            url,
+            body: JSON.parse(String(init?.body ?? '{}')),
+            passwordHeader: new Headers(init?.headers).get('X-Quiz-Password'),
+          });
+          return jsonResponse({ ok: true });
+        }
+        if (url.includes('/state')) return jsonResponse(stateResponse());
+        return jsonResponse({ error: { code: 'bad_request', message: 'unexpected' } }, 400);
+      }),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  async function renderUnlocked(role: 'gamemaster' | 'p1') {
+    const user = userEvent.setup();
+    render(<Session sessionId="lq-abcd1234" role={role} onNavigate={() => {}} />);
+    if (role === 'gamemaster') {
+      await user.type(screen.getByPlaceholderText('Enter password...'), 'letmein');
+      await user.click(screen.getByRole('button', { name: /unlock/i }));
+    }
+    // Match the team card heading, not the waiting banner, which repeats the name.
+    await screen.findByRole('heading', { name: 'Team Cyan Pulsar' });
+    return user;
+  }
+
+  it('sends select_item when a pool item is clicked', async () => {
+    const user = await renderUnlocked('gamemaster');
+
+    await user.click(await screen.findByRole('button', { name: /select alpha/i }));
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0].body).toEqual({
+      action: 'select_item',
+      itemId: 'item_a',
+      teamId: 'team_1',
+    });
+    expect(posted[0].passwordHeader).toBe('letmein');
+  });
+
+  it('exposes every pool item and slot as a button reachable by keyboard', async () => {
+    stateResponse = () => pendingState();
+    const user = await renderUnlocked('gamemaster');
+
+    const alpha = await screen.findByRole('button', { name: /select alpha/i });
+    alpha.focus();
+    expect(document.activeElement).toBe(alpha);
+
+    // Enter is the keyboard equivalent of a click (FR-028).
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0].body).toMatchObject({ action: 'select_item', itemId: 'item_a' });
+
+    // All ten bar slots are real buttons, so the bar is fully keyboard reachable.
+    expect(screen.getAllByRole('button', { name: /slot \d/i })).toHaveLength(10);
+  });
+
+  it('sends choose_slot only after a slot is picked, then confirmed', async () => {
+    stateResponse = () => pendingState();
+    const user = await renderUnlocked('gamemaster');
+
+    // Picking a slot is a local step: it must not reach the server on its own.
+    const slot = await screen.findByRole('button', {
+      name: /place the selected item in left slot 1/i,
+    });
+    slot.focus();
+    await user.keyboard('{Enter}');
+    expect(posted).toHaveLength(0);
+
+    const confirm = await screen.findByRole('button', { name: /confirm placement/i });
+    confirm.focus();
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0].body).toEqual({
+      action: 'choose_slot',
+      itemId: 'item_a',
+      side: 'left',
+      slotIndex: 0,
+      teamId: 'team_1',
+    });
+  });
+
+  it('sends cancel_selection from the pending item', async () => {
+    stateResponse = () => pendingState();
+    const user = await renderUnlocked('gamemaster');
+
+    const cancel = await screen.findByRole('button', { name: /cancel position/i });
+    cancel.focus();
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0].body).toEqual({
+      action: 'cancel_selection',
+      itemId: 'item_a',
+      teamId: 'team_1',
+    });
+  });
+
+  it('lets the gamemaster return a placed item to the pool', async () => {
+    stateResponse = () => orderState({ left: [ORDER_POOL[0]] });
+    const user = await renderUnlocked('gamemaster');
+
+    await user.click(await screen.findByRole('button', { name: 'Return Alpha to pool' }));
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0].body).toEqual({ action: 'return_to_pool', itemId: 'item_a', teamId: 'team_1' });
+    expect(posted[0].passwordHeader).toBe('letmein');
+  });
+
+  it('offers the gamemaster reveal control in Tripmine rounds too', async () => {
+    stateResponse = () => ({
+      ...SESSION_STATE,
+      round: { roundNumber: 1, quizType: 'TRIPMINE' },
+      order: null,
+      tripmine: { side: 'highest', searchedRank: 0, hit: false, completed: false, items: [] },
+    });
+    const user = await renderUnlocked('gamemaster');
+
+    await user.click(await screen.findByRole('button', { name: /reveal values/i }));
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0].body).toEqual({ action: 'reveal_values' });
+    expect(posted[0].passwordHeader).toBe('letmein');
+  });
+
+  it('gives a player a read-only board with no action buttons', async () => {
+    await renderUnlocked('p1');
+
+    expect(await screen.findByText('Alpha')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /select alpha/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /reveal values/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /place the selected item/i })).not.toBeInTheDocument();
+  });
+
+  it('shows the draft waiting banner to a player who is not on turn', async () => {
+    stateResponse = () => ({
+      ...orderState(),
+      teams: [
+        { ...SESSION_STATE.teams[0], onTurn: false },
+        {
+          ...SESSION_STATE.teams[0],
+          id: 'team_2',
+          name: 'Team Ruby Spark',
+          color: 'rose',
+          primaryHex: '#f43f5e',
+          onTurn: true,
+        },
+      ],
+    });
+    await renderUnlocked('p1');
+
+    const banner = await screen.findByText(/to place an item/i);
+    // The team name also appears on the team card, so check it inside the banner.
+    expect(within(banner).getByText('Team Ruby Spark')).toBeInTheDocument();
+  });
+
+  it('does not show the waiting banner to the player whose team is on turn', async () => {
+    await renderUnlocked('p1');
+    expect(screen.queryByText(/to place an item/i)).not.toBeInTheDocument();
+  });
+
+  it('hides the waiting banner once an item is pending', async () => {
+    stateResponse = () => pendingState();
+    await renderUnlocked('p1');
+
+    await screen.findByText('Alpha');
+    expect(screen.queryByText(/to place an item/i)).not.toBeInTheDocument();
   });
 });

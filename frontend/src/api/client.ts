@@ -120,6 +120,22 @@ export function sessionEventsUrl(sessionId: string, role: UserRole): string {
   return `/api/sessions/${sessionId}/events?role=${encodeURIComponent(role)}`;
 }
 
+/**
+ * The action channel every board control posts to (contracts/rest-api.md).
+ * The request body is sent as-is, so field names must be camelCase.
+ */
+export function postSessionAction(
+  sessionId: string,
+  action: Record<string, unknown>,
+  password?: string,
+): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(`/api/sessions/${sessionId}/actions`, {
+    method: 'POST',
+    body: action,
+    password,
+  });
+}
+
 // --- Folders --------------------------------------------------------------
 
 export interface FolderSummary {

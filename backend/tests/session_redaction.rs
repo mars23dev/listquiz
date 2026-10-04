@@ -3,7 +3,8 @@ mod common;
 use serde_json::json;
 
 use common::{
-    call, error_code, get_state, json_request, seeded_shared_db, test_app, valid_session_body,
+    call, error_code, get_state, gm_action_request, json_request, seeded_shared_db, test_app,
+    valid_session_body,
 };
 
 #[tokio::test]
@@ -20,10 +21,9 @@ async fn a_player_sees_no_values_until_the_gamemaster_reveals_them() {
 
     call(
         &app,
-        json_request(
-            "POST",
+        gm_action_request(
             &format!("/api/sessions/{session_id}/actions"),
-            Some(&json!({ "action": "next_round" })),
+            &json!({ "action": "next_round" }),
         ),
     )
     .await;
@@ -31,10 +31,14 @@ async fn a_player_sees_no_values_until_the_gamemaster_reveals_them() {
     let (_, player) = get_state(&app, &session_id, "p1").await;
     let (_, host) = get_state(&app, &session_id, "gamemaster").await;
 
-    assert_eq!(player["order"]["left"][0]["value"], json!(null));
-    assert_eq!(player["order"]["left"][0]["revealed"], json!(false));
-    assert!(host["order"]["left"][0]["value"].is_string());
-    assert_eq!(host["order"]["left"][0]["revealed"], json!(true));
+    // The bar starts with only the anchor (FR-025, FR-027), so the hidden values the
+    // player must not see are the ones in the pool.
+    assert_eq!(player["order"]["left"].as_array().map(Vec::len), Some(0));
+    assert_eq!(player["order"]["right"].as_array().map(Vec::len), Some(0));
+    assert_eq!(player["order"]["pool"][0]["value"], json!(null));
+    assert_eq!(player["order"]["pool"][0]["revealed"], json!(false));
+    assert!(host["order"]["pool"][0]["value"].is_string());
+    assert_eq!(host["order"]["pool"][0]["revealed"], json!(true));
 
     // FR-026: the anchor is public by design, in every view.
     assert!(player["order"]["anchor"]["value"].is_string());

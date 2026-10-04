@@ -17,52 +17,6 @@ fn items(count: usize) -> Vec<ListItemValue> {
 }
 
 #[test]
-fn the_order_anchor_is_the_median_item_with_five_on_each_side() {
-    let layout = build_order_layout(items(13)).expect("layout");
-
-    assert_eq!(layout.anchor.item_id, "i7");
-    assert_eq!(layout.left.len(), ORDER_SIDE_ITEMS);
-    assert_eq!(layout.right.len(), ORDER_SIDE_ITEMS);
-    assert_eq!(layout.left.last().unwrap().item_id, "i6");
-    assert_eq!(layout.right.first().unwrap().item_id, "i8");
-}
-
-#[test]
-fn the_leftover_items_stay_in_the_pool() {
-    let layout = build_order_layout(items(20)).expect("layout");
-
-    assert_eq!(layout.pool.len(), 20 - 11);
-    let placed: Vec<&str> = layout
-        .left
-        .iter()
-        .chain(layout.right.iter())
-        .chain(std::iter::once(&layout.anchor))
-        .map(|i| i.item_id.as_str())
-        .collect();
-    for item in &layout.pool {
-        assert!(!placed.contains(&item.item_id.as_str()), "{}", item.item_id);
-    }
-}
-
-#[test]
-fn the_smallest_possible_list_still_builds() {
-    let layout = build_order_layout(items(MIN_ITEMS_FOR_ORDER)).expect("layout");
-
-    assert_eq!(layout.anchor.item_id, "i6");
-    assert_eq!(layout.left.len(), 5);
-    assert_eq!(layout.right.len(), 5);
-    assert!(layout.pool.is_empty());
-}
-
-#[test]
-fn a_list_too_small_for_an_order_round_is_not_ready() {
-    let error = build_order_layout(items(MIN_ITEMS_FOR_ORDER - 1))
-        .expect_err("ten items cannot make an order round");
-    assert_eq!(error.code, crate::errors::ErrorCode::NotReady);
-    assert!(error.message.contains("at least 11"));
-}
-
-#[test]
 fn a_highest_tripmine_mines_the_top_of_the_ranking() {
     let grid = build_tripmine_grid(&items(12), TripmineSide::Highest).expect("grid");
 
