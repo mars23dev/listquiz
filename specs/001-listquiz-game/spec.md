@@ -317,8 +317,10 @@ only the keyboard in each theme, with no input freeze or full-page reload for a 
   session is created.
 - **FR-008**: Creating a session MUST produce a session identifier that is unique and usable directly
   in a URL.
-- **FR-009**: The session MUST expose exactly five role links: gamemaster, one per configured team
-  (P1 to P4), and a public spectator view.
+- **FR-009**: The session MUST expose the draft's five role links regardless of how many teams are
+  configured: one gamemaster link, all four player links P1 to P4, and one public spectator link. A
+  player link whose slot is beyond the configured team count MUST still resolve, rendering the
+  read-only board with no team badge and no turn emphasis.
 - **FR-010**: Each role link MUST offer a copy action and a launch action.
 - **FR-011**: The gamemaster link MUST reject any request that does not supply the session password
   and MUST NOT expose host controls before the password is accepted.

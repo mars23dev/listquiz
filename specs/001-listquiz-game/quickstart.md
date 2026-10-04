@@ -101,7 +101,8 @@ machine's LAN address for the player, to prove the two devices really are separa
 4. Choose 3 rounds; set round 1 to Order on the imported list, round 2 to Tripmine with the tripmine side
    set to `Highest (Find #1 Lowest)`, round 3 to Order on the default folder's list.
 5. Unlock the `Test folder` password when the list is required, and confirm locked folders are not offered.
-6. Create the session. Confirm 4 links: gamemaster, P1, P2, spectator.
+6. Create the session. Confirm the five role links: gamemaster, P1, P2, P3, P4, spectator, with P3
+   and P4 marked as having no team.
 
 ### 3. Role gating
 

@@ -77,9 +77,9 @@ installation. Single feature, single process, single SQLite file.
 
 Complexity Tracking: no violations, so no exceptions are claimed.
 
-**Constitution follow-up (not performed by this command)**: the constitution still carries
-`TODO(FRONTEND_SOURCE_PATH)` and `TODO(BUILD_ARTIFACT_PATH)`. This plan pins them to `frontend/` and
-`frontend/dist`. Run `/speckit.constitution` to record those two paths and clear the TODOs.
+**Constitution follow-up (completed)**: constitution v2.1.1 removed the `TODO(FRONTEND_SOURCE_PATH)` and
+`TODO(BUILD_ARTIFACT_PATH)` placeholders and now defers the concrete directory to the feature plan. This
+plan is that authority: it pins `frontend/` and `frontend/dist`.
 
 ## Project Structure
 
@@ -96,7 +96,7 @@ specs/001-listquiz-game/
 |   |-- rest-api.md      # HTTP endpoints, request and response shapes
 |   |-- realtime.md      # SSE event stream and role-based redaction
 |   `-- ui-parity.md     # Draft screens kept, changed, and removed
-`-- tasks.md             # Phase 2 (/speckit.tasks - not created here)
+`-- tasks.md             # Phase 2: executable task list (/speckit.tasks)
 ```
 
 ### Source Code (repository root)

@@ -20,7 +20,7 @@ clarification in `spec.md`.
 
 | Column | Type | Rules |
 |---|---|---|
-| `id` | TEXT PK | `col_<slug>` derived from the column name at creation |
+| `id` | TEXT PK | slug of the column name, e.g. `year`, `box_office`; unique within the list |
 | `list_id` | TEXT NOT NULL → `quiz_list.id` | ON DELETE CASCADE |
 | `name` | TEXT NOT NULL | 1-40 chars (FR-054) |
 | `position` | INTEGER NOT NULL | 0-based display order; `columns[0]` is the default value column (FR-054) |
@@ -57,7 +57,7 @@ one round read exactly one of them (FR-054).
 | Column | Type | Rules |
 |---|---|---|
 | `item_id` | TEXT NOT NULL → `item.id` | ON DELETE CASCADE |
-| `column_id` | TEXT NOT NULL → `item_item_column.id` | ON DELETE CASCADE |
+| `column_id` | TEXT NOT NULL → `list_item_column.id` | ON DELETE CASCADE |
 | `display` | TEXT NOT NULL | what players see after reveal, e.g. `$2.26 Billion` |
 | `numeric` | REAL NOT NULL | the comparable value used for sorting and placement; falls back to row position when unparseable (FR-057, D-011) |
 | `was_defaulted` | INTEGER NOT NULL | 1 when `numeric` was derived rather than parsed; reported by import (FR-057) |
@@ -100,7 +100,7 @@ one round read exactly one of them (FR-054).
 | `quiz_type` | TEXT NOT NULL | `ORDER` or `TRIPMINE` (FR-002) |
 | `tripmine_side` | TEXT | `highest` or `lowest`, required for Tripmine, null for Order; immutable once the round starts (FR-036, FR-036a) |
 | `list_id` | TEXT NOT NULL → `quiz_list.id` | the round's source list (FR-002) |
-| `column_id` | TEXT NOT NULL → `item_item_column.id` | the one value column this round uses (FR-002, FR-054) |
+| `column_id` | TEXT NOT NULL → `list_item_column.id` | the one value column this round uses (FR-002, FR-054) |
 | PK | (`session_id`, `round_number`) | a round with no list or no type cannot start (FR-014) |
 
 ### order_state
@@ -149,10 +149,10 @@ cross-round carry-over checkable (SC-005).
 ## Entity relationships
 
 ```text
-folder 1--n quiz_list 1--n item 1--n item_value n--1 item_item_column
+folder 1--n quiz_list 1--n item 1--n item_value n--1 list_item_column
 folder (is_default) 1--n quiz_list (seeded only, read-only)
 game_session 1--n team
-game_session 1--n round_config n--1 quiz_list n--1 item_item_column
+game_session 1--n round_config n--1 quiz_list n--1 list_item_column
 game_session 1--1 order_state        (Order rounds only)
 game_session 1--1 tripmine_state     (Tripmine rounds only)
 game_session 1--n score_event n--1 team

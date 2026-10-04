@@ -190,16 +190,21 @@ Body:
   "sessionId": "lq-8fj2wkd9",
   "links": {
     "gamemaster": "/lq-8fj2wkd9/gamemaster",
-    "players":   [{ "role": "p1", "path": "/lq-8fj2wkd9/p1" },
-                  { "role": "p2", "path": "/lq-8fj2wkd9/p2" }],
+    "players":   [{ "role": "p1", "path": "/lq-8fj2wkd9/p1", "hasTeam": true },
+                  { "role": "p2", "path": "/lq-8fj2wkd9/p2", "hasTeam": true },
+                  { "role": "p3", "path": "/lq-8fj2wkd9/p3", "hasTeam": false },
+                  { "role": "p4", "path": "/lq-8fj2wkd9/p4", "hasTeam": false }],
     "spectator": "/lq-8fj2wkd9/view"
   }
 }
 ```
 
-Exactly one gamemaster link, one link per configured team, and one spectator link (FR-009). `gmPassword`
-is mandatory (FR-007). The caller's list and column references are validated against lists reachable
-from a folder the gamemaster has unlocked, so a session cannot be built on a locked list.
+The draft's five role links are always produced (FR-009): one gamemaster link, all four player links
+P1 to P4, and one spectator link. `hasTeam` reports whether that player slot is backed by a configured
+team, so the setup screen can label the links; a player link with `hasTeam: false` still resolves and
+renders the read-only board with no team badge and no turn emphasis. `gmPassword` is mandatory
+(FR-007). The caller's list and column references are validated against lists reachable from a folder
+the gamemaster has unlocked, so a session cannot be built on a locked list.
 
 ### `POST /api/sessions/{sessionId}/unlock`
 
