@@ -171,14 +171,14 @@ pub fn now_ms() -> i64 {
         .unwrap_or(0)
 }
 
-/// Insert a minimal lobby session. Session-scoped tests use this instead of
-/// repeating the required columns, so a schema change lands in one place.
+/// Insert a session in the `setup` (lobby) status. Session-scoped tests use this
+/// instead of repeating the required columns, so a schema change lands in one place.
 #[cfg(test)]
 pub(crate) fn insert_test_session(conn: &Connection, id: &str, revision: i64) {
     conn.execute(
         "INSERT INTO game_session
             (id, gm_password, team_count, round_count, current_round, status, revision, created_at)
-         VALUES (?1, 'letmein', 2, 3, 1, 'lobby', ?2, 0)",
+         VALUES (?1, 'letmein', 2, 3, 1, 'setup', ?2, 0)",
         rusqlite::params![id, revision],
     )
     .expect("insert test session");
@@ -189,7 +189,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_test_session_starts_in_the_lobby_at_the_given_revision() {
+    fn a_test_session_starts_in_setup_at_the_given_revision() {
         let conn = Connection::open_in_memory().unwrap();
         apply_schema(&conn).unwrap();
 
@@ -202,7 +202,7 @@ mod tests {
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .unwrap();
-        assert_eq!(status, "lobby");
+        assert_eq!(status, "setup");
         assert_eq!(revision, 7);
     }
 }

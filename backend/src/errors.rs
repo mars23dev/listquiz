@@ -114,3 +114,12 @@ impl From<rusqlite::Error> for ApiError {
         ApiError::new(ErrorCode::BadRequest, format!("storage error: {err}"))
     }
 }
+
+impl From<serde_json::Error> for ApiError {
+    fn from(err: serde_json::Error) -> Self {
+        ApiError::new(
+            ErrorCode::BadRequest,
+            format!("could not encode state: {err}"),
+        )
+    }
+}

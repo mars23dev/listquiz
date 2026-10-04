@@ -63,9 +63,14 @@ pub struct NewTeam {
 }
 
 /// A gamemaster-supplied colour override from the Apply Palette control (FR-048).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// `primary_hex` is optional: the setup screen may send only a team name, and the
+/// palette entry is used as-is.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TeamColorInput {
+    #[serde(default)]
     pub name: Option<String>,
+    #[serde(default)]
     pub primary_hex: String,
 }
 
@@ -141,8 +146,8 @@ pub fn build_teams(count: i32, overrides: &[TeamColorInput]) -> ApiResult<Vec<Ne
     }
 
     let mut teams = Vec::with_capacity(count);
-    for index in 0..count {
-        let spec = INITIAL_TEAMS[index];
+    for (index, spec) in INITIAL_TEAMS.iter().take(count).enumerate() {
+        let spec = *spec;
         let custom = overrides.get(index);
         let (name, primary_hex) = match custom {
             None => (spec.name.to_string(), spec.primary_hex.to_string()),
@@ -154,7 +159,12 @@ pub fn build_teams(count: i32, overrides: &[TeamColorInput]) -> ApiResult<Vec<Ne
                     }
                     None => spec.name.to_string(),
                 };
-                (name, normalize_hex(&input.primary_hex)?)
+                let hex = if input.primary_hex.trim().is_empty() {
+                    spec.primary_hex.to_string()
+                } else {
+                    normalize_hex(&input.primary_hex)?
+                };
+                (name, hex)
             }
         };
         let accent_glow = glow_from_hex(&primary_hex)?;

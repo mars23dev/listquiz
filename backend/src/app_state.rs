@@ -57,6 +57,8 @@ pub struct AppState {
     pub db: Arc<Mutex<Connection>>,
     pub hub: Broadcaster,
     pub dist_dir: PathBuf,
+    /// How often an idle event stream emits a named heartbeat frame.
+    pub heartbeat_interval: std::time::Duration,
 }
 
 impl AppState {
@@ -65,7 +67,16 @@ impl AppState {
             db: Arc::new(Mutex::new(conn)),
             hub: Broadcaster::new(),
             dist_dir,
+            heartbeat_interval: crate::routes::stream::HEARTBEAT_INTERVAL,
         }
+    }
+
+    /// Shorten the heartbeat interval. Only tests do this; a deployed server keeps
+    /// the default so an idle stream is not chatty.
+    #[cfg(test)]
+    pub fn with_heartbeat_interval(mut self, interval: std::time::Duration) -> Self {
+        self.heartbeat_interval = interval;
+        self
     }
 
     /// Run `f` against the database. Used by every handler that reads or writes.

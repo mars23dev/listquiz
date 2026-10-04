@@ -1,5 +1,5 @@
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use axum::Json;
 use axum::Router;
@@ -47,8 +47,8 @@ pub fn router(state: AppState) -> Router {
             "/sessions/{session_id}/events",
             get(crate::routes::stream::events),
         )
-        .fallback(api_not_found)
-        .with_state(state.clone());
+        .fallback(api_not_found);
+    let api = crate::routes::sessions::mount(api).with_state(state.clone());
 
     let index = state.dist_dir.join("index.html");
     let frontend = ServeDir::new(state.dist_dir.clone())
@@ -68,13 +68,13 @@ pub async fn serve(state: AppState, addr: SocketAddr) -> std::io::Result<()> {
 }
 
 /// True when the frontend has been built into the backend's expected location.
-pub fn frontend_built(dist_dir: &PathBuf) -> bool {
+pub fn frontend_built(dist_dir: &Path) -> bool {
     dist_dir.join("index.html").is_file()
 }
 
 /// Message shown at startup when the frontend is missing, with the command that
 /// fixes it.
-pub fn missing_frontend_notice(dist_dir: &PathBuf) -> String {
+pub fn missing_frontend_notice(dist_dir: &Path) -> String {
     format!(
         "Frontend not found at {}.\nRun: npm --prefix frontend install && npm --prefix frontend run build",
         dist_dir.display()

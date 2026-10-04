@@ -92,25 +92,25 @@ password is refused, the right one is accepted, and both teams start on 0 points
 
 > Write these first and confirm they FAIL before implementing.
 
-- [ ] T028 [US1] Integration test: `POST /api/sessions` with `gmPassword` empty returns `bad_request` in `backend/tests/session_create.rs`
-- [ ] T029 [US1] Integration test: `POST /api/sessions` with `roundCount` 0 and 11 returns `bad_request` in `backend/tests/session_create.rs`
-- [ ] T030 [US1] Integration test: `POST /api/sessions` with `teamCount` 0 and 5 returns `bad_request` in `backend/tests/session_create.rs`
-- [ ] T031 [US1] Integration test: a created session returns exactly five role links: one gamemaster link, all four player links p1 through p4 each carrying a `hasTeam` flag for its slot, and one spectator link, in `backend/tests/session_create.rs`
-- [ ] T032 [P] [US1] Integration test: `POST /api/sessions/{id}/unlock` with a wrong password returns `unauthorized` and the message `Incorrect password!` in `backend/tests/session_unlock.rs`
-- [ ] T033 [P] [US1] Integration test: a round missing `quizType` or `listId` cannot start and `POST /api/sessions/{id}/actions` with `next_round` returns `not_ready` in `backend/tests/session_lifecycle.rs`
+- [x] T028 [US1] Integration test: `POST /api/sessions` with `gmPassword` empty returns `bad_request` in `backend/tests/session_create.rs`
+- [x] T029 [US1] Integration test: `POST /api/sessions` with `roundCount` 0 and 11 returns `bad_request` in `backend/tests/session_create.rs`
+- [x] T030 [US1] Integration test: `POST /api/sessions` with `teamCount` 0 and 5 returns `bad_request` in `backend/tests/session_create.rs`
+- [x] T031 [US1] Integration test: a created session returns exactly five role links: one gamemaster link, all four player links p1 through p4 each carrying a `hasTeam` flag for its slot, and one spectator link, in `backend/tests/session_create.rs`
+- [x] T032 [P] [US1] Integration test: `POST /api/sessions/{id}/unlock` with a wrong password returns `unauthorized` and the message `Incorrect password!` in `backend/tests/session_unlock.rs`
+- [x] T033 [P] [US1] Integration test: a round missing `quizType` or `listId` cannot start and `POST /api/sessions/{id}/actions` with `next_round` returns `not_ready` in `backend/tests/session_lifecycle.rs`
 
 ### Implementation for User Story 1
 
-- [ ] T034 [US1] Implement session creation in `backend/src/modules/sessions/mod.rs`: validate `roundCount` in 1-10 and `teamCount` in 1-4, require a non-empty `gmPassword`, verify every referenced `listId` and `columnId` exists, and insert `game_session`, `team`, and `round_config` rows per `data-model.md`
-- [ ] T035 [US1] Implement the session identifier generator in `backend/src/modules/sessions/mod.rs` producing `lq-` plus 8 random lowercase alphanumerics, retrying on the unique-index collision
-- [ ] T036 [P] [US1] Write unit tests in `backend/src/modules/sessions/tests.rs` for identifier format, round-count bounds, and the rule that a Tripmine round requires `tripmineSide` while an Order round must not carry one
-- [ ] T037 [US1] Add the HTTP surface in `backend/src/routes/sessions.rs`: `POST /api/sessions`, `POST /api/sessions/{id}/unlock`, and `GET /api/sessions/{id}/state?role=<role>` returning `not_found` for an unknown session
-- [ ] T038 [US1] Build the role links in `backend/src/routes/sessions.rs` as `/lq-xxxxxxxx/gamemaster`, all four player links `/lq-xxxxxxxx/p1`–`/lq-xxxxxxxx/p4` each carrying a `hasTeam` flag for its slot, and `/lq-xxxxxxxx/view`, plus the `/lq-xxxxxxxx` → `p1` redirect in `backend/src/main.rs`
-- [ ] T039 [US1] Build the three-step setup wizard in `frontend/src/pages/SetupQuiz.tsx`, correcting the draft copy: `Step 1: Participants & Password` makes the password mandatory, team count buttons become `1 Team` through `4 Teams`, and `Step 2: Round Configuration` supports 1-10 rounds with add/remove rows
-- [ ] T040 [US1] Build the session links step in `frontend/src/pages/SetupQuiz.tsx` keeping the draft's `Session Ready:`, `HOST` badge, `Copy Link`, `Launch GM`, per-player pills, `PUBLIC` spectator row, and the `Start Game as Gamemaster` button
-- [ ] T041 [US1] Wire the wizard to the API in `frontend/src/pages/SetupQuiz.tsx` using `frontend/src/api/client.ts`, removing the draft's local `initNewSession` call
-- [ ] T042 [US1] Build the gamemaster password gate in `frontend/src/pages/Session.tsx` using the draft's exact copy: `Gamemaster Access`, `Enter the moderator password to unlock host controls.`, placeholder `Enter password...`, error `Incorrect password!`, buttons `Switch to View` and `Unlock`
-- [ ] T043 [US1] Build the landing page in `frontend/src/pages/Landing.tsx` from the draft's `LandingPage.tsx`, keeping the `LIST`+`QUIZ` wordmark and both cards, and removing the `Quick Start Sample` action
+- [x] T034 [US1] Implement session creation in `backend/src/modules/sessions/mod.rs`: validate `roundCount` in 1-10 and `teamCount` in 1-4, require a non-empty `gmPassword`, verify every referenced `listId` and `columnId` exists, and insert `game_session`, `team`, and `round_config` rows per `data-model.md`
+- [x] T035 [US1] Implement the session identifier generator in `backend/src/modules/sessions/mod.rs` producing `lq-` plus 8 random lowercase alphanumerics, retrying on the unique-index collision
+- [x] T036 [P] [US1] Write unit tests in `backend/src/modules/sessions/tests.rs` for identifier format, round-count bounds, and the rule that a Tripmine round requires `tripmineSide` while an Order round must not carry one
+- [x] T037 [US1] Add the HTTP surface in `backend/src/routes/sessions.rs`: `POST /api/sessions`, `POST /api/sessions/{id}/unlock`, and `GET /api/sessions/{id}/state?role=<role>` returning `not_found` for an unknown session
+- [x] T038 [US1] Build the role links in `backend/src/routes/sessions.rs` as `/lq-xxxxxxxx/gamemaster`, all four player links `/lq-xxxxxxxx/p1`–`/lq-xxxxxxxx/p4` each carrying a `hasTeam` flag for its slot, and `/lq-xxxxxxxx/view`, plus the `/lq-xxxxxxxx` → `p1` redirect in `backend/src/main.rs`
+- [x] T039 [US1] Build the three-step setup wizard in `frontend/src/pages/SetupQuiz.tsx`, correcting the draft copy: `Step 1: Participants & Password` makes the password mandatory, team count buttons become `1 Team` through `4 Teams`, and `Step 2: Round Configuration` supports 1-10 rounds with add/remove rows
+- [x] T040 [US1] Build the session links step in `frontend/src/pages/SetupQuiz.tsx` keeping the draft's `Session Ready:`, `HOST` badge, `Copy Link`, `Launch GM`, per-player pills, `PUBLIC` spectator row, and the `Start Game as Gamemaster` button
+- [x] T041 [US1] Wire the wizard to the API in `frontend/src/pages/SetupQuiz.tsx` using `frontend/src/api/client.ts`, removing the draft's local `initNewSession` call
+- [x] T042 [US1] Build the gamemaster password gate in `frontend/src/pages/Session.tsx` using the draft's exact copy: `Gamemaster Access`, `Enter the moderator password to unlock host controls.`, placeholder `Enter password...`, error `Incorrect password!`, buttons `Switch to View` and `Unlock`
+- [x] T043 [US1] Build the landing page in `frontend/src/pages/Landing.tsx` from the draft's `LandingPage.tsx`, keeping the `LIST`+`QUIZ` wordmark and both cards, and removing the `Quick Start Sample` action
 
 **Checkpoint**: A gamemaster can create a session and unlock their view. Test independently before
 moving on.

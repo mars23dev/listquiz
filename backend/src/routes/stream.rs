@@ -14,6 +14,11 @@ use crate::errors::{ApiError, ApiResult};
 /// The event body is only a revision number; each client re-reads `GET /state` for
 /// its own role, so redaction happens in exactly one place on the server
 /// (contracts/realtime.md).
+/// How often an idle stream emits a named `heartbeat` frame. The contract wants a
+/// heartbeat event, not only an SSE comment, so a client can prove its connection
+/// is alive and confirm the revision it is holding.
+pub const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
+
 pub async fn events(
     State(state): State<AppState>,
     axum::extract::Path(session_id): axum::extract::Path<String>,
@@ -25,42 +30,58 @@ pub async fn events(
         .ok_or_else(|| ApiError::not_found(format!("Unknown role '{}'.", query.role)))?;
     state.require_session(&session_id)?;
 
-    let mut receiver = state.hub.subscribe();
-    let session = session_id.clone();
-    let app = state.clone();
-    let start_revision = state.current_revision(&session_id);
+    let heartbeat = state.heartbeat_interval;
+    let signal_stream = signal_stream(state.clone(), session_id, state.hub.subscribe(), heartbeat);
 
-    let signal_stream = async_stream::stream! {
+    // The keep-alive writes an SSE comment as well, for proxies that close a
+    // connection with no bytes on it at all.
+    Ok(Sse::new(signal_stream).keep_alive(KeepAlive::new().interval(heartbeat)))
+}
+
+fn signal_stream(
+    state: AppState,
+    session_id: String,
+    mut receiver: tokio::sync::broadcast::Receiver<crate::app_state::Update>,
+    heartbeat: Duration,
+) -> impl Stream<Item = Result<Event, Infallible>> {
+    async_stream::stream! {
         // The first frame lets a client that connected late settle on the current
         // revision before it starts listening for changes.
-        yield Ok(signal_event("state", start_revision));
-        let mut last_revision: i64 = start_revision;
+        let mut last_revision: i64 = state.current_revision(&session_id);
+        yield Ok(signal_event("state", last_revision));
+
+        let mut ticker = tokio::time::interval(heartbeat);
+        // The first tick is immediate; the opening `state` frame already covers it.
+        ticker.tick().await;
+
         loop {
-            match receiver.recv().await {
-                Ok(update) if update.session_id == session => {
-                    if last_revision != update.revision {
-                        last_revision = update.revision;
-                        yield Ok(signal_event("state", update.revision));
+            tokio::select! {
+                received = receiver.recv() => {
+                    match received {
+                        Ok(update) if update.session_id == session_id => {
+                            if last_revision != update.revision {
+                                last_revision = update.revision;
+                                yield Ok(signal_event("state", update.revision));
+                            }
+                        }
+                        Ok(_) => {}
+                        Err(RecvError::Lagged(_)) => {
+                            // A slow client missed updates; it refetches on the next
+                            // signal, so ask it to read state now.
+                            last_revision = state.current_revision(&session_id);
+                            yield Ok(signal_event("state", last_revision));
+                        }
+                        Err(RecvError::Closed) => break,
                     }
                 }
-                Ok(_) => {}
-                Err(RecvError::Lagged(_)) => {
-                    // A slow client missed updates; it will refetch on the next
-                    // signal, so ask it to read state now.
-                    last_revision = app.current_revision(&session);
-                    yield Ok(signal_event("state", last_revision));
+                _ = ticker.tick() => {
+                    // Every frame carries a revision, heartbeats included, so a client
+                    // can skip the refetch whenever nothing moved (realtime.md).
+                    yield Ok(signal_event("heartbeat", last_revision));
                 }
-                Err(RecvError::Closed) => break,
             }
-            // Every frame carries a revision, heartbeats included, so a client can
-            // skip the refetch whenever nothing actually moved (realtime.md).
-            yield Ok(signal_event("heartbeat", last_revision));
         }
-    };
-
-    // The keep-alive writes an SSE comment; it keeps proxies from closing an idle
-    // stream without putting a second, unversioned frame on the wire.
-    Ok(Sse::new(signal_stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(15))))
+    }
 }
 
 fn signal_event(name: &str, revision: i64) -> Event {
@@ -91,6 +112,7 @@ mod tests {
         let conn = Connection::open_in_memory().unwrap();
         apply_schema(&conn).unwrap();
         AppState::new(conn, PathBuf::from("does-not-exist"))
+            .with_heartbeat_interval(Duration::from_millis(20))
     }
 
     #[tokio::test]
@@ -156,6 +178,48 @@ mod tests {
             .expect("no update frame arrived")
             .expect("stream ended");
         assert_eq!(update, "event: state\ndata: {\"revision\":2}\n\n");
+    }
+
+    #[tokio::test]
+    async fn an_idle_stream_still_sends_named_heartbeats() {
+        let state = test_state();
+        state.with_db(|conn| crate::db::insert_test_session(conn, "s1", 7));
+
+        let mut frames = open_frames(state.clone()).await;
+
+        assert_eq!(
+            frames.next().await.unwrap(),
+            "event: state\ndata: {\"revision\":7}\n\n"
+        );
+        for _ in 0..2 {
+            let frame = tokio::time::timeout(Duration::from_secs(2), frames.next())
+                .await
+                .expect("no heartbeat arrived")
+                .expect("stream ended");
+            assert_eq!(frame, "event: heartbeat\ndata: {\"revision\":7}\n\n");
+        }
+    }
+
+    #[tokio::test]
+    async fn a_heartbeat_repeats_the_revision_a_client_already_holds() {
+        let state = test_state();
+        state.with_db(|conn| crate::db::insert_test_session(conn, "s1", 3));
+
+        let mut frames = open_frames(state.clone()).await;
+        assert_eq!(
+            frames.next().await.unwrap(),
+            "event: state\ndata: {\"revision\":3}\n\n"
+        );
+
+        assert_eq!(state.bump_revision("s1").unwrap(), 4);
+        assert_eq!(
+            frames.next().await.unwrap(),
+            "event: state\ndata: {\"revision\":4}\n\n"
+        );
+        assert_eq!(
+            frames.next().await.unwrap(),
+            "event: heartbeat\ndata: {\"revision\":4}\n\n"
+        );
     }
 
     /// Open the stream through the router and hand back one `String` per SSE

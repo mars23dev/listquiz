@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import App from '../App';
 
@@ -9,6 +9,32 @@ function setPath(path: string) {
 describe('App shell', () => {
   beforeEach(() => {
     setPath('/');
+    // The setup wizard loads the default lists on mount.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            lists: [
+              {
+                id: 'default_world_history',
+                title: 'World History & Inventions',
+                description: '',
+                orderDirection: 'low_to_high',
+                itemCount: 12,
+                isDefault: true,
+                columns: [{ id: 'year', name: 'Year' }],
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      ),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('renders the landing page at the root path', () => {
@@ -32,7 +58,9 @@ describe('App shell', () => {
 
     screen.getByRole('button', { name: /host a quiz/i }).click();
 
-    expect(await screen.findByRole('heading', { name: /set up quiz/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: /step 1: participants & password/i }),
+    ).toBeInTheDocument();
     expect(window.location.pathname).toBe('/setup');
   });
 
