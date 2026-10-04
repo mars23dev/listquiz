@@ -1,0 +1,10 @@
+frontend/dist/
+frontend/node_modules/
+frontend/.vite/
+frontend/.npm-cache/
+
+backend/target/
+backend/data/
+
+node_modules/
+.vite/
