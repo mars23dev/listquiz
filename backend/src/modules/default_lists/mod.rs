@@ -330,6 +330,75 @@ pub const DEFAULT_LISTS: [DefaultList; 3] = [
     },
 ];
 
+/// One column as the API reports it.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ColumnSummary {
+    pub id: String,
+    pub name: String,
+}
+
+/// A list as the API reports it: enough to pick a round, never the items.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListSummary {
+    pub id: String,
+    pub title: String,
+    pub description: String,
+    pub order_direction: String,
+    pub columns: Vec<ColumnSummary>,
+    pub item_count: i64,
+    pub is_default: bool,
+}
+
+/// The `{ "lists": [...] }` envelope the list endpoints return.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ListSummaries {
+    pub lists: Vec<ListSummary>,
+}
+
+/// Every list in `folder_id` with its columns, oldest first. Reads the database
+/// rather than the seed constants, so a folder created later answers the same
+/// way the seeded one does.
+pub fn list_summaries(conn: &Connection, folder_id: &str) -> ApiResult<ListSummaries> {
+    let mut lists = Vec::new();
+    let mut statement = conn.prepare(
+        "SELECT id, title, description, order_direction, item_count, is_default
+         FROM quiz_list WHERE folder_id = ?1 ORDER BY created_at ASC, title ASC",
+    )?;
+    let rows = statement.query_map(params![folder_id], |row| {
+        Ok(ListSummary {
+            id: row.get(0)?,
+            title: row.get(1)?,
+            description: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
+            order_direction: row.get(3)?,
+            columns: Vec::new(),
+            item_count: row.get(4)?,
+            is_default: row.get::<_, i64>(5)? != 0,
+        })
+    })?;
+    for row in rows {
+        let mut list = row?;
+        list.columns = columns_of(conn, &list.id)?;
+        lists.push(list);
+    }
+    Ok(ListSummaries { lists })
+}
+
+/// A list's columns in display order; `columns[0]` is the default value column.
+fn columns_of(conn: &Connection, list_id: &str) -> ApiResult<Vec<ColumnSummary>> {
+    let mut statement = conn.prepare(
+        "SELECT id, name FROM list_item_column WHERE list_id = ?1 ORDER BY position ASC",
+    )?;
+    let rows = statement.query_map(params![list_id], |row| {
+        Ok(ColumnSummary {
+            id: row.get(0)?,
+            name: row.get(1)?,
+        })
+    })?;
+    let columns = rows.collect::<Result<Vec<_>, _>>()?;
+    Ok(columns)
+}
+
 /// Insert the seeded lists into `folder_id`. Idempotent, and a failure to write the
 /// seed is reported rather than swallowed.
 pub fn seed_default_lists(conn: &Connection, folder_id: &str) -> ApiResult<()> {

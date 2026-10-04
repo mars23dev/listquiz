@@ -9,11 +9,21 @@ function setPath(path: string) {
 describe('App shell', () => {
   beforeEach(() => {
     setPath('/');
-    // The setup wizard loads the default lists on mount.
+    // The setup wizard loads the default lists, and list management loads the
+    // folders; both answers have to match their endpoint's shape.
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () =>
-        new Response(
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === '/api/folders') {
+          return new Response(
+            JSON.stringify([
+              { id: 'default', name: 'Default Lists', isDefault: true, locked: false },
+            ]),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+        return new Response(
           JSON.stringify({
             lists: [
               {
@@ -28,8 +38,8 @@ describe('App shell', () => {
             ],
           }),
           { status: 200, headers: { 'Content-Type': 'application/json' } },
-        ),
-      ),
+        );
+      }),
     );
   });
 

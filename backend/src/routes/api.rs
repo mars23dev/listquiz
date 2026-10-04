@@ -48,7 +48,10 @@ pub fn router(state: AppState) -> Router {
             get(crate::routes::stream::events),
         )
         .fallback(api_not_found);
-    let api = crate::routes::sessions::mount(api).with_state(state.clone());
+    let api = crate::routes::sessions::mount(api);
+    let api = crate::routes::folders::mount(api);
+    let api = crate::routes::lists::mount(api);
+    let api = api.with_state(state.clone());
 
     let index = state.dist_dir.join("index.html");
     let frontend = ServeDir::new(state.dist_dir.clone())

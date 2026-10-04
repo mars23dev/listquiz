@@ -128,24 +128,24 @@ editor and import screens.
 
 ### Tests for User Story 2
 
-- [ ] T044 [US2] Integration test: `POST /api/folders` with an empty name or empty password returns `bad_request` in `backend/tests/folder_lifecycle.rs`
-- [ ] T045 [US2] Integration test: `POST /api/folders` with a duplicate name returns `conflict` in `backend/tests/folder_lifecycle.rs`
-- [ ] T046 [US2] Integration test: unlocking with a wrong password returns `unauthorized` and no list data in `backend/tests/folder_lifecycle.rs`
-- [ ] T047 [US2] Integration test: any write aimed at the default folder returns `conflict` in `backend/tests/folder_lifecycle.rs`
-- [ ] T048 [US2] Integration test: `GET /api/folders` reports `locked: true` for an unlocked-by-nobody folder and never includes list names for it in `backend/tests/folder_lifecycle.rs`
-- [ ] T049 [P] [US2] Integration test: `POST /api/folders/{id}/delete` with a wrong `confirmPassword` returns `unauthorized`, and with the correct one removes its lists while leaving the default folder intact in `backend/tests/folder_delete.rs`
-- [ ] T050 [US2] Integration test: `POST /api/folders/{id}/rename` to an existing name returns `conflict` in `backend/tests/folder_lifecycle.rs`
+- [x] T044 [US2] Integration test: `POST /api/folders` with an empty name or empty password returns `bad_request` in `backend/tests/folder_lifecycle.rs`
+- [x] T045 [US2] Integration test: `POST /api/folders` with a duplicate name returns `conflict` in `backend/tests/folder_lifecycle.rs`
+- [x] T046 [US2] Integration test: unlocking with a wrong password returns `unauthorized` and no list data in `backend/tests/folder_lifecycle.rs`
+- [x] T047 [US2] Integration test: any write aimed at the default folder returns `conflict` in `backend/tests/folder_lifecycle.rs`
+- [x] T048 [US2] Integration test: `GET /api/folders` reports `locked: true` for an unlocked-by-nobody folder and never includes list names for it in `backend/tests/folder_lifecycle.rs`
+- [x] T049 [P] [US2] Integration test: `POST /api/folders/{id}/delete` with a wrong `confirmPassword` returns `unauthorized`, and with the correct one removes its lists while leaving the default folder intact in `backend/tests/folder_delete.rs`
+- [x] T050 [US2] Integration test: `POST /api/folders/{id}/rename` to an existing name returns `conflict` in `backend/tests/folder_lifecycle.rs`
 
 ### Implementation for User Story 2
 
-- [ ] T051 [US2] Implement the folder rules in `backend/src/modules/folders/mod.rs` enforcing the `data-model.md` constraints: name "trimmed, 1-60 chars, unique among non-default folders", password non-empty except for `id = 'default'`, identifiers `fld-<8 random alphanumerics>`
-- [ ] T052 [P] [US2] Write unit tests in `backend/src/modules/folders/tests.rs` for name trimming, the 60-character bound, and the default folder's empty-password exemption
-- [ ] T053 [US2] Implement `unlock`, `rename`, and `delete` in `backend/src/modules/folders/mod.rs`, with delete requiring the password re-entered as confirmation, returning the folder's list count, and cascading deletion to its lists only
-- [ ] T054 [US2] Add the HTTP surface in `backend/src/routes/folders.rs`: `POST /api/folders`, `POST /api/folders/{id}/unlock`, `POST /api/folders/{id}/rename`, `POST /api/folders/{id}/delete` (204), and `GET /api/folders`
-- [ ] T055 [US2] Build the folder bar in `frontend/src/pages/ListManagement.tsx` above the draft's list grid: create folder, unlock, rename, and delete with a password confirmation that displays the list count
-- [ ] T056 [US2] Render the default folder read-only in `frontend/src/pages/ListManagement.tsx`, hiding `Create List`, `Import CSV`, `Duplicate List`, `Delete List`, and rename controls for its cards
+- [x] T051 [US2] Implement the folder rules in `backend/src/modules/folders/mod.rs` enforcing the `data-model.md` constraints: name "trimmed, 1-60 chars, unique among non-default folders", password non-empty except for `id = 'default'`, identifiers `fld-<8 random alphanumerics>`
+- [x] T052 [P] [US2] Write unit tests in `backend/src/modules/folders/tests.rs` for name trimming, the 60-character bound, and the default folder's empty-password exemption
+- [x] T053 [US2] Implement `unlock`, `rename`, and `delete` in `backend/src/modules/folders/mod.rs`, with delete requiring the password re-entered as confirmation, returning the folder's list count, and cascading deletion to its lists only
+- [x] T054 [US2] Add the HTTP surface in `backend/src/routes/folders.rs`: `POST /api/folders`, `POST /api/folders/{id}/unlock`, `POST /api/folders/{id}/rename`, `POST /api/folders/{id}/delete` (204), and `GET /api/folders`
+- [x] T055 [US2] Build the folder bar in `frontend/src/pages/ListManagement.tsx` above the draft's list grid: create folder, unlock, rename, and delete with a password confirmation that displays the list count
+- [x] T056 [US2] Render the default folder read-only in `frontend/src/pages/ListManagement.tsx`, hiding `Create List`, `Import CSV`, `Duplicate List`, `Delete List`, and rename controls for its cards
 - [ ] T057 [US2] Add the sensitive-data hint to `frontend/src/pages/ListManagement.tsx` on both the list editor and the CSV import modal, stating the data is not protected and that sensitive data must not be added
-- [ ] T058 [US2] Add `GET /api/default-lists` in `backend/src/routes/lists.rs` returning the seeded lists with no password, calling `backend/src/modules/default_lists/mod.rs`
+- [x] T058 [US2] Add `GET /api/default-lists` in `backend/src/routes/lists.rs` returning the seeded lists with no password, calling `backend/src/modules/default_lists/mod.rs`
 
 **Checkpoint**: US1 and US2 both work independently. Locked folders expose nothing.
 
