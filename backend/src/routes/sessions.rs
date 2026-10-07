@@ -16,6 +16,7 @@ use crate::app_state::{AppState, SessionLinks, UserRole, build_links};
 use crate::errors::{ApiError, ApiResult};
 use crate::modules::order_round;
 use crate::modules::sessions::{self, CreateSessionRequest, round_state};
+use crate::modules::tripmine_round;
 use crate::state_reader;
 
 /// The `POST /api/sessions` answer: the new id plus its five role links.
@@ -157,6 +158,10 @@ fn apply_action(state: &AppState, session_id: &str, request: &ActionRequest) -> 
             state.with_db(|conn| apply_order_action(conn, session_id, request))?;
             state.bump_revision(session_id)
         }
+        "pick_tripitem" => {
+            state.with_db(|conn| apply_tripmine_action(conn, session_id, request))?;
+            state.bump_revision(session_id)
+        }
         other => Err(ApiError::bad_request(format!("Unknown action '{other}'."))),
     }
 }
@@ -200,7 +205,7 @@ fn require_team_on_turn(
         )
         .optional()?;
     let active = active.ok_or_else(|| ApiError::not_ready("No team is on turn."))?;
-    if active != requested {
+    if !crate::modules::scoring::is_active_turn(Some(&active), &requested) {
         return Err(ApiError::not_ready(format!(
             "It is {active}'s turn, not {requested}'s."
         )));
@@ -279,6 +284,51 @@ fn apply_order_action(
         }
         other => Err(ApiError::bad_request(format!("Unknown action '{other}'."))),
     }
+}
+
+/// One Tripmine pick (FR-039 to FR-044). The side is fixed at round start, so a
+/// request that tries to change it is refused before any scoring happens (FR-036).
+fn apply_tripmine_action(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+    request: &ActionRequest,
+) -> ApiResult<()> {
+    let item_id = require_field(request.item_id.as_deref(), "itemId")?;
+    let round = tripmine_round::load_round(conn, session_id)?.ok_or_else(|| {
+        ApiError::not_ready("There is no Tripmine round running in this session yet.")
+    })?;
+    tripmine_round::ensure_side_unchanged(&round, request.side.as_deref())?;
+
+    // Only the team on turn picks; the gamemaster acts on that team's behalf by
+    // naming the active team, and any other team id is refused (FR-044).
+    let team_id = require_team_on_turn(conn, session_id, request.team_id.as_deref())?;
+    let teams = order_round::load_teams(conn, session_id)?;
+    let outcome = tripmine_round::pick_item(&round, item_id, &team_id, &teams)?;
+
+    let round_number: i32 = conn.query_row(
+        "SELECT current_round FROM game_session WHERE id = ?1",
+        [session_id],
+        |row| row.get(0),
+    )?;
+
+    let tx = conn.unchecked_transaction()?;
+    tripmine_round::save_round(&tx, session_id, &outcome.round)?;
+    order_round::save_teams(&tx, session_id, &outcome.teams)?;
+    order_round::append_events(&tx, session_id, round_number, &outcome.events)?;
+    tx.execute(
+        "UPDATE game_session SET active_team_id = ?2, last_message = ?3 WHERE id = ?1",
+        rusqlite::params![
+            session_id,
+            outcome.next_team_id,
+            if outcome.round.completed {
+                Some(format!("Round {round_number} is over."))
+            } else {
+                None
+            }
+        ],
+    )?;
+    tx.commit()?;
+    Ok(())
 }
 
 /// Move the session on to the next configured round. A round whose list or

@@ -200,26 +200,26 @@ wrong non-tripmine pick, `-10` for the picker plus `+10` for everyone else on a 
 
 ### Tests for User Story 4
 
-- [ ] T079 [US4] Unit test: `start_tripmine_round` picks 10 items, assigns `true_rank` 1 (lowest) to 10 (highest), and marks the tripmine as rank 10 when the side is `highest` and rank 1 when `lowest` in `backend/src/modules/tripmine_round/tests.rs`
-- [ ] T080 [US4] Unit test: the initial `searched_rank` is 1 for a `highest` tripmine and 10 for a `lowest` tripmine in `backend/src/modules/tripmine_round/tests.rs`
-- [ ] T081 [US4] Unit test: picking the searched position awards 10 and advances `searched_rank` to the next unrevealed position in the search direction in `backend/src/modules/tripmine_round/tests.rs`
-- [ ] T082 [US4] Unit test: picking a wrong non-tripmine item awards 5, reveals only that position, and leaves `searched_rank` unchanged in `backend/src/modules/tripmine_round/tests.rs`
-- [ ] T083 [US4] Unit test: picking the tripmine removes 10 from the picker, adds 10 to every other team, reveals all positions, and ends the round in `backend/src/modules/tripmine_round/tests.rs`
-- [ ] T084 [US4] Unit test: with exactly two unrevealed items a correct pick awards 20 instead of 10 and ends the round in `backend/src/modules/tripmine_round/tests.rs`
-- [ ] T085 [US4] Unit test: a pick from a team that is not on turn is refused, except for the gamemaster acting on the active team's behalf in `backend/src/modules/tripmine_round/tests.rs`
-- [ ] T086 [US4] Unit test: changing the tripmine side after the round starts is refused in `backend/src/modules/tripmine_round/tests.rs`
-- [ ] T087 [P] [US4] Integration test: a player role never receives `isTripmine: true` for an unrevealed item in `backend/tests/tripmine_actions.rs`
+- [x] T079 [US4] Unit test: `start_tripmine_round` picks 10 items, assigns `true_rank` 1 (lowest) to 10 (highest), and marks the tripmine as rank 10 when the side is `highest` and rank 1 when `lowest` in `backend/src/modules/tripmine_round/tests.rs`
+- [x] T080 [US4] Unit test: the initial `searched_rank` is 1 for a `highest` tripmine and 10 for a `lowest` tripmine in `backend/src/modules/tripmine_round/tests.rs`
+- [x] T081 [US4] Unit test: picking the searched position awards 10 and advances `searched_rank` to the next unrevealed position in the search direction in `backend/src/modules/tripmine_round/tests.rs`
+- [x] T082 [US4] Unit test: picking a wrong non-tripmine item awards 5, reveals only that position, and leaves `searched_rank` unchanged in `backend/src/modules/tripmine_round/tests.rs`
+- [x] T083 [US4] Unit test: picking the tripmine removes 10 from the picker, adds 10 to every other team, reveals all positions, and ends the round in `backend/src/modules/tripmine_round/tests.rs`
+- [x] T084 [US4] Unit test: with exactly two unrevealed items a correct pick awards 20 instead of 10 and ends the round in `backend/src/modules/tripmine_round/tests.rs`
+- [x] T085 [US4] Unit test: a pick from a team that is not on turn is refused, except for the gamemaster acting on the active team's behalf in `backend/src/modules/tripmine_round/tests.rs`
+- [x] T086 [US4] Unit test: changing the tripmine side after the round starts is refused in `backend/src/modules/tripmine_round/tests.rs`
+- [x] T087 [P] [US4] Integration test: a player role never receives `isTripmine: true` for an unrevealed item in `backend/tests/tripmine_actions.rs`
 
 ### Implementation for User Story 4
 
-- [ ] T088 [US4] Implement `start_tripmine_round(list, column_id, side, rng)` in `backend/src/modules/tripmine_round/mod.rs` sampling 10 items, ranking them by numeric value ascending, setting `searched_rank` from the side, and storing the JSON `items` array from `data-model.md`
-- [ ] T089 [US4] Implement `pick_item` in `backend/src/modules/tripmine_round/mod.rs` with the four branches — searched, wrong non-tripmine, tripmine hit, and the two-remaining final find — delegating scoring to `backend/src/modules/scoring/` with reasons `searched_item_found`, `safe_pick`, `tripmine_hit`, and `final_item`
-- [ ] T090 [US4] Implement `next_searched_rank` in `backend/src/modules/tripmine_round/mod.rs` scanning upward from the hit rank when the tripmine is highest and downward when it is lowest, skipping already-revealed positions
-- [ ] T091 [US4] Persist `tripmine_state` in `backend/src/modules/tripmine_round/mod.rs`, replacing it only at a round start so the ten items never change mid-round
-- [ ] T092 [US4] Add the `pick_tripitem` action to `backend/src/routes/sessions.rs` and reject a side change once `status = 'running'`
-- [ ] T093 [US4] Copy `the reference frontend's components/TripmineBoard.tsx` to `frontend/src/components/TripmineBoard.tsx` unchanged, including the searched-rank display, the grid, and the draft's feedback strings `BOOM!`, `PERFECT DEFUSE!`, `TARGET HIT!`, and `Safe pick!`
-- [ ] T094 [US4] Remove the in-round tripmine side switch from `frontend/src/components/TripmineBoard.tsx` and move it to setup only, per the clarification that the side is locked once play begins
-- [ ] T095 [US4] Wire the Tripmine board to the API in `frontend/src/pages/Session.tsx`, keeping the draft's grid behaviour and making every cell a keyboard-reachable `button`
+- [x] T088 [US4] Implement `start_tripmine_round(list, column_id, side, rng)` in `backend/src/modules/tripmine_round/mod.rs` sampling 10 items, ranking them by numeric value ascending, setting `searched_rank` from the side, and storing the JSON `items` array from `data-model.md`
+- [x] T089 [US4] Implement `pick_item` in `backend/src/modules/tripmine_round/mod.rs` with the four branches — searched, wrong non-tripmine, tripmine hit, and the two-remaining final find — delegating scoring to `backend/src/modules/scoring/` with reasons `searched_item_found`, `safe_pick`, `tripmine_hit`, and `final_item`
+- [x] T090 [US4] Implement `next_searched_rank` in `backend/src/modules/tripmine_round/mod.rs` scanning upward from the hit rank when the tripmine is highest and downward when it is lowest, skipping already-revealed positions
+- [x] T091 [US4] Persist `tripmine_state` in `backend/src/modules/tripmine_round/mod.rs`, replacing it only at a round start so the ten items never change mid-round
+- [x] T092 [US4] Add the `pick_tripitem` action to `backend/src/routes/sessions.rs` and reject a side change once `status = 'running'`
+- [x] T093 [US4] Copy `the reference frontend's components/TripmineBoard.tsx` to `frontend/src/components/TripmineBoard.tsx` unchanged, including the searched-rank display, the grid, and the draft's feedback strings `BOOM!`, `PERFECT DEFUSE!`, `TARGET HIT!`, and `Safe pick!`
+- [x] T094 [US4] Remove the in-round tripmine side switch from `frontend/src/components/TripmineBoard.tsx` and move it to setup only, per the clarification that the side is locked once play begins
+- [x] T095 [US4] Wire the Tripmine board to the API in `frontend/src/pages/Session.tsx`, keeping the draft's grid behaviour and making every cell a keyboard-reachable `button`
 
 **Checkpoint**: Both quiz types work independently.
 

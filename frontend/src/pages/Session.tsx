@@ -3,8 +3,14 @@ import { ApiError, postSessionAction, unlockSession } from '../api/client';
 import { useSessionStream } from '../hooks/useSessionStream';
 import { MiddleItemGrid } from '../components/MiddleItemGrid';
 import { TopBarOrdering } from '../components/TopBarOrdering';
-import type { QuizItem, UserRole } from '../types/quiz';
-import type { OrderItem } from '../types/session';
+import { TripmineBoard } from '../components/TripmineBoard';
+import type {
+  QuizItem,
+  TripmineItem as QuizTripmineItem,
+  TripmineState as QuizTripmineState,
+  UserRole,
+} from '../types/quiz';
+import type { OrderItem, TripmineView } from '../types/session';
 
 interface SessionProps {
   sessionId: string;
@@ -35,6 +41,38 @@ interface ChosenSlot {
   slotIndex: number;
 }
 
+/**
+ * The server reports `revealed: true` for the gamemaster on every Tripmine item so
+ * the answer key shows, but the board's "is this position picked" must follow the
+ * points, which are only set once an item is really revealed.
+ */
+function toTripmineItem(
+  item: TripmineView['items'][number],
+  isGamemaster: boolean,
+): QuizTripmineItem {
+  const picked = isGamemaster ? item.pointsAwarded !== null : item.revealed;
+  return {
+    id: item.itemId,
+    name: item.name,
+    value: item.value ?? '',
+    numericValue: 0,
+    trueRank: item.trueRank ?? 0,
+    isTripmine: item.isTripmine,
+    isRevealed: picked,
+    pointsAwarded: item.pointsAwarded ?? undefined,
+  };
+}
+
+function toTripmineState(view: TripmineView, isGamemaster: boolean): QuizTripmineState {
+  return {
+    tripmineSide: view.side === 'lowest' ? 'lowest' : 'highest',
+    currentSearchedRank: view.searchedRank,
+    items: view.items.map((item) => toTripmineItem(item, isGamemaster)),
+    tripmineHit: view.hit,
+    isCompleted: view.completed,
+  };
+}
+
 export function Session({ sessionId, role, onNavigate }: SessionProps) {
   const [password, setPassword] = useState('');
   const [unlocked, setUnlocked] = useState(false);
@@ -49,6 +87,7 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
   }, [needsPassword, refresh]);
 
   const order = state?.order ?? null;
+  const tripmine = state?.tripmine ?? null;
   const isGamemaster = role === 'gamemaster';
   const onTurnTeamId = useMemo(
     () => state?.teams.find((team) => team.onTurn)?.id ?? null,
@@ -70,6 +109,7 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
   const [chosenSlot, setChosenSlot] = useState<ChosenSlot | null>(null);
   const [draggingItem, setDraggingItem] = useState<QuizItem | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [tripmineFeedback, setTripmineFeedback] = useState<string | null>(null);
 
   const poolItems = useMemo(
     () => (order?.pool ?? []).map(toQuizItem),
@@ -175,6 +215,26 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
 
   async function handleRevealValues() {
     await sendAction({ action: 'reveal_values' });
+  }
+
+  function handlePickItem(item: QuizTripmineItem) {
+    if (!onTurnTeamId) return;
+    const teamName = activeTeamName ?? 'The active team';
+    const unrevealedBefore = tripmine?.items.filter((entry) => !entry.revealed).length ?? 0;
+    // The draft's own feedback copy, chosen from the same four outcomes the server
+    // scores (FR-040 to FR-043).
+    if (item.isTripmine) {
+      setTripmineFeedback(
+        `💥 BOOM! ${teamName} hit the Tripmine! (-10 pts, other teams +10 pts)`,
+      );
+    } else if (unrevealedBefore === 2) {
+      setTripmineFeedback(`🎯 PERFECT DEFUSE! ${teamName} found the final item! (+20 pts)`);
+    } else if (item.trueRank === tripmine?.searchedRank) {
+      setTripmineFeedback(`🎯 TARGET HIT! ${teamName} found Rank #${item.trueRank}! (+10 pts)`);
+    } else {
+      setTripmineFeedback(`Safe pick! ${teamName} revealed Rank #${item.trueRank} (+5 pts)`);
+    }
+    void sendAction({ action: 'pick_tripitem', itemId: item.id, teamId: onTurnTeamId });
   }
 
   async function submitUnlock(event: React.FormEvent) {
@@ -366,6 +426,18 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
             onSelectItem={handleSelectItem}
             selectedItemId={order.pending?.itemId ?? null}
             interactive={isGamemaster}
+          />
+        </section>
+      ) : null}
+
+      {tripmine ? (
+        <section className="mt-6">
+          <TripmineBoard
+            tripmineState={toTripmineState(tripmine, isGamemaster)}
+            onPickItem={handlePickItem}
+            isMyTurn={isGamemaster}
+            currentRole={role}
+            feedbackMessage={tripmineFeedback}
           />
         </section>
       ) : null}

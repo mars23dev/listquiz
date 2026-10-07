@@ -190,6 +190,13 @@ pub fn advance_turn(teams: &[TeamStanding], current_team_id: &str) -> Option<Str
     None
 }
 
+/// True when `requested` is the team on turn. Only the active team acts; the
+/// gamemaster acts on that team's behalf by naming it, so one check serves both
+/// views (FR-044).
+pub fn is_active_turn(active_team_id: Option<&str>, requested: &str) -> bool {
+    matches!(active_team_id, Some(active) if active == requested)
+}
+
 /// The team holding the first turn of round `round_number`, rotating one team per
 /// round (FR-015).
 pub fn starting_team_for_round(round_number: i32, team_count: i32) -> String {

@@ -51,6 +51,8 @@ export interface TripmineItem {
   name: string;
   value: string | null;
   revealed: boolean;
+  /** Position 1-10; null for a player until that item is revealed (FR-039). */
+  trueRank: number | null;
   /** Only true for an item this view is allowed to know the answer for. */
   isTripmine: boolean;
   pointsAwarded: number | null;

@@ -1,74 +1,7 @@
-//! Unit tests for the round builder. The Order anchor and the Tripmine ranking are
-//! the two places where a plausible-looking shortcut would quietly break a game
-//! rule, so both are pinned here.
+//! Unit tests for the round builder: value loading and its sort direction.
 
 use super::*;
 use crate::modules::sessions::QuizType;
-
-fn items(count: usize) -> Vec<ListItemValue> {
-    (1..=count)
-        .map(|n| ListItemValue {
-            item_id: format!("i{n}"),
-            name: format!("Item {n}"),
-            display: n.to_string(),
-            numeric: n as f64 * 10.0,
-        })
-        .collect()
-}
-
-#[test]
-fn a_highest_tripmine_mines_the_top_of_the_ranking() {
-    let grid = build_tripmine_grid(&items(12), TripmineSide::Highest).expect("grid");
-
-    assert_eq!(grid.len(), TRIPMINE_SLOTS);
-    assert_eq!(grid[0].item.item_id, "i1");
-    assert_eq!(grid[0].true_rank, 1);
-    let mine = grid.iter().find(|slot| slot.is_tripmine).expect("one mine");
-    assert_eq!(mine.true_rank, TRIPMINE_SLOTS as i32);
-    assert_eq!(mine.item.numeric, 100.0);
-    assert_eq!(grid.iter().filter(|s| s.is_tripmine).count(), 1);
-    assert_eq!(starting_search_rank(TripmineSide::Highest), 1);
-}
-
-#[test]
-fn a_lowest_tripmine_mines_the_bottom_of_the_ranking() {
-    let grid = build_tripmine_grid(&items(12), TripmineSide::Lowest).expect("grid");
-
-    let mine = grid.iter().find(|slot| slot.is_tripmine).expect("one mine");
-    assert_eq!(mine.true_rank, 1);
-    assert_eq!(mine.item.numeric, 10.0);
-    assert_eq!(mine.item.item_id, "i1");
-    assert_eq!(starting_search_rank(TripmineSide::Lowest), 10);
-}
-
-#[test]
-fn the_search_walks_towards_the_mined_rank() {
-    let highest = TripmineSide::Highest;
-    assert_eq!(next_search_rank(highest, 1), Some(2));
-    assert_eq!(next_search_rank(highest, 9), Some(10));
-    assert_eq!(next_search_rank(highest, 10), None);
-
-    let lowest = TripmineSide::Lowest;
-    assert_eq!(next_search_rank(lowest, 10), Some(9));
-    assert_eq!(next_search_rank(lowest, 2), Some(1));
-    assert_eq!(next_search_rank(lowest, 1), None);
-}
-
-#[test]
-fn a_tripmine_grid_starts_hidden() {
-    let grid = build_tripmine_grid(&items(12), TripmineSide::Highest).expect("grid");
-
-    assert!(grid.iter().all(|slot| !slot.revealed));
-    assert!(grid.iter().all(|slot| slot.revealed_by.is_none()));
-    assert!(grid.iter().all(|slot| slot.points_awarded.is_none()));
-}
-
-#[test]
-fn fewer_than_ten_items_is_not_ready_for_tripmine() {
-    let error = build_tripmine_grid(&items(9), TripmineSide::Highest)
-        .expect_err("nine items cannot fill a tripmine grid");
-    assert_eq!(error.code, crate::errors::ErrorCode::NotReady);
-}
 
 #[test]
 fn items_load_sorted_low_to_high_unless_the_list_says_otherwise() {

@@ -383,3 +383,108 @@ describe('order board actions', () => {
     expect(screen.queryByText(/to place an item/i)).not.toBeInTheDocument();
   });
 });
+
+function tripmineState() {
+  return {
+    ...SESSION_STATE,
+    order: null,
+    round: {
+      roundNumber: 1,
+      quizType: 'TRIPMINE',
+      tripmineSide: 'highest',
+      listTitle: 'Cinema',
+      listId: 'list_2',
+      columnId: 'box_office',
+      columnName: 'Box Office ($)',
+    },
+    tripmine: {
+      side: 'highest',
+      searchedRank: 1,
+      hit: false,
+      completed: false,
+      items: [
+        {
+          itemId: 'item_a',
+          name: 'Alpha',
+          value: '10',
+          revealed: false,
+          trueRank: 1,
+          isTripmine: false,
+          pointsAwarded: null,
+        },
+        {
+          itemId: 'item_b',
+          name: 'Bravo',
+          value: '20',
+          revealed: false,
+          trueRank: 10,
+          isTripmine: true,
+          pointsAwarded: null,
+        },
+      ],
+    },
+  };
+}
+
+describe('tripmine board actions', () => {
+  let posted: { url: string; body: Record<string, unknown> }[] = [];
+
+  beforeEach(() => {
+    FakeEventSource.instances = [];
+    posted = [];
+    vi.stubGlobal('EventSource', FakeEventSource as unknown as typeof EventSource);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes('/unlock')) return jsonResponse({ ok: true });
+        if (url.includes('/actions')) {
+          posted.push({ url, body: JSON.parse(String(init?.body ?? '{}')) });
+          return jsonResponse({ ok: true });
+        }
+        if (url.includes('/state')) return jsonResponse(tripmineState());
+        return jsonResponse({ error: { code: 'bad_request', message: 'unexpected' } }, 400);
+      }),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  async function renderBoard(role: 'gamemaster' | 'p1') {
+    const user = userEvent.setup();
+    render(<Session sessionId="lq-abcd1234" role={role} onNavigate={() => {}} />);
+    if (role === 'gamemaster') {
+      await user.type(screen.getByPlaceholderText('Enter password...'), 'letmein');
+      await user.click(screen.getByRole('button', { name: /unlock/i }));
+    }
+    await screen.findByRole('heading', { name: 'Team Cyan Pulsar' });
+    return user;
+  }
+
+  it('posts pick_tripitem when a cell is activated by keyboard', async () => {
+    const user = await renderBoard('gamemaster');
+
+    const cell = await screen.findByRole('button', { name: /pick alpha/i });
+    cell.focus();
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0].body).toEqual({
+      action: 'pick_tripitem',
+      itemId: 'item_a',
+      teamId: 'team_1',
+    });
+  });
+
+  it('gives a player a read-only grid', async () => {
+    await renderBoard('p1');
+
+    // A player's cells are present but disabled, so nothing can post an action.
+    const cell = screen.queryByRole('button', { name: /alpha, hidden/i });
+    expect(cell).not.toBeNull();
+    expect(cell).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /pick alpha/i })).not.toBeInTheDocument();
+  });
+});

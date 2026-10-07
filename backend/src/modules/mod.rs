@@ -4,3 +4,4 @@ pub mod order_round;
 pub mod scoring;
 pub mod sessions;
 pub mod teams;
+pub mod tripmine_round;

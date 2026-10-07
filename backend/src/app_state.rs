@@ -265,6 +265,10 @@ pub struct TripmineItem {
     pub name: String,
     pub value: Option<String>,
     pub revealed: bool,
+    /// Position 1-10 in the ordered grid. A pick reveals it (FR-039), so it is
+    /// `null` for a player until the item is revealed, and always present for the
+    /// gamemaster.
+    pub true_rank: Option<i32>,
     /// The answer key. Only `true` for an item the player has already revealed.
     pub is_tripmine: bool,
     pub points_awarded: Option<i32>,
@@ -425,6 +429,7 @@ pub fn redact(state: &SessionState, role: UserRole) -> SessionState {
                         None
                     },
                     revealed,
+                    true_rank: if revealed { item.true_rank } else { None },
                     is_tripmine: if revealed { item.is_tripmine } else { false },
                     points_awarded: if revealed { item.points_awarded } else { None },
                 }
@@ -559,6 +564,7 @@ mod tests {
                     name: "Avatar".to_string(),
                     value: Some("2920".to_string()),
                     revealed: true,
+                    true_rank: Some(10),
                     is_tripmine: true,
                     points_awarded: None,
                 },
@@ -567,6 +573,7 @@ mod tests {
                     name: "Endgame".to_string(),
                     value: Some("2800".to_string()),
                     revealed: false,
+                    true_rank: Some(4),
                     is_tripmine: false,
                     points_awarded: None,
                 },

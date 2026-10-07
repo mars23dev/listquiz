@@ -10,9 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::errors::{ApiError, ApiResult};
 use crate::modules::scoring;
 use crate::modules::sessions::{QuizType, TripmineSide};
-
-/// Items in a Tripmine grid.
-pub const TRIPMINE_SLOTS: usize = 10;
+use crate::modules::tripmine_round;
 
 /// One item of a list, as the round builder sees it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -21,18 +19,6 @@ pub struct ListItemValue {
     pub name: String,
     pub display: String,
     pub numeric: f64,
-}
-
-/// The item grid stored in `tripmine_state.items`, with its hidden answer key.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct TripmineSlot {
-    pub item: ListItemValue,
-    /// Position in the sorted ranking, 1 (extreme) to 10, kept out of player views.
-    pub true_rank: i32,
-    pub is_tripmine: bool,
-    pub revealed: bool,
-    pub revealed_by: Option<String>,
-    pub points_awarded: Option<i32>,
 }
 
 /// Every item of `list_id` with its value in `column_id`, sorted by value.
@@ -69,75 +55,6 @@ pub fn load_ordered_items(
         items.reverse();
     }
     Ok(items)
-}
-
-/// `data-model.md` fixes the axis: `true_rank` runs 1 (lowest) to 10 (highest), so
-/// the grid is always sorted ascending. `side` only decides which end is mined and
-/// where the search starts (FR-037): `highest` hunts rank 10 downwards, `lowest`
-/// hunts rank 1 upwards.
-pub fn build_tripmine_grid(
-    items: &[ListItemValue],
-    side: TripmineSide,
-) -> ApiResult<Vec<TripmineSlot>> {
-    if items.len() < TRIPMINE_SLOTS {
-        return Err(ApiError::not_ready(format!(
-            "A Tripmine round needs at least {TRIPMINE_SLOTS} items with values."
-        )));
-    }
-
-    let mut chosen: Vec<ListItemValue> = items.iter().take(TRIPMINE_SLOTS).cloned().collect();
-    chosen.sort_by(|a, b| {
-        a.numeric
-            .partial_cmp(&b.numeric)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-
-    let mined_rank = match side {
-        TripmineSide::Highest => TRIPMINE_SLOTS as i32,
-        TripmineSide::Lowest => 1,
-    };
-
-    Ok(chosen
-        .into_iter()
-        .enumerate()
-        .map(|(index, item)| {
-            let true_rank = index as i32 + 1;
-            TripmineSlot {
-                item,
-                true_rank,
-                is_tripmine: true_rank == mined_rank,
-                revealed: false,
-                revealed_by: None,
-                points_awarded: None,
-            }
-        })
-        .collect())
-}
-
-/// The rank the search starts from: `1` when hunting the highest item, `10` when
-/// hunting the lowest (data-model.md, `tripmine_state.searched_rank`).
-pub fn starting_search_rank(side: TripmineSide) -> i32 {
-    match side {
-        TripmineSide::Highest => 1,
-        TripmineSide::Lowest => TRIPMINE_SLOTS as i32,
-    }
-}
-
-/// The next rank to search after `current` is resolved. The mined rank is itself
-/// searchable — it is the last reveal of the round — so `None` only comes once the
-/// search has already stood on it.
-pub fn next_search_rank(side: TripmineSide, current: i32) -> Option<i32> {
-    let mined = match side {
-        TripmineSide::Highest => TRIPMINE_SLOTS as i32,
-        TripmineSide::Lowest => 1,
-    };
-    if current == mined {
-        return None;
-    }
-    Some(match side {
-        TripmineSide::Highest => current + 1,
-        TripmineSide::Lowest => current - 1,
-    })
 }
 
 /// The round the gamemaster is asking to start.
@@ -265,38 +182,27 @@ pub fn store_round_start(
     round: &RoundToStart,
     starting_team: &str,
 ) -> ApiResult<()> {
-    let items = load_ordered_items(conn, &round.list_id, &round.column_id, round.low_to_high)?;
-
     match round.quiz_type {
         QuizType::Order => {
             // US3 replaced the old "five items pre-placed on each side" layout: the
             // bar starts with only the anchor and the ten candidates are sampled at
             // random around it (FR-026, FR-027).
-            let setup = crate::modules::order_round::start_order_round(
-                conn,
-                &round.list_id,
-                &round.column_id,
-                round.low_to_high,
-                &mut rand::rng(),
-            )?;
+            let items =
+                load_ordered_items(conn, &round.list_id, &round.column_id, round.low_to_high)?;
+            let setup = crate::modules::order_round::sample_order_round(&items, &mut rand::rng())?;
             let board = setup.into_board();
             crate::modules::order_round::save_board(conn, session_id, &board)?;
         }
         QuizType::Tripmine => {
             let side = round.tripmine_side.unwrap_or(TripmineSide::Highest);
-            let grid = build_tripmine_grid(&items, side)?;
-            conn.execute(
-                "INSERT OR REPLACE INTO tripmine_state
-                    (session_id, side, searched_rank, items, hit, hit_by, completed)
-                 VALUES (?1, ?2, ?3, ?4, 0, NULL, 0)",
-                params![
-                    session_id,
-                    side.as_str(),
-                    starting_search_rank(side),
-                    serde_json::to_string(&grid).map_err(ApiError::from)?,
-                ],
-            )
-            .map_err(ApiError::from)?;
+            let tripmine = tripmine_round::start_tripmine_round(
+                conn,
+                &round.list_id,
+                &round.column_id,
+                side,
+                &mut rand::rng(),
+            )?;
+            tripmine_round::save_round(conn, session_id, &tripmine)?;
         }
     }
 

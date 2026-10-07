@@ -295,7 +295,7 @@ fn read_tripmine(
         )
         .unwrap_or_else(|_| "[]".to_string());
 
-    let slots: Vec<crate::modules::sessions::round_state::TripmineSlot> =
+    let slots: Vec<crate::modules::tripmine_round::TripmineSlot> =
         serde_json::from_str(&raw_items).unwrap_or_default();
 
     let mut items = Vec::with_capacity(slots.len());
@@ -322,6 +322,7 @@ fn read_tripmine(
             name,
             value: display,
             revealed: slot.revealed,
+            true_rank: Some(slot.true_rank),
             is_tripmine: slot.is_tripmine,
             points_awarded: slot.points_awarded,
         });
