@@ -627,7 +627,11 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
                   className="rounded border border-slate-600 bg-slate-900 px-2 py-1 text-slate-200"
                 >
                   {state.teams.map((team) => (
-                    <option key={team.id} value={team.id}>
+                    <option
+                      key={team.id}
+                      value={team.id}
+                      disabled={showHearts && team.hearts <= 0}
+                    >
                       {team.name}
                     </option>
                   ))}

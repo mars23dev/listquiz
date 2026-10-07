@@ -595,7 +595,8 @@ fn apply_pass_turn(conn: &rusqlite::Connection, session_id: &str) -> ApiResult<(
     Ok(())
 }
 
-/// Put a chosen team on turn (FR-064).
+/// Put a chosen team on turn (FR-064). In a round that uses hearts (Order, Connect)
+/// a team with zero hearts is out and cannot be put back on turn (feature 013).
 fn apply_set_turn(
     conn: &rusqlite::Connection,
     session_id: &str,
@@ -614,6 +615,32 @@ fn apply_set_turn(
             "No team '{team_id}' in this session."
         )));
     }
+
+    // The current round's quiz type decides whether hearts apply (Tripmine has none).
+    let quiz_type: Option<String> = conn
+        .query_row(
+            "SELECT quiz_type FROM round_config
+             WHERE session_id = ?1 AND round_number = (
+                 SELECT current_round FROM game_session WHERE id = ?1
+             )",
+            rusqlite::params![session_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if matches!(quiz_type.as_deref(), Some("ORDER") | Some("CONNECT")) {
+        let teams = order_round::load_teams(conn, session_id)?;
+        let hearts = teams
+            .iter()
+            .find(|team| team.id == team_id)
+            .map(|team| team.hearts)
+            .unwrap_or(scoring::MIN_HEARTS);
+        if hearts <= scoring::MIN_HEARTS {
+            return Err(ApiError::not_ready(format!(
+                "Team '{team_id}' is out of hearts and cannot be put on turn."
+            )));
+        }
+    }
+
     conn.execute(
         "UPDATE game_session SET active_team_id = ?2 WHERE id = ?1",
         rusqlite::params![session_id, team_id],

@@ -761,6 +761,43 @@ describe('gamemaster dashboard controls', () => {
     expect(posted[0].body).toEqual({ action: 'start_timer', seconds: 30 });
   });
 
+  it('disables the turn option of a team with no hearts (US1)', async () => {
+    const withOutTeam = {
+      ...orderState(),
+      teams: [
+        {
+          id: 'team_1',
+          name: 'Team Cyan Pulsar',
+          color: 'cyan',
+          primaryHex: '#06b6d4',
+          accentGlow: 'rgba(6, 182, 212, 0.45)',
+          score: 0,
+          hearts: 3,
+          onTurn: true,
+        },
+        {
+          id: 'team_2',
+          name: 'Team Ruby Spark',
+          color: 'rose',
+          primaryHex: '#f43f5e',
+          accentGlow: 'rgba(244, 63, 94, 0.45)',
+          score: 0,
+          hearts: 0,
+          onTurn: false,
+        },
+      ],
+    };
+    stub(withOutTeam);
+    const user = userEvent.setup();
+    render(<Session sessionId="lq-abcd1234" role="gamemaster" onNavigate={() => {}} />);
+    await user.type(screen.getByPlaceholderText('Enter password...'), 'letmein');
+    await user.click(screen.getByRole('button', { name: /unlock/i }));
+
+    const turn = await screen.findByRole('combobox', { name: /turn/i });
+    expect(within(turn).getByRole('option', { name: 'Team Ruby Spark' })).toBeDisabled();
+    expect(within(turn).getByRole('option', { name: 'Team Cyan Pulsar' })).toBeEnabled();
+  });
+
   it('shows the final ranking once the game is finished', async () => {
     stub({ ...orderState(), status: 'finished', revealValues: true });
 
