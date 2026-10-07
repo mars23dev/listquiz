@@ -1,9 +1,9 @@
 //! Connect round rules (feature 010, US1).
 //!
-//! Ten item **names** (left) and their ten **values** (right, shuffled). On a turn a
-//! team picks one name and one value into a middle box and confirms; a matching pair
-//! scores 10, a mismatch costs one heart. Everything is a plain function over plain
-//! data so the rules are unit tested without a database. The turn always passes.
+//! Ten item **names** (left, shuffled) and their ten **values** (right, in the list's
+//! order). On a turn a team picks one name and one value into a middle box and confirms;
+//! a matching pair scores 10, a mismatch costs one heart. Everything is a plain function
+//! over plain data so the rules are unit tested without a database. The turn always passes.
 
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
@@ -72,7 +72,8 @@ pub struct ConnectPair {
     pub display: String,
 }
 
-/// Draw ten pairs at random from `pairs`, with both columns shuffled (feature 010).
+/// Draw ten pairs at random from `pairs`. The values keep the list's order; only the
+/// names are shuffled (feature 012).
 pub fn sample_connect_round(
     pairs: &[ConnectPair],
     rng: &mut impl rand::Rng,
@@ -84,11 +85,11 @@ pub fn sample_connect_round(
     }
 
     let mut indices: Vec<usize> = (0..pairs.len()).collect();
-    for index in (1..indices.len()).rev() {
-        let pick = rng.random_range(0..=index);
-        indices.swap(index, pick);
-    }
-    let chosen: Vec<&ConnectPair> = indices.iter().take(PAIRS).map(|i| &pairs[*i]).collect();
+    shuffle(&mut indices, rng);
+    indices.truncate(PAIRS);
+    // The values keep the list's order; only the names are randomized (feature 012).
+    indices.sort_unstable();
+    let chosen: Vec<&ConnectPair> = indices.iter().map(|i| &pairs[*i]).collect();
 
     let mut names: Vec<ConnectName> = chosen
         .iter()
@@ -98,7 +99,7 @@ pub fn sample_connect_round(
             icon_name: pair.icon_name.clone(),
         })
         .collect();
-    let mut values: Vec<ConnectValue> = chosen
+    let values: Vec<ConnectValue> = chosen
         .iter()
         .map(|pair| ConnectValue {
             item_id: pair.item_id.clone(),
@@ -106,9 +107,8 @@ pub fn sample_connect_round(
         })
         .collect();
 
-    // Both columns are shown in a random order so neither is sweepable (feature 010).
+    // Only the name column is shuffled; the value column follows the list (feature 012).
     shuffle(&mut names, rng);
-    shuffle(&mut values, rng);
 
     Ok(ConnectBoard {
         names,

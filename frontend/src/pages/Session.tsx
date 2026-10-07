@@ -862,6 +862,7 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
             onPickName={handlePickName}
             onPickValue={handlePickValue}
             onConfirm={handleConfirmConnect}
+            showAnswerKey={isGamemaster}
           />
         </section>
       ) : null}

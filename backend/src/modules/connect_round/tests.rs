@@ -70,6 +70,35 @@ fn a_board_has_ten_names_and_ten_values() {
 }
 
 #[test]
+fn the_value_column_follows_the_list_order_and_names_are_shuffled() {
+    let board = board();
+
+    // The pairs were built in ascending list order, so list order is 1, 2, 3, ...
+    let value_ids: Vec<u32> = board
+        .values
+        .iter()
+        .map(|v| v.item_id.trim_start_matches("item_").parse().unwrap())
+        .collect();
+    let mut list_order = value_ids.clone();
+    list_order.sort_unstable();
+    assert_eq!(
+        value_ids, list_order,
+        "the value column keeps the list's order"
+    );
+
+    // The names are shuffled, so they do not follow the list order.
+    let name_ids: Vec<u32> = board
+        .names
+        .iter()
+        .map(|n| n.item_id.trim_start_matches("item_").parse().unwrap())
+        .collect();
+    assert_ne!(
+        name_ids, list_order,
+        "the name column is shuffled, not in list order"
+    );
+}
+
+#[test]
 fn a_list_under_ten_items_is_refused() {
     let error = sample_connect_round(&pairs(9), &mut rng(1)).expect_err("too few");
     assert_eq!(error.code, ErrorCode::NotReady);

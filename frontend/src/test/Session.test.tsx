@@ -891,6 +891,31 @@ describe('round start affordance', () => {
     render(<Session sessionId="lq-abcd1234" role="p1" onNavigate={() => {}} />);
     expect(await screen.findByText(/waiting for the game to be started/i)).toBeInTheDocument();
   });
+
+  it('shows the Connect answer key only to the gamemaster (US2)', async () => {
+    stub(connectState());
+    const user = userEvent.setup();
+    const gm = render(<Session sessionId="lq-abcd1234" role="gamemaster" onNavigate={() => {}} />);
+    await user.type(screen.getByPlaceholderText('Enter password...'), 'letmein');
+    await user.click(screen.getByRole('button', { name: /unlock/i }));
+
+    // Alpha's value is 100; the gamemaster sees it on the name row.
+    const gmAlpha = await screen.findByRole('button', { name: /alpha/i });
+    expect(within(gmAlpha).getByText('100')).toBeInTheDocument();
+    gm.unmount();
+
+    stub(connectState());
+    const player = render(<Session sessionId="lq-abcd1234" role="p1" onNavigate={() => {}} />);
+    const playerAlpha = await screen.findByRole('button', { name: /alpha/i });
+    expect(within(playerAlpha).queryByText('100')).not.toBeInTheDocument();
+    player.unmount();
+
+    stub(connectState());
+    const spectator = render(<Session sessionId="lq-abcd1234" role="view" onNavigate={() => {}} />);
+    const viewAlpha = await screen.findByRole('button', { name: /alpha/i });
+    expect(within(viewAlpha).queryByText('100')).not.toBeInTheDocument();
+    spectator.unmount();
+  });
 });
 
 describe('turn timer (005 US2)', () => {

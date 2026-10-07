@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ConnectBoard } from './ConnectBoard';
 import type { ConnectView } from '../types/session';
@@ -72,5 +72,33 @@ describe('ConnectBoard', () => {
     expect(confirm).toBeEnabled();
     await user.click(confirm);
     expect(onConfirm).toHaveBeenCalled();
+  });
+
+  it('shows the answer key only when the gamemaster flag is set', () => {
+    const props = {
+      view: VIEW,
+      interactive: true,
+      onPickName: vi.fn(),
+      onPickValue: vi.fn(),
+      onConfirm: vi.fn(),
+    };
+    const { rerender } = render(<ConnectBoard {...props} showAnswerKey />);
+
+    // Alpha pairs with value 100, Bravo with 200 (shared itemId).
+    expect(
+      within(screen.getByRole('button', { name: /alpha/i })).getByText('100'),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('button', { name: /bravo/i })).getByText('200'),
+    ).toBeInTheDocument();
+
+    rerender(<ConnectBoard {...props} />);
+
+    expect(
+      within(screen.getByRole('button', { name: /alpha/i })).queryByText('100'),
+    ).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole('button', { name: /bravo/i })).queryByText('200'),
+    ).not.toBeInTheDocument();
   });
 });

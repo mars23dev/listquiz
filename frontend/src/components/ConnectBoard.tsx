@@ -11,12 +11,15 @@ interface ConnectBoardProps {
   onPickName: (itemId: string) => void;
   onPickValue: (itemId: string) => void;
   onConfirm: () => void;
+  /** Gamemaster only (feature 012): show each name's correct value beside it. */
+  showAnswerKey?: boolean;
 }
 
 /**
  * The Connect board (feature 010): ten names on the left (each with its icon) and the
- * ten values on the right in a random order (no icons). The staged pair waits in the
- * middle box until confirmed. Values carry no icon, by design.
+ * ten values on the right in the list's order (no icons). The staged pair waits in the
+ * middle box until confirmed. Values carry no icon, by design. The gamemaster may also
+ * see each name's correct value as an answer key (feature 012).
  */
 export const ConnectBoard: React.FC<ConnectBoardProps> = ({
   view,
@@ -24,6 +27,7 @@ export const ConnectBoard: React.FC<ConnectBoardProps> = ({
   onPickName,
   onPickValue,
   onConfirm,
+  showAnswerKey = false,
 }) => {
   const matched = new Set(view.matched);
   const pendingName = view.pending.nameItemId
@@ -55,6 +59,9 @@ export const ConnectBoard: React.FC<ConnectBoardProps> = ({
           {view.names.map((name) => {
             const isPicked = view.pending.nameItemId === name.itemId;
             const isMatched = matched.has(name.itemId);
+            const answerKey = showAnswerKey
+              ? (view.values.find((value) => value.itemId === name.itemId) ?? null)
+              : null;
             return (
               <motion.button
                 key={name.itemId}
@@ -71,6 +78,11 @@ export const ConnectBoard: React.FC<ConnectBoardProps> = ({
                 <span className="truncate text-xs sm:text-sm font-semibold text-slate-100">
                   {name.name}
                 </span>
+                {answerKey && !isMatched ? (
+                  <span className="ml-auto shrink-0 rounded bg-amber-400/10 px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums text-amber-200">
+                    {answerKey.display}
+                  </span>
+                ) : null}
               </motion.button>
             );
           })}
