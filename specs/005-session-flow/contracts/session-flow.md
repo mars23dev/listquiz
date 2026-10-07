@@ -9,6 +9,10 @@ contract in `specs/001-listquiz-game/contracts/rest-api.md`. Field names are cam
 > depends on the round type — an Order timeout costs one heart, a Tripmine timeout only passes the
 > turn — and the timer now plays a start cue and a timeout cue. The gamemaster starts it from the
 > fixed presets 15s / 30s / 60s.
+>
+> **Amended by `specs/008-fix-timer-timeout/contracts/timer-timeout.md`:** the server owns the
+> deadline — starting a timer schedules the timeout, which fires with no client action — and the
+> client no longer posts `time_out` (so no timer error bar). Each of the last five seconds ticks.
 
 ### State (in `GET /state`, every role)
 

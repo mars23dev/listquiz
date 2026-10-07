@@ -368,3 +368,113 @@ fn finishing_an_already_finished_game_is_a_noop() {
 
     assert!(!finish_if_last_round(&conn, "s1").expect("no-op"));
 }
+
+/// A running session with a timer, a round type, and two teams.
+fn timeout_fixture(
+    conn: &rusqlite::Connection,
+    quiz_type: &str,
+    hearts: [i32; 2],
+    round: i32,
+    count: i32,
+) {
+    crate::db::apply_schema(conn).unwrap();
+    crate::db::insert_test_session(conn, "s1", 1);
+    conn.execute(
+        "UPDATE game_session
+         SET status = 'running', current_round = ?1, round_count = ?2,
+             active_team_id = 'team_1', timer_ends_at = 1, timer_total_seconds = 1
+         WHERE id = 's1'",
+        rusqlite::params![round, count],
+    )
+    .unwrap();
+    conn.execute(
+        "INSERT INTO round_config (session_id, round_number, quiz_type, tripmine_side, list_id, column_id)
+         VALUES ('s1', ?1, ?2, NULL, 'l', 'c')",
+        rusqlite::params![round, quiz_type],
+    )
+    .unwrap();
+    for (index, (id, hearts)) in ["team_1", "team_2"].iter().zip(hearts).enumerate() {
+        conn.execute(
+            "INSERT INTO team
+                (id, session_id, name, color, primary_hex, accent_glow, score, hearts, turn_index)
+             VALUES (?1, 's1', ?1, 'cyan', '#06b6d4', 'rgba(0,0,0,0)', 0, ?2, ?3)",
+            rusqlite::params![id, hearts, index as i64],
+        )
+        .unwrap();
+    }
+}
+
+fn game_after_timeout(
+    conn: &rusqlite::Connection,
+) -> (String, Option<String>, i64, Option<String>) {
+    conn.query_row(
+        "SELECT status, active_team_id, timer_ends_at, last_message FROM game_session WHERE id = 's1'",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get::<_, Option<i64>>(2)?.unwrap_or(0), row.get(3)?)),
+    )
+    .unwrap()
+}
+
+#[test]
+fn a_timeout_with_no_timer_is_a_noop() {
+    let conn = rusqlite::Connection::open_in_memory().unwrap();
+    crate::db::apply_schema(&conn).unwrap();
+    crate::db::insert_test_session(&conn, "s1", 1);
+
+    assert!(!apply_turn_timeout(&conn, "s1").expect("no-op"));
+}
+
+#[test]
+fn an_order_timeout_costs_one_heart_and_passes_the_turn() {
+    let conn = rusqlite::Connection::open_in_memory().unwrap();
+    timeout_fixture(&conn, "ORDER", [3, 3], 1, 3);
+
+    assert!(apply_turn_timeout(&conn, "s1").expect("applied"));
+
+    let (status, active, ends, message) = game_after_timeout(&conn);
+    assert_eq!(status, "running");
+    assert_eq!(active.as_deref(), Some("team_2"), "the turn passes");
+    assert_eq!(ends, 0, "the timer is cleared");
+    assert_eq!(message.as_deref(), Some("Time ran out! -1 heart"));
+    let hearts: i64 = conn
+        .query_row("SELECT hearts FROM team WHERE id = 'team_1'", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert_eq!(hearts, 2, "one heart lost");
+}
+
+#[test]
+fn a_tripmine_timeout_changes_no_heart_and_passes_the_turn() {
+    let conn = rusqlite::Connection::open_in_memory().unwrap();
+    timeout_fixture(&conn, "TRIPMINE", [3, 3], 1, 3);
+
+    assert!(apply_turn_timeout(&conn, "s1").expect("applied"));
+
+    let active: Option<String> = conn
+        .query_row(
+            "SELECT active_team_id FROM game_session WHERE id = 's1'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(active.as_deref(), Some("team_2"), "the turn passes");
+    let hearts: i64 = conn
+        .query_row("SELECT hearts FROM team WHERE id = 'team_1'", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert_eq!(hearts, 3, "no heart lost in Tripmine");
+}
+
+#[test]
+fn an_order_timeout_that_empties_the_last_round_finishes_the_game() {
+    let conn = rusqlite::Connection::open_in_memory().unwrap();
+    timeout_fixture(&conn, "ORDER", [1, 0], 1, 1);
+
+    assert!(apply_turn_timeout(&conn, "s1").expect("applied"));
+
+    let (status, active, _, _) = game_after_timeout(&conn);
+    assert_eq!(status, "finished", "the last round ended with nobody left");
+    assert_eq!(active, None);
+}

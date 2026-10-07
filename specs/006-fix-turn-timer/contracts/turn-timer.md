@@ -2,6 +2,10 @@
 
 Amends the timer contract in `specs/005-session-flow/contracts/session-flow.md` §1. No new endpoint.
 
+> **Amended by `specs/008-fix-timer-timeout/contracts/timer-timeout.md`:** the server now schedules
+> and applies the timeout itself at the end time (no client `time_out` post, no timer error bar), and
+> the countdown ticks on each of the last five seconds. The consequence in §1 is unchanged.
+
 ## 1. Timeout consequence per game type
 
 `time_out` (`POST /api/sessions/{sessionId}/actions`) now behaves by the current round's type:

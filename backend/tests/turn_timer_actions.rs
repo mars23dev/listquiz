@@ -171,7 +171,7 @@ async fn a_time_out_before_the_end_is_refused() {
 }
 
 #[tokio::test]
-async fn an_expired_timer_costs_a_heart_and_passes_the_turn() {
+async fn a_short_timer_ends_the_turn_on_its_own() {
     let (app, session_id) = started_order_session().await;
     let before = state(&app, &session_id, "gamemaster").await;
     let team = on_turn(&before);
@@ -185,34 +185,17 @@ async fn an_expired_timer_costs_a_heart_and_passes_the_turn() {
     .await;
     assert_eq!(status, StatusCode::OK);
 
-    tokio::time::sleep(Duration::from_millis(1_200)).await;
-
-    let (status, body) = gm(
-        &app,
-        &session_id,
-        &json!({ "action": "time_out", "teamId": team }),
-    )
-    .await;
-    assert_eq!(status, StatusCode::OK, "timed out: {body}");
+    // No `time_out` is posted: the server's scheduled deadline ends the turn.
+    tokio::time::sleep(Duration::from_millis(1_400)).await;
 
     let after = state(&app, &session_id, "gamemaster").await;
     assert_eq!(
         hearts_of(&after, &team),
         hearts_before - 1,
-        "one heart lost"
+        "the scheduled timeout cost one heart"
     );
     assert!(after["timer"].is_null(), "the timer clears");
-    assert_ne!(on_turn(&after), team, "the turn passes on");
-
-    // Idempotent: a second timeout finds no timer.
-    let (status, body) = gm(
-        &app,
-        &session_id,
-        &json!({ "action": "time_out", "teamId": team }),
-    )
-    .await;
-    assert_eq!(status, StatusCode::CONFLICT);
-    assert_eq!(error_code(&body), "not_ready");
+    assert_ne!(on_turn(&after), team, "the turn passed on its own");
 }
 
 #[tokio::test]
@@ -251,15 +234,8 @@ async fn a_tripmine_timeout_passes_the_turn_without_a_heart() {
     .await;
     assert_eq!(status, StatusCode::OK);
 
-    tokio::time::sleep(Duration::from_millis(1_200)).await;
-
-    let (status, body) = gm(
-        &app,
-        &session_id,
-        &json!({ "action": "time_out", "teamId": team }),
-    )
-    .await;
-    assert_eq!(status, StatusCode::OK, "timed out: {body}");
+    // The server's scheduled deadline ends the turn; no `time_out` is posted.
+    tokio::time::sleep(Duration::from_millis(1_400)).await;
 
     let after = state(&app, &session_id, "gamemaster").await;
     assert_eq!(

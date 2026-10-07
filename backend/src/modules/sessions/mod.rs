@@ -10,8 +10,10 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 
 use crate::errors::{ApiError, ApiResult};
+use crate::modules::order_round;
 use crate::modules::scoring;
 use crate::modules::teams::{self, NewTeam, TeamColorInput};
+use crate::modules::turn_timer;
 
 pub const MIN_ROUNDS: i32 = 1;
 pub const MAX_ROUNDS: i32 = 10;
@@ -501,6 +503,68 @@ pub fn finish_if_last_round(conn: &Connection, session_id: &str) -> ApiResult<bo
          WHERE id = ?1",
         params![session_id, "Game over"],
     )?;
+    Ok(true)
+}
+
+/// Apply a running timer's timeout (feature 008). No timer → no-op returning `false`.
+/// Otherwise: the on-turn team is penalised by the round's rule (Order loses one
+/// heart, Tripmine just passes), the timer clears, a timeout message is set, and the
+/// game finishes if it was the last round. This is the one rule the manual `time_out`
+/// action and the scheduled deadline both use.
+pub fn apply_turn_timeout(conn: &Connection, session_id: &str) -> ApiResult<bool> {
+    if load_timer(conn, session_id)?.is_none() {
+        return Ok(false);
+    }
+    let active: Option<String> = conn.query_row(
+        "SELECT active_team_id FROM game_session WHERE id = ?1",
+        params![session_id],
+        |row| row.get(0),
+    )?;
+    let Some(active) = active else {
+        return Ok(false);
+    };
+
+    let quiz_type: String = conn.query_row(
+        "SELECT quiz_type FROM round_config
+         WHERE session_id = ?1 AND round_number = (
+             SELECT current_round FROM game_session WHERE id = ?1
+         )",
+        params![session_id],
+        |row| row.get(0),
+    )?;
+    let rule = if quiz_type == "TRIPMINE" {
+        turn_timer::TimeoutRule::PassOnly
+    } else {
+        turn_timer::TimeoutRule::LoseHeart
+    };
+    let message = if rule == turn_timer::TimeoutRule::LoseHeart {
+        "Time ran out! -1 heart"
+    } else {
+        "Time ran out! Turn passed"
+    };
+
+    let round: i32 = conn.query_row(
+        "SELECT current_round FROM game_session WHERE id = ?1",
+        params![session_id],
+        |row| row.get(0),
+    )?;
+    let teams = order_round::load_teams(conn, session_id)?;
+    let (teams, events, next) = turn_timer::expire(&teams, &active, rule);
+    let round_over = next.is_none();
+
+    let tx = conn.unchecked_transaction()?;
+    order_round::save_teams(&tx, session_id, &teams)?;
+    order_round::append_events(&tx, session_id, round, &events)?;
+    tx.execute(
+        "UPDATE game_session
+         SET active_team_id = ?2, timer_ends_at = NULL, timer_total_seconds = NULL, last_message = ?3
+         WHERE id = ?1",
+        params![session_id, next, Some(message.to_string())],
+    )?;
+    tx.commit()?;
+    if round_over {
+        finish_if_last_round(conn, session_id)?;
+    }
     Ok(true)
 }
 

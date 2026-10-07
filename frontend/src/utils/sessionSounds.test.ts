@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveSessionCue } from './sessionSounds';
+import { deriveSessionCue, isFinalTickSecond } from './sessionSounds';
 import type { OrderItem, PendingPlacement, SessionState, TripmineItem } from '../types/session';
 
 function item(itemId: string): OrderItem {
@@ -195,8 +195,7 @@ describe('deriveSessionCue', () => {
     expect(deriveSessionCue(base, passed)).toBeNull();
   });
 
-  it('plays one cue for an Order timeout that also drops a heart', () => {
-    const base = state({
+  it('plays one cue for an Order timeout that also drops a heart', () => {    const base = state({
       revision: 1,
       timer: { totalSeconds: 20, secondsLeft: 0 },
       teams: [
@@ -214,5 +213,19 @@ describe('deriveSessionCue', () => {
       ],
     });
     expect(deriveSessionCue(base, timedOut)).toBe('failure');
+  });
+});
+
+describe('isFinalTickSecond', () => {
+  it('is true for each of the last five seconds', () => {
+    for (const second of [1, 2, 3, 4, 5]) {
+      expect(isFinalTickSecond(second)).toBe(true);
+    }
+  });
+
+  it('is false at zero and beyond the last five seconds', () => {
+    expect(isFinalTickSecond(0)).toBe(false);
+    expect(isFinalTickSecond(6)).toBe(false);
+    expect(isFinalTickSecond(20)).toBe(false);
   });
 });

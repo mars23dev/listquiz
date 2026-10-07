@@ -21,6 +21,10 @@
 > **Amended by `specs/006-fix-turn-timer/contracts/turn-timer.md`:** a timeout costs a heart only in
 > an Order round (a Tripmine timeout just passes the turn), and the timer plays a start cue and a
 > timeout cue.
+>
+> **Amended by `specs/008-fix-timer-timeout/contracts/timer-timeout.md`:** the server schedules the
+> timer's timeout at its end time and applies it itself, so no client posts `time_out`; the client
+> shows the countdown, ticks the last five seconds, and shows no timer error.
 
 ## Why revisions instead of pushed state
 

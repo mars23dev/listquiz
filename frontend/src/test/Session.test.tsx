@@ -872,18 +872,13 @@ describe('turn timer (005 US2)', () => {
     expect(await screen.findByLabelText('Turn timer')).toHaveTextContent(/\d+s/);
   });
 
-  it('posts exactly one time_out when the countdown reaches zero', async () => {
+  it('posts nothing and shows no error bar when the countdown reaches zero', async () => {
     const posted = stubWithTimer({ totalSeconds: 20, secondsLeft: 0 });
     render(<Session sessionId="lq-abcd1234" role="p1" onNavigate={() => {}} />);
 
     await screen.findByRole('heading', { name: 'Team Cyan Pulsar' });
-    await waitFor(() =>
-      expect(posted.filter((body) => body.action === 'time_out')).toHaveLength(1),
-    );
-    expect(posted.find((body) => body.action === 'time_out')).toMatchObject({
-      action: 'time_out',
-      teamId: 'team_1',
-      role: 'p1',
-    });
+    await waitFor(() => expect(posted).toHaveLength(0));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText(/has not run out yet/i)).not.toBeInTheDocument();
   });
 });

@@ -200,12 +200,16 @@ fn apply_action(state: &AppState, session_id: &str, request: &ActionRequest) -> 
             state.with_db(|conn| order_round::set_reveal_values(conn, session_id, true))?;
             state.bump_revision(session_id)
         }
-        // feature 005, US2: the gamemaster's turn timer.
+        // feature 005, US2: the gamemaster's turn timer; feature 008: schedule the timeout.
         "start_timer" => {
             let seconds = request
                 .seconds
                 .ok_or_else(|| ApiError::bad_request("seconds is required."))?;
             state.with_db(|conn| sessions::start_timer(conn, session_id, seconds))?;
+            let scheduled = state.with_db(|conn| sessions::load_timer(conn, session_id));
+            if let Ok(Some((ends_at, _))) = scheduled {
+                schedule_turn_timeout(state.clone(), session_id.to_string(), ends_at);
+            }
             state.bump_revision(session_id)
         }
         "stop_timer" => {
@@ -447,9 +451,10 @@ fn current_round_number(conn: &rusqlite::Connection, session_id: &str) -> ApiRes
     )?)
 }
 
-/// The gamemaster's timer ran out: the on-turn team loses one heart and the turn
-/// passes (feature 005, US2). Accepted only when a timer is running and has expired;
-/// the caller must be the gamemaster or the on-turn team (checked by the caller).
+/// The manual timeout action (feature 005, US2; feature 008): accepted only when a
+/// timer is running and has expired, and only from the gamemaster or the on-turn team.
+/// The consequence itself lives in `sessions::apply_turn_timeout`; normally the
+/// scheduled deadline applies it, so a client never has to.
 fn apply_time_out(
     conn: &rusqlite::Connection,
     session_id: &str,
@@ -460,47 +465,33 @@ fn apply_time_out(
     if !turn_timer::is_expired(ends_at, crate::db::now_ms()) {
         return Err(ApiError::not_ready("The timer has not run out yet."));
     }
-
-    let active = require_team_on_turn(conn, session_id, request.team_id.as_deref())?;
-    // Hearts are an Order mechanic: only an Order timeout costs a heart.
-    let quiz_type: String = conn.query_row(
-        "SELECT quiz_type FROM round_config
-         WHERE session_id = ?1 AND round_number = (
-             SELECT current_round FROM game_session WHERE id = ?1
-         )",
-        rusqlite::params![session_id],
-        |row| row.get(0),
-    )?;
-    let rule = if quiz_type == "TRIPMINE" {
-        turn_timer::TimeoutRule::PassOnly
-    } else {
-        turn_timer::TimeoutRule::LoseHeart
-    };
-    let message = if rule == turn_timer::TimeoutRule::LoseHeart {
-        "Time ran out! -1 heart"
-    } else {
-        "Time ran out! Turn passed"
-    };
-
-    let teams = order_round::load_teams(conn, session_id)?;
-    let (teams, events, next) = turn_timer::expire(&teams, &active, rule);
-    let round_over = next.is_none();
-    let round = current_round_number(conn, session_id)?;
-
-    let tx = conn.unchecked_transaction()?;
-    order_round::save_teams(&tx, session_id, &teams)?;
-    order_round::append_events(&tx, session_id, round, &events)?;
-    tx.execute(
-        "UPDATE game_session
-         SET active_team_id = ?2, timer_ends_at = NULL, timer_total_seconds = NULL, last_message = ?3
-         WHERE id = ?1",
-        rusqlite::params![session_id, next, Some(message.to_string())],
-    )?;
-    tx.commit()?;
-    if round_over {
-        sessions::finish_if_last_round(conn, session_id)?;
-    }
+    require_team_on_turn(conn, session_id, request.team_id.as_deref())?;
+    sessions::apply_turn_timeout(conn, session_id)?;
     Ok(())
+}
+
+/// Schedule a timeout for a started timer (feature 008). The task wakes at the end
+/// time and applies the timeout only if that same timer is still stored, so a
+/// stopped, replaced, ended, or deleted timer is a no-op. This is what ends the turn
+/// with no client involvement (a background tab cannot be trusted to post).
+fn schedule_turn_timeout(state: AppState, session_id: String, ends_at: i64) {
+    tokio::spawn(async move {
+        let delay = (ends_at - crate::db::now_ms()).max(0) as u64;
+        tokio::time::sleep(std::time::Duration::from_millis(delay + 50)).await;
+
+        let stored = state.with_db(|conn| sessions::load_timer(conn, &session_id));
+        let still_current = matches!(stored, Ok(Some((stored_ends, _))) if stored_ends == ends_at);
+        if !still_current {
+            return;
+        }
+
+        let applied = state
+            .with_db(|conn| sessions::apply_turn_timeout(conn, &session_id))
+            .unwrap_or(false);
+        if applied {
+            let _ = state.bump_revision(&session_id);
+        }
+    });
 }
 
 /// Pass the turn to the next team with hearts, scoring nothing (FR-018).

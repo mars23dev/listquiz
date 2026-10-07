@@ -16,11 +16,12 @@ import {
   playFailureSound,
   playRemoveSound,
   playSlideSound,
+  playSnapSound,
   setSoundMuted,
   unlockAudio,
 } from '../utils/audio';
 import { positionForGap } from '../utils/orderBar';
-import { deriveSessionCue } from '../utils/sessionSounds';
+import { deriveSessionCue, isFinalTickSecond } from '../utils/sessionSounds';
 import type {
   QuizItem,
   Team as QuizTeam,
@@ -211,9 +212,9 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
   const canAct = isGamemaster || isPlayersTurn;
   const teams = useMemo(() => (state?.teams ?? []).map(toQuizTeam), [state?.teams]);
 
-  // US2 (005): the turn timer. The server reports secondsLeft; the client counts down
-  // locally and posts one time_out at zero. Only the acting role posts, so a timeout
-  // is reported once (the server refuses a second report anyway).
+  // US2 (005) / US3 (008): the turn timer. The server owns the deadline and applies
+  // the timeout itself, so the client only displays the countdown and ticks the last
+  // five seconds; it never posts anything at zero.
   const timer = state?.timer ?? null;
   const [secondsLeft, setSecondsLeft] = useState(0);
   useEffect(() => {
@@ -228,17 +229,17 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
     return () => window.clearInterval(id);
   }, [timer?.totalSeconds, timer?.secondsLeft, state?.revision, timer]);
 
-  const timeoutPostedRef = useRef(false);
+  // A short tick on each of the last five seconds, once per second.
+  const lastTickedRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!timer) {
-      timeoutPostedRef.current = false;
+    if (!timer || !isFinalTickSecond(secondsLeft)) {
+      lastTickedRef.current = null;
       return;
     }
-    if (secondsLeft > 0 || timeoutPostedRef.current) return;
-    if (!canAct || !onTurnTeamId) return;
-    timeoutPostedRef.current = true;
-    void sendAction({ action: 'time_out', teamId: onTurnTeamId });
-  }, [secondsLeft, timer, canAct, onTurnTeamId]);
+    if (lastTickedRef.current === secondsLeft) return;
+    lastTickedRef.current = secondsLeft;
+    playSnapSound();
+  }, [secondsLeft, timer]);
 
   // The slot a pending item is being dropped on is a client-side step: the server
   // only learns the slot once the placement is confirmed, so CONFIRM is a real

@@ -12,6 +12,14 @@ import type { SessionState } from '../types/session';
 
 export type SessionCue = 'slide' | 'chime' | 'failure' | 'explosion' | 'remove' | 'bonus' | 'buzzer';
 
+/**
+ * True on the last five seconds of a countdown (5, 4, 3, 2, 1). A shorter timer
+ * ticks on each of its remaining seconds, since they are all within the last five.
+ */
+export function isFinalTickSecond(secondsLeft: number): boolean {
+  return secondsLeft >= 1 && secondsLeft <= 5;
+}
+
 function barCount(state: SessionState): number {
   return (state.order?.left.length ?? 0) + (state.order?.right.length ?? 0);
 }
