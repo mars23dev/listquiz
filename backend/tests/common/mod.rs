@@ -137,6 +137,21 @@ pub fn gm_action_request(
     request
 }
 
+/// A request that carries a folder/list password in the `X-Quiz-Password` header.
+pub fn password_request(
+    method: &str,
+    path: &str,
+    body: Option<&serde_json::Value>,
+    password: &str,
+) -> axum::http::Request<axum::body::Body> {
+    let mut request = json_request(method, path, body);
+    request.headers_mut().insert(
+        "X-Quiz-Password",
+        axum::http::HeaderValue::from_str(password).expect("a valid header value"),
+    );
+    request
+}
+
 /// `GET /api/sessions/{id}/state?role=<role>`, the redacted view a role sees.
 pub async fn get_state(
     app: &Router,
@@ -160,4 +175,28 @@ pub fn error_code(body: &serde_json::Value) -> String {
         .as_str()
         .unwrap_or_default()
         .to_string()
+}
+
+/// Call the API and read a non-JSON body (CSV export) with its content type.
+pub async fn call_text(
+    app: &Router,
+    request: axum::http::Request<axum::body::Body>,
+) -> (axum::http::StatusCode, String, Option<String>) {
+    use tower::ServiceExt;
+
+    let response = app.clone().oneshot(request).await.expect("response");
+    let status = response.status();
+    let content_type = response
+        .headers()
+        .get(axum::http::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string);
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("body");
+    (
+        status,
+        String::from_utf8_lossy(&bytes).to_string(),
+        content_type,
+    )
 }

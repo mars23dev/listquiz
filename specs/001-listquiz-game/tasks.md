@@ -144,7 +144,7 @@ editor and import screens.
 - [x] T054 [US2] Add the HTTP surface in `backend/src/routes/folders.rs`: `POST /api/folders`, `POST /api/folders/{id}/unlock`, `POST /api/folders/{id}/rename`, `POST /api/folders/{id}/delete` (204), and `GET /api/folders`
 - [x] T055 [US2] Build the folder bar in `frontend/src/pages/ListManagement.tsx` above the draft's list grid: create folder, unlock, rename, and delete with a password confirmation that displays the list count
 - [x] T056 [US2] Render the default folder read-only in `frontend/src/pages/ListManagement.tsx`, hiding `Create List`, `Import CSV`, `Duplicate List`, `Delete List`, and rename controls for its cards
-- [ ] T057 [US2] Add the sensitive-data hint to `frontend/src/pages/ListManagement.tsx` on both the list editor and the CSV import modal, stating the data is not protected and that sensitive data must not be added
+- [x] T057 [US2] Add the sensitive-data hint to `frontend/src/pages/ListManagement.tsx` on both the list editor and the CSV import modal, stating the data is not protected and that sensitive data must not be added
 - [x] T058 [US2] Add `GET /api/default-lists` in `backend/src/routes/lists.rs` returning the seeded lists with no password, calling `backend/src/modules/default_lists/mod.rs`
 
 **Checkpoint**: US1 and US2 both work independently. Locked folders expose nothing.
@@ -268,27 +268,27 @@ order.
 
 ### Tests for User Story 6
 
-- [ ] T110 [US6] Unit test: `parse_csv` detects a leading `Icon` header case-insensitively and maps the remaining headers to value columns in `backend/src/modules/csv_import/tests.rs`
-- [ ] T111 [US6] Unit test: `parse_csv` keeps a quoted field containing a comma whole in `backend/src/modules/csv_import/tests.rs`
-- [ ] T112 [US6] Unit test: a non-numeric value falls back to the row position, sets `wasDefaulted`, and is reported in `backend/src/modules/csv_import/tests.rs`
-- [ ] T113 [US6] Unit test: a CSV with 10 data rows returns `too_small` and one with 101 returns `too_large`, both naming the 11-100 range in `backend/src/modules/csv_import/tests.rs`
-- [ ] T114 [US6] Unit test: `export_csv` emits the header `Icon,Name,<column names...>` and re-imports to an equivalent list including the direction in `backend/src/modules/csv_import/tests.rs`
-- [ ] T115 [US6] Unit test: creating or updating a list with fewer than 11 or more than 100 items is rejected, and an empty title is rejected in `backend/src/modules/lists/tests.rs`
-- [ ] T116 [US6] Unit test: item `position` values are stored exactly as supplied in `backend/src/modules/lists/tests.rs`
-- [ ] T117 [P] [US6] Integration test: `GET /api/lists/{id}/export.csv` returns `text/csv` and `POST /api/folders/{id}/lists/import` returns the created list plus a report in `backend/tests/list_crud.rs`
+- [x] T110 [US6] Unit test: `parse_csv` detects a leading `Icon` header case-insensitively and maps the remaining headers to value columns in `backend/src/modules/csv_import/tests.rs`
+- [x] T111 [US6] Unit test: `parse_csv` keeps a quoted field containing a comma whole in `backend/src/modules/csv_import/tests.rs`
+- [x] T112 [US6] Unit test: a non-numeric value falls back to the row position, sets `wasDefaulted`, and is reported in `backend/src/modules/csv_import/tests.rs`
+- [x] T113 [US6] Unit test: a CSV with 10 data rows returns `too_small` and one with 101 returns `too_large`, both naming the 11-100 range in `backend/src/modules/csv_import/tests.rs`
+- [x] T114 [US6] Unit test: `export_csv` emits the header `Icon,Name,<column names...>` and re-imports to an equivalent list including the direction in `backend/src/modules/csv_import/tests.rs`
+- [x] T115 [US6] Unit test: creating or updating a list with fewer than 11 or more than 100 items is rejected, and an empty title is rejected in `backend/src/modules/lists/tests.rs`
+- [x] T116 [US6] Unit test: item `position` values are stored exactly as supplied in `backend/src/modules/lists/tests.rs`
+- [x] T117 [P] [US6] Integration test: `GET /api/lists/{id}/export.csv` returns `text/csv` and `POST /api/folders/{id}/lists/import` returns the created list plus a report in `backend/tests/list_crud.rs`
 
 ### Implementation for User Story 6
 
-- [ ] T118 [US6] Implement `parse_csv` in `backend/src/modules/csv_import/mod.rs` using the `csv` crate, with the numeric extraction rule "strips everything except digits, `-` and `.`", and `parseFloat`, falling back to `row_index * 10`-equivalent position order when unparseable
-- [ ] T119 [US6] Implement `export_csv` in `backend/src/modules/csv_import/mod.rs` preserving column order and the list's direction
-- [ ] T120 [US6] Implement the list rules in `backend/src/modules/lists/mod.rs` enforcing the `data-model.md` constraints: title "1-80 chars, mandatory", item count "11-100 enforced on every write path", "at least one value column per list", `icon_name` and `icon_image` mutually exclusive, and a list in the default folder rejected
-- [ ] T121 [US6] Implement list CRUD in `backend/src/modules/lists/mod.rs`: create, read, update, delete, duplicate with a ` (Copy)` suffix, and the `columns[0]` default-value-column rule
-- [ ] T122 [US6] Add the HTTP surface in `backend/src/routes/lists.rs`: `GET /api/folders/{id}/lists`, `GET /api/lists/{id}`, `POST /api/folders/{id}/lists`, `PUT /api/lists/{id}`, `DELETE /api/lists/{id}`, `GET /api/lists/{id}/export.csv`, `POST /api/folders/{id}/lists/import`
-- [ ] T123 [P] [US6] Copy `the reference frontend's components/IconPickerModal.tsx` and `the reference frontend's components/ItemIcon.tsx` into `frontend/src/components/`, unchanged
-- [ ] T124 [US6] Build the list editor in `frontend/src/pages/ListManagement.tsx` from the draft's editor, keeping `List Form & Table Editor`, `List Title (Mandatory)`, `Order Direction` with `Low to High (Ascending / Earliest to Latest)` and `High to Low (Descending / Highest to Lowest)`, `Table Columns`, `Add Value Column`, `Add Row`, the drag grip, and the `Drag the grip icon on the left to rearrange rows` hint
-- [ ] T125 [US6] Add inline 11-100 item-count validation and the mandatory-title validation to `frontend/src/pages/ListManagement.tsx`
-- [ ] T126 [US6] Build the CSV import modal in `frontend/src/pages/ListManagement.tsx` keeping `Import List from CSV`, `Upload .csv File OR Paste CSV Below`, the `Icon,Name,Year,Value2` placeholder, and the cancel and `Import List` actions, and render the import report's `defaultedRows` warnings
-- [ ] T127 [US6] Add the `Select List:` and `Value Column:` dropdowns to the round configuration step in `frontend/src/pages/SetupQuiz.tsx`, showing `{title} ({itemCount} items)` and offering the value-column picker only when the list has more than one column
+- [x] T118 [US6] Implement `parse_csv` in `backend/src/modules/csv_import/mod.rs` using the `csv` crate, with the numeric extraction rule "strips everything except digits, `-` and `.`", and `parseFloat`, falling back to `row_index * 10`-equivalent position order when unparseable
+- [x] T119 [US6] Implement `export_csv` in `backend/src/modules/csv_import/mod.rs` preserving column order and the list's direction
+- [x] T120 [US6] Implement the list rules in `backend/src/modules/lists/mod.rs` enforcing the `data-model.md` constraints: title "1-80 chars, mandatory", item count "11-100 enforced on every write path", "at least one value column per list", `icon_name` and `icon_image` mutually exclusive, and a list in the default folder rejected
+- [x] T121 [US6] Implement list CRUD in `backend/src/modules/lists/mod.rs`: create, read, update, delete, duplicate with a ` (Copy)` suffix, and the `columns[0]` default-value-column rule
+- [x] T122 [US6] Add the HTTP surface in `backend/src/routes/lists.rs`: `GET /api/folders/{id}/lists`, `GET /api/lists/{id}`, `POST /api/folders/{id}/lists`, `PUT /api/lists/{id}`, `DELETE /api/lists/{id}`, `GET /api/lists/{id}/export.csv`, `POST /api/folders/{id}/lists/import`
+- [x] T123 [P] [US6] Copy `the reference frontend's components/IconPickerModal.tsx` and `the reference frontend's components/ItemIcon.tsx` into `frontend/src/components/`, unchanged
+- [x] T124 [US6] Build the list editor in `frontend/src/pages/ListManagement.tsx` from the draft's editor, keeping `List Form & Table Editor`, `List Title (Mandatory)`, `Order Direction` with `Low to High (Ascending / Earliest to Latest)` and `High to Low (Descending / Highest to Lowest)`, `Table Columns`, `Add Value Column`, `Add Row`, the drag grip, and the `Drag the grip icon on the left to rearrange rows` hint
+- [x] T125 [US6] Add inline 11-100 item-count validation and the mandatory-title validation to `frontend/src/pages/ListManagement.tsx`
+- [x] T126 [US6] Build the CSV import modal in `frontend/src/pages/ListManagement.tsx` keeping `Import List from CSV`, `Upload .csv File OR Paste CSV Below`, the `Icon,Name,Year,Value2` placeholder, and the cancel and `Import List` actions, and render the import report's `defaultedRows` warnings
+- [x] T127 [US6] Add the `Select List:` and `Value Column:` dropdowns to the round configuration step in `frontend/src/pages/SetupQuiz.tsx`, showing `{title} ({itemCount} items)` and offering the value-column picker only when the list has more than one column
 
 **Checkpoint**: US6 works with US2's folders. Round configuration can use any unlocked list.
 

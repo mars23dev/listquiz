@@ -357,28 +357,29 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
                         <option value="">Select a list</option>
                         {lists.map((candidate) => (
                           <option key={candidate.id} value={candidate.id}>
-                            {candidate.title}
+                            {candidate.title} ({candidate.itemCount} items)
                           </option>
                         ))}
                       </select>
                     </label>
 
-                    <label className="text-xs font-semibold text-slate-300">
-                      Column
-                      <select
-                        value={round.columnId}
-                        onChange={(event) => updateRound(index, { columnId: event.target.value })}
-                        disabled={!list}
-                        className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
-                      >
-                        <option value="">Select a column</option>
-                        {(list?.columns ?? []).map((column) => (
-                          <option key={column.id} value={column.id}>
-                            {column.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    {list && list.columns.length > 1 ? (
+                      <label className="text-xs font-semibold text-slate-300">
+                        Value Column
+                        <select
+                          value={round.columnId}
+                          onChange={(event) => updateRound(index, { columnId: event.target.value })}
+                          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
+                        >
+                          <option value="">Select a column</option>
+                          {(list?.columns ?? []).map((column) => (
+                            <option key={column.id} value={column.id}>
+                              {column.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
 
                     <label className="text-xs font-semibold text-slate-300">
                       Tripmine side

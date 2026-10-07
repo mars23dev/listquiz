@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ListManagement } from '../pages/ListManagement';
 
@@ -198,5 +198,131 @@ describe('folder bar', () => {
         password: 'letmein',
       });
     });
+  });
+});
+
+const LIST_DETAIL = {
+  id: 'lst-recipes',
+  folderId: 'fld-family1',
+  title: "Grandma's recipes",
+  description: '',
+  orderDirection: 'low_to_high',
+  columns: [{ id: 'year', name: 'Year' }],
+  itemCount: 11,
+  isDefault: false,
+  items: Array.from({ length: 11 }, (_, index) => ({
+    id: `itm-${index}`,
+    name: `Dish ${index}`,
+    iconName: null,
+    iconImage: null,
+    position: index,
+    values: { year: { display: `${1900 + index}`, numeric: 1900 + index, wasDefaulted: false } },
+  })),
+};
+
+function stubEditorApi() {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    const method = init?.method ?? 'GET';
+    const headers = (init?.headers ?? {}) as Record<string, string>;
+
+    if (url === '/api/folders' && method === 'GET') return jsonResponse(FOLDERS);
+    if (url === '/api/folders/default/lists') return jsonResponse(DEFAULT_LISTS);
+    if (url.endsWith('/unlock')) return jsonResponse({ name: 'Family facts' });
+    if (url === '/api/folders/fld-family1/lists') {
+      if (headers['X-Quiz-Password'] === 'hunter2') return jsonResponse(SECRET_LISTS);
+      return jsonResponse({ error: { code: 'unauthorized', message: 'Incorrect password!' } }, 400);
+    }
+    if (url === '/api/lists/lst-recipes' && method === 'GET') return jsonResponse(LIST_DETAIL);
+    if (url === '/api/lists/lst-recipes' && method === 'PUT') return jsonResponse(LIST_DETAIL);
+    if (url === '/api/folders/fld-family1/lists' && method === 'POST') {
+      return jsonResponse(LIST_DETAIL, 201);
+    }
+    if (url.includes('/lists/import')) {
+      return jsonResponse(
+        { list: LIST_DETAIL, report: { rowCount: 11, defaultedRows: [], warnings: [] } },
+        201,
+      );
+    }
+    return jsonResponse({ error: { code: 'not_found', message: 'unexpected' } }, 404);
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+}
+
+describe('list editor and CSV import', () => {
+  async function openUnlockedFolder() {
+    const user = userEvent.setup();
+    render(<ListManagement onBackToHome={() => {}} />);
+    await screen.findByText('World History & Inventions');
+    await user.click(screen.getByRole('button', { name: /family facts/i }));
+    await user.type(await screen.findByLabelText(/folder password/i), 'hunter2');
+    await user.click(screen.getByRole('button', { name: /^unlock$/i }));
+    await screen.findByText("Grandma's recipes");
+    return user;
+  }
+
+  beforeEach(() => {
+    stubEditorApi();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('opens the list editor with the draft labels and validation', async () => {
+    const user = await openUnlockedFolder();
+
+    await user.click(screen.getByRole('button', { name: /^edit$/i }));
+
+    const dialog = await screen.findByRole('dialog', { name: /list form & table editor/i });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText(/not protected; do not add sensitive data/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/list title \(mandatory\)/i)).toHaveValue("Grandma's recipes");
+    expect(screen.getByText(/drag the grip icon on the left to rearrange rows/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add value column/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add row/i })).toBeInTheDocument();
+
+    // Clearing the title is caught inline before the save is allowed.
+    await user.clear(screen.getByLabelText(/list title \(mandatory\)/i));
+    expect(screen.getByRole('alert')).toHaveTextContent(/title is required/i);
+    expect(screen.getByRole('button', { name: /save list/i })).toBeDisabled();
+  });
+
+  it('creates a new list from the editor', async () => {
+    const user = await openUnlockedFolder();
+
+    await user.click(screen.getByRole('button', { name: /create list/i }));
+    const dialog = await screen.findByRole('dialog', { name: /list form & table editor/i });
+    expect(dialog).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/list title \(mandatory\)/i), 'Brand new');
+    await user.click(screen.getByRole('button', { name: /save list/i }));
+
+    await waitFor(() => {
+      const call = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.find(
+        ([url, init]) =>
+          String(url) === '/api/folders/fld-family1/lists' &&
+          (init as RequestInit)?.method === 'POST',
+      );
+      expect(call).toBeTruthy();
+    });
+  });
+
+  it('imports a CSV and reports the outcome', async () => {
+    const user = await openUnlockedFolder();
+
+    await user.click(screen.getByRole('button', { name: /import csv/i }));
+    const dialog = await screen.findByRole('dialog', { name: /import list from csv/i });
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByText(/upload .csv file or paste csv below/i)).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText(/list title/i));
+    await user.type(screen.getByLabelText(/list title/i), 'Imported');
+    const textarea = screen.getByPlaceholderText(/Icon,Name,Year,Value2/i);
+    await user.type(textarea, 'Icon,Name,Year\nTag,One,1');
+    await user.click(screen.getByRole('button', { name: /import list/i }));
+
+    expect(await screen.findByText(/imported 11 rows/i)).toBeInTheDocument();
   });
 });
