@@ -17,6 +17,10 @@
 > **Amended by `specs/007-fix-game-end/contracts/game-end.md`:** the last configured round ending
 > finishes the session by itself (no gamemaster action), which is what makes the game-end dialog
 > appear in a gamemaster-less quick game.
+>
+> **Amended by `specs/006-fix-turn-timer/contracts/turn-timer.md`:** a timeout costs a heart only in
+> an Order round (a Tripmine timeout just passes the turn), and the timer plays a start cue and a
+> timeout cue.
 
 ## Why revisions instead of pushed state
 

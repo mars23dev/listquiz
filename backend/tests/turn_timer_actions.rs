@@ -37,6 +37,31 @@ async fn started_order_session() -> (Router, String) {
     (app, session_id)
 }
 
+async fn started_tripmine_session() -> (Router, String) {
+    let conn: Connection = common::seeded_db();
+    let app = test_app(conn);
+
+    let body = json!({
+        "gmPassword": "letmein",
+        "teamCount": 2,
+        "teams": [{ "name": "Team Cyan Pulsar" }, { "name": "Team Ruby Spark" }],
+        "roundCount": 2,
+        "rounds": [
+            { "roundNumber": 1, "quizType": "TRIPMINE",
+              "listId": "default_world_history", "columnId": "year", "tripmineSide": "highest" },
+            { "roundNumber": 2, "quizType": "ORDER",
+              "listId": "default_world_history", "columnId": "year" }
+        ]
+    });
+    let (status, created) = call(&app, json_request("POST", "/api/sessions", Some(&body))).await;
+    assert_eq!(status, StatusCode::CREATED, "session created: {created}");
+    let session_id = created["sessionId"].as_str().expect("an id").to_string();
+
+    let (status, _) = gm(&app, &session_id, &json!({ "action": "next_round" })).await;
+    assert_eq!(status, StatusCode::OK, "round 1 started");
+    (app, session_id)
+}
+
 async fn gm(app: &Router, session_id: &str, body: &Value) -> (StatusCode, Value) {
     call(
         app,
@@ -209,4 +234,39 @@ async fn ending_the_turn_another_way_clears_the_timer() {
         after["timer"].is_null(),
         "passing the turn clears the timer"
     );
+}
+
+#[tokio::test]
+async fn a_tripmine_timeout_passes_the_turn_without_a_heart() {
+    let (app, session_id) = started_tripmine_session().await;
+    let before = state(&app, &session_id, "gamemaster").await;
+    let team = on_turn(&before);
+    let hearts_before = hearts_of(&before, &team);
+
+    let (status, _) = gm(
+        &app,
+        &session_id,
+        &json!({ "action": "start_timer", "seconds": 1 }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    tokio::time::sleep(Duration::from_millis(1_200)).await;
+
+    let (status, body) = gm(
+        &app,
+        &session_id,
+        &json!({ "action": "time_out", "teamId": team }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "timed out: {body}");
+
+    let after = state(&app, &session_id, "gamemaster").await;
+    assert_eq!(
+        hearts_of(&after, &team),
+        hearts_before,
+        "a Tripmine timeout costs no heart"
+    );
+    assert_ne!(on_turn(&after), team, "the turn passes on");
+    assert!(after["timer"].is_null(), "the timer clears");
 }

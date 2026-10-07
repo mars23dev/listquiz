@@ -5,6 +5,11 @@ contract in `specs/001-listquiz-game/contracts/rest-api.md`. Field names are cam
 
 ## 1. Turn timer
 
+> **Amended by `specs/006-fix-turn-timer/contracts/turn-timer.md`:** the timeout's consequence
+> depends on the round type — an Order timeout costs one heart, a Tripmine timeout only passes the
+> turn — and the timer now plays a start cue and a timeout cue. The gamemaster starts it from the
+> fixed presets 15s / 30s / 60s.
+
 ### State (in `GET /state`, every role)
 
 ```jsonc

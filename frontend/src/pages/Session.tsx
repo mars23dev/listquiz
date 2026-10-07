@@ -10,6 +10,7 @@ import { TopBarOrdering } from '../components/TopBarOrdering';
 import { TripmineBoard } from '../components/TripmineBoard';
 import {
   playBonusChime,
+  playBuzzerSound,
   playChimeSound,
   playExplosionSound,
   playFailureSound,
@@ -180,6 +181,9 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
         break;
       case 'bonus':
         playBonusChime();
+        break;
+      case 'buzzer':
+        playBuzzerSound();
         break;
       default:
         break;
@@ -356,10 +360,9 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
     await sendAction({ action: 'reveal_values' });
   }
 
-  // US2 (005): the gamemaster's turn-timer controls.
-  const [timerSeconds, setTimerSeconds] = useState(20);
-  function handleStartTimer() {
-    void sendAction({ action: 'start_timer', seconds: timerSeconds });
+  // US2 (005): the gamemaster's turn-timer controls; US3 (006): fixed presets.
+  function handleStartTimer(seconds: number) {
+    void sendAction({ action: 'start_timer', seconds });
   }
   function handleStopTimer() {
     void sendAction({ action: 'stop_timer' });
@@ -643,22 +646,17 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
             </div>
 
             <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900/90 px-2 py-1">
-              <label htmlFor="timer-seconds" className="text-xs text-slate-400">
-                Timer
-              </label>
-              <input
-                id="timer-seconds"
-                type="number"
-                min={1}
-                value={timerSeconds}
-                onChange={(event) =>
-                  setTimerSeconds(Math.max(1, Number(event.target.value) || 1))
-                }
-                className="w-14 rounded border border-slate-700 bg-slate-950 px-1 text-sm text-slate-200"
-              />
-              <button type="button" onClick={handleStartTimer} className="px-1 text-cyan-300">
-                Start
-              </button>
+              <span className="text-xs text-slate-400">Timer</span>
+              {[15, 30, 60].map((seconds) => (
+                <button
+                  key={seconds}
+                  type="button"
+                  onClick={() => handleStartTimer(seconds)}
+                  className="rounded px-2 py-0.5 text-xs font-bold text-cyan-300 hover:bg-cyan-500/10"
+                >
+                  {seconds}s
+                </button>
+              ))}
               <button
                 type="button"
                 onClick={handleStopTimer}

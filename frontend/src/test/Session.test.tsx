@@ -744,6 +744,23 @@ describe('gamemaster dashboard controls', () => {
     expect(posted[2].body).toEqual({ action: 'adjust_score', teamId: 'team_1', delta: 50 });
   });
 
+  it('starts the timer from a fixed preset and offers no duration input', async () => {
+    stub(orderState());
+    const user = userEvent.setup();
+    render(<Session sessionId="lq-abcd1234" role="gamemaster" onNavigate={() => {}} />);
+    await user.type(screen.getByPlaceholderText('Enter password...'), 'letmein');
+    await user.click(screen.getByRole('button', { name: /unlock/i }));
+
+    await screen.findByRole('button', { name: '15s' });
+    expect(screen.getByRole('button', { name: '30s' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '60s' })).toBeInTheDocument();
+    expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '30s' }));
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0].body).toEqual({ action: 'start_timer', seconds: 30 });
+  });
+
   it('shows the final ranking once the game is finished', async () => {
     stub({ ...orderState(), status: 'finished', revealValues: true });
 

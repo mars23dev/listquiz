@@ -48,27 +48,35 @@ fn is_expired_only_at_or_after_the_end() {
 }
 
 #[test]
-fn expiry_costs_exactly_one_heart_and_passes_the_turn() {
-    let (after, _events, next) = expire(&teams(), "team_1");
+fn a_lose_heart_expiry_costs_exactly_one_heart_and_passes_the_turn() {
+    let (after, _events, next) = expire(&teams(), "team_1", TimeoutRule::LoseHeart);
     let team_1 = after.iter().find(|t| t.id == "team_1").unwrap();
     assert_eq!(team_1.hearts, MAX_HEARTS - 1, "one heart lost");
     assert_eq!(next.as_deref(), Some("team_2"), "the turn passes on");
 }
 
 #[test]
-fn expiry_never_takes_a_team_below_zero_hearts() {
+fn a_pass_only_expiry_changes_no_heart_and_passes_the_turn() {
+    let (after, events, next) = expire(&teams(), "team_1", TimeoutRule::PassOnly);
+    assert_eq!(after, teams(), "no heart or score change");
+    assert!(events.is_empty(), "a pass-only timeout emits no events");
+    assert_eq!(next.as_deref(), Some("team_2"), "the turn passes on");
+}
+
+#[test]
+fn a_lose_heart_expiry_never_takes_a_team_below_zero_hearts() {
     let mut standings = teams();
     standings[0].hearts = 0;
-    let (after, _events, _) = expire(&standings, "team_1");
+    let (after, _events, _) = expire(&standings, "team_1", TimeoutRule::LoseHeart);
     let team_1 = after.iter().find(|t| t.id == "team_1").unwrap();
     assert_eq!(team_1.hearts, 0);
 }
 
 #[test]
-fn expiry_with_no_hearts_left_ends_the_round() {
+fn an_expiry_with_no_hearts_left_ends_the_round() {
     let mut standings = teams();
     standings[0].hearts = 0;
     standings[1].hearts = 0;
-    let (_, _events, next) = expire(&standings, "team_1");
+    let (_, _events, next) = expire(&standings, "team_1", TimeoutRule::LoseHeart);
     assert_eq!(next, None, "nobody is left to play");
 }

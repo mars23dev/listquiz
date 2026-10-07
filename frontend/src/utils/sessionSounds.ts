@@ -10,7 +10,7 @@
 
 import type { SessionState } from '../types/session';
 
-export type SessionCue = 'slide' | 'chime' | 'failure' | 'explosion' | 'remove' | 'bonus';
+export type SessionCue = 'slide' | 'chime' | 'failure' | 'explosion' | 'remove' | 'bonus' | 'buzzer';
 
 function barCount(state: SessionState): number {
   return (state.order?.left.length ?? 0) + (state.order?.right.length ?? 0);
@@ -78,6 +78,18 @@ export function deriveSessionCue(
 
   const reveal = newlyRevealedTripmineItem(prev, next);
   if (reveal) return reveal.isTripmine ? 'explosion' : 'chime';
+
+  // The turn timer (feature 006): a timer appearing plays the start cue; a timer
+  // clearing with the timeout message plays the timeout cue. This runs before the
+  // heart-loss check so an Order timeout plays exactly one cue.
+  if (!prev.timer && next.timer) return 'buzzer';
+  if (
+    prev.timer &&
+    !next.timer &&
+    (next.lastMessage ?? '').startsWith('Time ran out')
+  ) {
+    return 'failure';
+  }
 
   if (heartsDropped(prev, next)) return 'failure';
 

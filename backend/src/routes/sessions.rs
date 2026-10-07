@@ -462,8 +462,28 @@ fn apply_time_out(
     }
 
     let active = require_team_on_turn(conn, session_id, request.team_id.as_deref())?;
+    // Hearts are an Order mechanic: only an Order timeout costs a heart.
+    let quiz_type: String = conn.query_row(
+        "SELECT quiz_type FROM round_config
+         WHERE session_id = ?1 AND round_number = (
+             SELECT current_round FROM game_session WHERE id = ?1
+         )",
+        rusqlite::params![session_id],
+        |row| row.get(0),
+    )?;
+    let rule = if quiz_type == "TRIPMINE" {
+        turn_timer::TimeoutRule::PassOnly
+    } else {
+        turn_timer::TimeoutRule::LoseHeart
+    };
+    let message = if rule == turn_timer::TimeoutRule::LoseHeart {
+        "Time ran out! -1 heart"
+    } else {
+        "Time ran out! Turn passed"
+    };
+
     let teams = order_round::load_teams(conn, session_id)?;
-    let (teams, events, next) = turn_timer::expire(&teams, &active);
+    let (teams, events, next) = turn_timer::expire(&teams, &active, rule);
     let round_over = next.is_none();
     let round = current_round_number(conn, session_id)?;
 
@@ -474,7 +494,7 @@ fn apply_time_out(
         "UPDATE game_session
          SET active_team_id = ?2, timer_ends_at = NULL, timer_total_seconds = NULL, last_message = ?3
          WHERE id = ?1",
-        rusqlite::params![session_id, next, Some("Time ran out! -1 heart".to_string())],
+        rusqlite::params![session_id, next, Some(message.to_string())],
     )?;
     tx.commit()?;
     if round_over {

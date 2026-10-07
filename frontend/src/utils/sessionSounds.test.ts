@@ -172,4 +172,47 @@ describe('deriveSessionCue', () => {
     const finished = state({ revision: 2, status: 'finished' });
     expect(deriveSessionCue(base, finished)).toBe('bonus');
   });
+
+  it('plays a start cue when a timer appears', () => {
+    const base = state({ revision: 1, timer: null });
+    const started = state({ revision: 2, timer: { totalSeconds: 20, secondsLeft: 20 } });
+    expect(deriveSessionCue(base, started)).toBe('buzzer');
+  });
+
+  it('plays a timeout cue when the timer clears with the timeout message', () => {
+    const base = state({ revision: 1, timer: { totalSeconds: 20, secondsLeft: 0 } });
+    const timedOut = state({
+      revision: 2,
+      timer: null,
+      lastMessage: 'Time ran out! -1 heart',
+    });
+    expect(deriveSessionCue(base, timedOut)).toBe('failure');
+  });
+
+  it('plays nothing when a timer clears for another reason', () => {
+    const base = state({ revision: 1, timer: { totalSeconds: 20, secondsLeft: 10 } });
+    const passed = state({ revision: 2, timer: null, lastMessage: null });
+    expect(deriveSessionCue(base, passed)).toBeNull();
+  });
+
+  it('plays one cue for an Order timeout that also drops a heart', () => {
+    const base = state({
+      revision: 1,
+      timer: { totalSeconds: 20, secondsLeft: 0 },
+      teams: [
+        { id: 'team_1', name: 'One', color: 'cyan', primaryHex: '#06b6d4', accentGlow: '', score: 0, hearts: 3, onTurn: true },
+        { id: 'team_2', name: 'Two', color: 'rose', primaryHex: '#f43f5e', accentGlow: '', score: 0, hearts: 3, onTurn: false },
+      ],
+    });
+    const timedOut = state({
+      revision: 2,
+      timer: null,
+      lastMessage: 'Time ran out! -1 heart',
+      teams: [
+        { id: 'team_1', name: 'One', color: 'cyan', primaryHex: '#06b6d4', accentGlow: '', score: 0, hearts: 2, onTurn: false },
+        { id: 'team_2', name: 'Two', color: 'rose', primaryHex: '#f43f5e', accentGlow: '', score: 0, hearts: 3, onTurn: true },
+      ],
+    });
+    expect(deriveSessionCue(base, timedOut)).toBe('failure');
+  });
 });
