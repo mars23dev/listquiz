@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SetupQuiz } from '../pages/SetupQuiz';
 
@@ -208,5 +208,21 @@ describe('setup wizard', () => {
 
     await user.selectOptions(quizType, 'ORDER');
     expect(screen.queryByLabelText(/tripmine side/i)).not.toBeInTheDocument();
+  });
+
+  it('offers Random (Hard) as a Tripmine side', async () => {
+    const user = userEvent.setup();
+    render(<SetupQuiz onBackToHome={() => {}} onLaunchRole={() => {}} />);
+    await user.type(await screen.findByLabelText(/moderator password/i), 'letmein');
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+    await screen.findByRole('heading', { name: /step 2/i });
+
+    const quizType = screen.getAllByRole('combobox')[0];
+    await user.selectOptions(quizType, 'TRIPMINE');
+
+    const side = screen.getByLabelText(/tripmine side/i);
+    expect(within(side).getByRole('option', { name: /random \(hard\)/i })).toBeInTheDocument();
+    expect(within(side).getByRole('option', { name: /^highest$/i })).toBeInTheDocument();
+    expect(within(side).getByRole('option', { name: /^lowest$/i })).toBeInTheDocument();
   });
 });

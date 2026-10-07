@@ -25,6 +25,10 @@
 > **Amended by `specs/008-fix-timer-timeout/contracts/timer-timeout.md`:** the server schedules the
 > timer's timeout at its end time and applies it itself, so no client posts `time_out`; the client
 > shows the countdown, ticks the last five seconds, and shows no timer error.
+>
+> **Amended by `specs/009-tripmine-mode/contracts/tripmine-mode.md`:** Tripmine adds a Random (Hard)
+> side, hides hearts (hearts are Order-only), and a round end that also finishes the game plays the
+> round cue before the game-end cue.
 
 ## Why revisions instead of pushed state
 

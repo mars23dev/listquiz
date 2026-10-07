@@ -5,6 +5,9 @@
 >
 > **Amended by `specs/007-fix-game-end/contracts/game-end.md`:** the last configured round ending
 > finishes the session automatically (no gamemaster action required).
+>
+> **Amended by `specs/009-tripmine-mode/contracts/tripmine-mode.md`:** a Tripmine round's
+> `tripmineSide` may also be `"random"` (Random/Hard).
 
 Base URL `http://<host>:8080`. All bodies are JSON unless stated otherwise. All endpoints are
 same-origin with the served frontend, so no CORS configuration is needed.

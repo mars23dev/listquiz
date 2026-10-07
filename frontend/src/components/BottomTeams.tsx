@@ -7,12 +7,15 @@ interface BottomTeamsProps {
   teams: Team[];
   activeTeamCount: number;
   currentRole?: UserRole;
+  /** Hearts are an Order mechanic; a Tripmine round hides them. */
+  showHearts?: boolean;
 }
 
 export const BottomTeams: React.FC<BottomTeamsProps> = ({
   teams,
   activeTeamCount,
   currentRole,
+  showHearts = true,
 }) => {
   const displayedTeams = teams.slice(0, activeTeamCount);
 
@@ -84,7 +87,7 @@ export const BottomTeams: React.FC<BottomTeamsProps> = ({
           }}
         >
           {displayedTeams.map((team, index) => {
-            const isEliminated = team.hearts <= 0;
+            const isEliminated = showHearts && team.hearts <= 0;
             const isCurrentPlayer = playerTeamIndex === index;
             const style = getTeamCardStyle(team.colorName, team.isActiveTurn, isEliminated, isCurrentPlayer);
 
@@ -108,22 +111,24 @@ export const BottomTeams: React.FC<BottomTeamsProps> = ({
                     </h3>
                   </div>
 
-                  {/* 3 Hearts Display */}
-                  <div className="flex items-center gap-0.5 shrink-0" title={`${team.hearts} / 3 Hearts remaining`}>
-                    {[1, 2, 3].map((heartIndex) => {
-                      const hasHeart = team.hearts >= heartIndex;
-                      return (
-                        <Heart
-                          key={heartIndex}
-                          className={`w-3.5 h-3.5 transition-colors ${
-                            hasHeart
-                              ? 'fill-rose-500 text-rose-500 filter drop-shadow-[0_0_4px_rgba(244,63,94,0.6)]'
-                              : 'fill-slate-800 text-slate-700'
-                          }`}
-                        />
-                      );
-                    })}
-                  </div>
+                  {/* 3 Hearts Display (Order only) */}
+                  {showHearts && (
+                    <div className="flex items-center gap-0.5 shrink-0" title={`${team.hearts} / 3 Hearts remaining`}>
+                      {[1, 2, 3].map((heartIndex) => {
+                        const hasHeart = team.hearts >= heartIndex;
+                        return (
+                          <Heart
+                            key={heartIndex}
+                            className={`w-3.5 h-3.5 transition-colors ${
+                              hasHeart
+                                ? 'fill-rose-500 text-rose-500 filter drop-shadow-[0_0_4px_rgba(244,63,94,0.6)]'
+                                : 'fill-slate-800 text-slate-700'
+                            }`}
+                          />
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 {/* Score Below Team Name */}

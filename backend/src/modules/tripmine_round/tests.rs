@@ -287,3 +287,83 @@ fn the_grid_is_shuffled_out_of_rank_order_without_changing_the_answer_key() {
         .expect("the mine");
     assert_eq!(mine.true_rank, TRIPMINE_SLOTS as i32);
 }
+
+// Random (Hard) side (feature 009) -----------------------------------------
+
+#[test]
+fn random_side_parses_and_round_trips() {
+    assert_eq!(TripmineSide::parse("random"), Some(TripmineSide::Random));
+    assert_eq!(TripmineSide::Random.as_str(), "random");
+}
+
+#[test]
+fn a_random_grid_has_one_mine_at_any_rank() {
+    let mut mined_ranks = std::collections::BTreeSet::new();
+    for seed in 1..=30 {
+        let grid =
+            sample_tripmine_grid(&items(20), TripmineSide::Random, &mut rng(seed)).expect("a grid");
+        let mut ranks: Vec<i32> = grid.iter().map(|slot| slot.true_rank).collect();
+        ranks.sort_unstable();
+        assert_eq!(
+            ranks,
+            (1..=TRIPMINE_SLOTS as i32).collect::<Vec<_>>(),
+            "ranked ascending"
+        );
+
+        let mines: Vec<&TripmineSlot> = grid.iter().filter(|slot| slot.is_tripmine).collect();
+        assert_eq!(mines.len(), 1, "exactly one mine");
+        assert!((1..=TRIPMINE_SLOTS as i32).contains(&mines[0].true_rank));
+        mined_ranks.insert(mines[0].true_rank);
+    }
+    assert!(
+        mined_ranks.len() > 1,
+        "the mine is not always the same rank"
+    );
+}
+
+#[test]
+fn a_random_search_target_is_unrevealed_and_never_the_mine() {
+    let grid = sample_tripmine_grid(&items(20), TripmineSide::Random, &mut rng(7)).expect("grid");
+    let mine = grid.iter().find(|slot| slot.is_tripmine).unwrap().true_rank;
+
+    for _ in 0..20 {
+        let rank = next_searched_rank(TripmineSide::Random, &grid, 0).expect("a target");
+        assert_ne!(rank, mine, "the target is never the mine");
+        let slot = grid.iter().find(|slot| slot.true_rank == rank).unwrap();
+        assert!(!slot.revealed, "the target is unrevealed");
+    }
+}
+
+#[test]
+fn a_random_search_with_only_the_mine_left_has_no_target() {
+    let grid = vec![
+        TripmineSlot {
+            item: items(1)[0].clone(),
+            true_rank: 1,
+            is_tripmine: true,
+            revealed: false,
+            revealed_by: None,
+            points_awarded: None,
+        },
+        TripmineSlot {
+            item: items(2)[1].clone(),
+            true_rank: 2,
+            is_tripmine: false,
+            revealed: false,
+            revealed_by: None,
+            points_awarded: None,
+        },
+    ];
+
+    assert_eq!(
+        next_searched_rank(TripmineSide::Random, &grid, 0),
+        Some(2),
+        "the only remaining item is the target"
+    );
+
+    let only_mine = vec![grid[0].clone()];
+    assert_eq!(
+        next_searched_rank(TripmineSide::Random, &only_mine, 0),
+        None
+    );
+}

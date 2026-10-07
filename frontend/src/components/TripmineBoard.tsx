@@ -52,7 +52,12 @@ export const TripmineBoard: React.FC<TripmineBoardProps> = ({
           <div className="flex items-center gap-1.5 py-1 px-2.5 rounded-lg bg-rose-950/60 border border-rose-500/40 text-rose-300 font-mono font-bold">
             <Bomb className="w-3.5 h-3.5 text-rose-400" />
             <span>
-              TRIPMINE: {tripmineSide === 'highest' ? '#10 (HIGHEST)' : '#1 (LOWEST)'}
+              TRIPMINE:{' '}
+              {tripmineSide === 'highest'
+                ? '#10 (HIGHEST)'
+                : tripmineSide === 'lowest'
+                  ? '#1 (LOWEST)'
+                  : 'RANDOM (HARD)'}
             </span>
             {tripmineState.targetValue ? (
               <span

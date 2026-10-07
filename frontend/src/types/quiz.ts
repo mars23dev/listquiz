@@ -134,7 +134,7 @@ export interface TripmineItem {
 }
 
 export interface TripmineState {
-  tripmineSide: 'highest' | 'lowest'; // gamemaster choice: highest or lowest
+  tripmineSide: 'highest' | 'lowest' | 'random'; // gamemaster choice: highest, lowest, or random (Hard)
   currentSearchedRank: number; // 1..10
   items: TripmineItem[]; // 10 items in grid
   tripmineHit: boolean;

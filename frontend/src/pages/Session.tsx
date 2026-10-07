@@ -21,7 +21,7 @@ import {
   unlockAudio,
 } from '../utils/audio';
 import { positionForGap } from '../utils/orderBar';
-import { deriveSessionCue, isFinalTickSecond } from '../utils/sessionSounds';
+import { deriveSessionCues, isFinalTickSecond } from '../utils/sessionSounds';
 import type {
   QuizItem,
   Team as QuizTeam,
@@ -112,7 +112,7 @@ function toTripmineItem(
 
 function toTripmineState(view: TripmineView, isGamemaster: boolean): QuizTripmineState {
   return {
-    tripmineSide: view.side === 'lowest' ? 'lowest' : 'highest',
+    tripmineSide: view.side === 'lowest' ? 'lowest' : view.side === 'random' ? 'random' : 'highest',
     currentSearchedRank: view.searchedRank,
     items: view.items.map((item) => toTripmineItem(item, isGamemaster)),
     tripmineHit: view.hit,
@@ -157,37 +157,40 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
     };
   }, []);
 
-  // US1: one cue per reflected event, derived by comparing the previous state with
-  // the new one. The first load and any reconnect emit nothing (deriveSessionCue).
+  // US1: cues for each reflected event, derived by comparing the previous state with
+  // the new one. A round end that also finishes the game plays its cue then the
+  // game-end cue (feature 009). The first load and any reconnect emit nothing.
   const previousStateRef = useRef<SessionState | null>(null);
   useEffect(() => {
     if (!state) return;
-    const cue = deriveSessionCue(previousStateRef.current, state);
+    const cues = deriveSessionCues(previousStateRef.current, state);
     previousStateRef.current = state;
-    switch (cue) {
-      case 'slide':
-        playSlideSound();
-        break;
-      case 'chime':
-        playChimeSound();
-        break;
-      case 'failure':
-        playFailureSound();
-        break;
-      case 'explosion':
-        playExplosionSound();
-        break;
-      case 'remove':
-        playRemoveSound();
-        break;
-      case 'bonus':
-        playBonusChime();
-        break;
-      case 'buzzer':
-        playBuzzerSound();
-        break;
-      default:
-        break;
+    for (const cue of cues) {
+      switch (cue) {
+        case 'slide':
+          playSlideSound();
+          break;
+        case 'chime':
+          playChimeSound();
+          break;
+        case 'failure':
+          playFailureSound();
+          break;
+        case 'explosion':
+          playExplosionSound();
+          break;
+        case 'remove':
+          playRemoveSound();
+          break;
+        case 'bonus':
+          playBonusChime();
+          break;
+        case 'buzzer':
+          playBuzzerSound();
+          break;
+        default:
+          break;
+      }
     }
   }, [state]);
 
@@ -211,6 +214,8 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
   // team on turn (FR-001, FR-002). Every other view is read-only.
   const canAct = isGamemaster || isPlayersTurn;
   const teams = useMemo(() => (state?.teams ?? []).map(toQuizTeam), [state?.teams]);
+  // Hearts are Order-specific; a Tripmine round hides them (feature 009).
+  const showHearts = state?.round?.quizType !== 'TRIPMINE';
 
   // US2 (005) / US3 (008): the turn timer. The server owns the deadline and applies
   // the timeout itself, so the client only displays the countdown and ticks the last
@@ -628,22 +633,26 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
               >
                 -50
               </button>
-              <button
-                type="button"
-                onClick={() => handleAdjustHearts(1)}
-                disabled={!onTurnTeamId}
-                className="px-1 text-rose-300 disabled:opacity-40"
-              >
-                +1♥
-              </button>
-              <button
-                type="button"
-                onClick={() => handleAdjustHearts(-1)}
-                disabled={!onTurnTeamId}
-                className="px-1 text-slate-300 disabled:opacity-40"
-              >
-                -1♥
-              </button>
+              {showHearts && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleAdjustHearts(1)}
+                    disabled={!onTurnTeamId}
+                    className="px-1 text-rose-300 disabled:opacity-40"
+                  >
+                    +1♥
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAdjustHearts(-1)}
+                    disabled={!onTurnTeamId}
+                    className="px-1 text-slate-300 disabled:opacity-40"
+                  >
+                    -1♥
+                  </button>
+                </>
+              )}
             </div>
 
             <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900/90 px-2 py-1">
@@ -832,7 +841,12 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
       </main>
 
       {state ? (
-        <BottomTeams teams={teams} activeTeamCount={state.teamCount} currentRole={role} />
+        <BottomTeams
+          teams={teams}
+          activeTeamCount={state.teamCount}
+          currentRole={role}
+          showHearts={showHearts}
+        />
       ) : null}
     </div>
   );

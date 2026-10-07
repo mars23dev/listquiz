@@ -62,58 +62,66 @@ function newlyRevealedTripmineItem(
 }
 
 /**
- * One cue for the transition from `prev` to `next`, or null. The order of the
- * checks is the priority table in contracts/session-feedback.md §2.
+ * The ordered cues for the transition from `prev` to `next`. The event cue (the
+ * priority table in contracts/session-feedback.md §2) plays first; if the same
+ * transition also finishes the game, the game-end cue is appended last, so a round
+ * end always precedes the game end (feature 009). An empty list means no cue.
  */
-export function deriveSessionCue(
+export function deriveSessionCues(
   prev: SessionState | null,
   next: SessionState,
-): SessionCue | null {
-  if (prev === null) return null;
-  if (next.revision !== prev.revision + 1) return null;
+): SessionCue[] {
+  if (prev === null) return [];
+  if (next.revision !== prev.revision + 1) return [];
   // Revealing values rearranges the Order view; it is not a game event.
-  if (prev.revealValues !== next.revealValues) return null;
+  if (prev.revealValues !== next.revealValues) return [];
 
-  if (prev.status !== 'finished' && next.status === 'finished') return 'bonus';
-
+  const finished = prev.status !== 'finished' && next.status === 'finished';
   // A new round resets the board; that is not a placement.
-  if (
+  const roundChanged =
     prev.currentRound !== next.currentRound ||
-    prev.round?.quizType !== next.round?.quizType
-  ) {
-    return null;
+    prev.round?.quizType !== next.round?.quizType;
+
+  let event: SessionCue | null = null;
+  if (!roundChanged) {
+    const reveal = newlyRevealedTripmineItem(prev, next);
+    if (reveal) {
+      event = reveal.isTripmine ? 'explosion' : 'chime';
+    } else if (!prev.timer && next.timer) {
+      // The turn timer (feature 006): a timer appearing plays the start cue.
+      event = 'buzzer';
+    } else if (
+      prev.timer &&
+      !next.timer &&
+      (next.lastMessage ?? '').startsWith('Time ran out')
+    ) {
+      // A timeout cue; before the heart-loss check so an Order timeout is one cue.
+      event = 'failure';
+    } else if (heartsDropped(prev, next)) {
+      event = 'failure';
+    } else {
+      const barGrew = barCount(next) > barCount(prev);
+      const poolGrew = poolCount(next) > poolCount(prev);
+      if (barGrew && scoreRose(prev, next)) {
+        event = 'chime';
+      } else if (poolGrew && barCount(next) < barCount(prev)) {
+        event = 'remove';
+      } else if (barGrew) {
+        event = 'slide';
+      } else if (!prev.tripmine?.completed && next.tripmine?.completed) {
+        event = 'chime';
+      } else {
+        const pendingBefore = prev.order?.pending?.itemId ?? null;
+        const pendingAfter = next.order?.pending?.itemId ?? null;
+        if (pendingAfter !== null && pendingAfter !== pendingBefore) {
+          event = 'slide';
+        }
+      }
+    }
   }
 
-  const reveal = newlyRevealedTripmineItem(prev, next);
-  if (reveal) return reveal.isTripmine ? 'explosion' : 'chime';
-
-  // The turn timer (feature 006): a timer appearing plays the start cue; a timer
-  // clearing with the timeout message plays the timeout cue. This runs before the
-  // heart-loss check so an Order timeout plays exactly one cue.
-  if (!prev.timer && next.timer) return 'buzzer';
-  if (
-    prev.timer &&
-    !next.timer &&
-    (next.lastMessage ?? '').startsWith('Time ran out')
-  ) {
-    return 'failure';
-  }
-
-  if (heartsDropped(prev, next)) return 'failure';
-
-  const barGrew = barCount(next) > barCount(prev);
-  if (barGrew && scoreRose(prev, next)) return 'chime';
-
-  const poolGrew = poolCount(next) > poolCount(prev);
-  if (poolGrew && barCount(next) < barCount(prev)) return 'remove';
-
-  if (barGrew) return 'slide';
-
-  if (!prev.tripmine?.completed && next.tripmine?.completed) return 'chime';
-
-  const pendingBefore = prev.order?.pending?.itemId ?? null;
-  const pendingAfter = next.order?.pending?.itemId ?? null;
-  if (pendingAfter !== null && pendingAfter !== pendingBefore) return 'slide';
-
-  return null;
+  const cues: SessionCue[] = [];
+  if (event) cues.push(event);
+  if (finished) cues.push('bonus');
+  return cues;
 }

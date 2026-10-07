@@ -12,7 +12,7 @@ interface RoundDraft {
   quizType: 'ORDER' | 'TRIPMINE';
   listId: string;
   columnId: string;
-  tripmineSide: 'highest' | 'lowest';
+  tripmineSide: 'highest' | 'lowest' | 'random';
 }
 
 interface SetupQuizProps {
@@ -388,13 +388,14 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
                           value={round.tripmineSide}
                           onChange={(event) =>
                             updateRound(index, {
-                              tripmineSide: event.target.value as 'highest' | 'lowest',
+                              tripmineSide: event.target.value as 'highest' | 'lowest' | 'random',
                             })
                           }
                           className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
                         >
                           <option value="highest">Highest</option>
                           <option value="lowest">Lowest</option>
+                          <option value="random">Random (Hard)</option>
                         </select>
                       </label>
                     ) : null}

@@ -69,7 +69,7 @@ export interface TripmineItem {
 }
 
 export interface TripmineView {
-  side: 'highest' | 'lowest';
+  side: 'highest' | 'lowest' | 'random';
   searchedRank: number;
   hit: boolean;
   completed: boolean;
@@ -81,7 +81,7 @@ export interface TripmineView {
 export interface RoundSummary {
   roundNumber: number;
   quizType: 'ORDER' | 'TRIPMINE';
-  tripmineSide: 'highest' | 'lowest' | null;
+  tripmineSide: 'highest' | 'lowest' | 'random' | null;
   listTitle: string;
   listId: string;
   columnId: string;

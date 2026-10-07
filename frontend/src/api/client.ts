@@ -91,7 +91,7 @@ export interface CreateSessionRequest {
     quizType: 'ORDER' | 'TRIPMINE';
     listId: string;
     columnId: string;
-    tripmineSide?: 'highest' | 'lowest';
+    tripmineSide?: 'highest' | 'lowest' | 'random';
   }[];
 }
 

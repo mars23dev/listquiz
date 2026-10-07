@@ -95,6 +95,8 @@ impl QuizType {
 pub enum TripmineSide {
     Highest,
     Lowest,
+    /// Hard: the mine is a random item and the search target is a random remaining item.
+    Random,
 }
 
 impl TripmineSide {
@@ -102,6 +104,7 @@ impl TripmineSide {
         match raw.trim().to_ascii_lowercase().as_str() {
             "highest" => Some(TripmineSide::Highest),
             "lowest" => Some(TripmineSide::Lowest),
+            "random" => Some(TripmineSide::Random),
             _ => None,
         }
     }
@@ -110,6 +113,7 @@ impl TripmineSide {
         match self {
             TripmineSide::Highest => "highest",
             TripmineSide::Lowest => "lowest",
+            TripmineSide::Random => "random",
         }
     }
 }

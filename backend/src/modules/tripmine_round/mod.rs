@@ -12,6 +12,7 @@
 //! * the valid position when only two are left, +20 instead of 10, everything
 //!   revealed, round over (FR-043).
 
+use rand::Rng;
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 
@@ -82,6 +83,23 @@ pub fn starting_search_rank(side: TripmineSide) -> i32 {
     match side {
         TripmineSide::Highest => 1,
         TripmineSide::Lowest => TRIPMINE_SLOTS as i32,
+        // Random has no fixed start; `start_tripmine_round` picks a random target.
+        TripmineSide::Random => 1,
+    }
+}
+
+/// A random unrevealed, non-mine rank — the Random side's searched target. `None`
+/// only when nothing but the mine is left.
+fn random_search_rank(items: &[TripmineSlot], rng: &mut impl Rng) -> Option<i32> {
+    let candidates: Vec<i32> = items
+        .iter()
+        .filter(|slot| !slot.revealed && !slot.is_tripmine)
+        .map(|slot| slot.true_rank)
+        .collect();
+    if candidates.is_empty() {
+        None
+    } else {
+        Some(candidates[rng.random_range(0..candidates.len())])
     }
 }
 
@@ -116,6 +134,19 @@ pub fn next_searched_rank(
             .filter(|rank| *rank < from_rank)
             .max()
             .or_else(|| unrevealed.last().copied()),
+        // Random: any unrevealed, non-mine rank.
+        TripmineSide::Random => {
+            let candidates: Vec<i32> = items
+                .iter()
+                .filter(|slot| !slot.revealed && !slot.is_tripmine)
+                .map(|slot| slot.true_rank)
+                .collect();
+            if candidates.is_empty() {
+                None
+            } else {
+                Some(candidates[rand::rng().random_range(0..candidates.len())])
+            }
+        }
     }
 }
 
@@ -151,6 +182,8 @@ pub fn sample_tripmine_grid(
     let mined_rank = match side {
         TripmineSide::Highest => TRIPMINE_SLOTS as i32,
         TripmineSide::Lowest => 1,
+        // Hard: the mine is any rank.
+        TripmineSide::Random => rng.random_range(1..=TRIPMINE_SLOTS as i32),
     };
 
     Ok(chosen
@@ -195,9 +228,13 @@ pub fn start_tripmine_round(
     // The displayed order is shuffled so the ten items are not sweepable in rank
     // order (FR-009).
     shuffle_grid(&mut grid, rng);
+    let searched_rank = match side {
+        TripmineSide::Random => random_search_rank(&grid, rng).unwrap_or(1),
+        _ => starting_search_rank(side),
+    };
     Ok(TripmineRound {
         side,
-        searched_rank: starting_search_rank(side),
+        searched_rank,
         items: grid,
         hit: false,
         hit_by: None,
@@ -212,7 +249,7 @@ pub fn ensure_side_unchanged(round: &TripmineRound, requested: Option<&str>) -> 
         return Ok(());
     };
     let parsed = TripmineSide::parse(raw)
-        .ok_or_else(|| ApiError::bad_request("side must be highest or lowest."))?;
+        .ok_or_else(|| ApiError::bad_request("side must be highest, lowest, or random."))?;
     if parsed == round.side {
         return Ok(());
     }
