@@ -19,6 +19,7 @@ pub struct ListItemValue {
     pub name: String,
     pub display: String,
     pub numeric: f64,
+    pub icon_name: Option<String>,
 }
 
 /// Every item of `list_id` with its value in `column_id`, sorted by value.
@@ -31,7 +32,7 @@ pub fn load_ordered_items(
     let mut items = Vec::new();
     let mut statement = conn
         .prepare(
-            "SELECT i.id, i.name, v.display, v.numeric
+            "SELECT i.id, i.name, v.display, v.numeric, i.icon_name
              FROM item i
              JOIN item_value v ON v.item_id = i.id AND v.column_id = ?2
              WHERE i.list_id = ?1
@@ -45,6 +46,7 @@ pub fn load_ordered_items(
                 name: row.get(1)?,
                 display: row.get(2)?,
                 numeric: row.get(3)?,
+                icon_name: row.get(4)?,
             })
         })
         .map_err(ApiError::from)?;

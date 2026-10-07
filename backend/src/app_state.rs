@@ -228,6 +228,8 @@ pub struct OrderItem {
     /// The team that placed this item on the bar, or `null` while it is in the pool
     /// (feature 004, US2). Public: the room watched the placement.
     pub placed_by: Option<String>,
+    /// The list item's icon name (or `flag:<cc>`), shown by every game type (feature 016).
+    pub icon_name: Option<String>,
 }
 
 /// The anchor is public by design: FR-026 says it *must* show its value.
@@ -237,6 +239,8 @@ pub struct AnchorItem {
     pub item_id: String,
     pub name: String,
     pub value: String,
+    /// The anchor's icon name (or `flag:<cc>`), shown by the Order bar (feature 016).
+    pub icon_name: Option<String>,
 }
 
 /// The item currently being placed, with the slot the gamemaster proposed. A player
@@ -278,6 +282,8 @@ pub struct TripmineItem {
     /// The team that picked this item, or `null` while it is still hidden
     /// (feature 004, US2). Public once revealed.
     pub picked_by: Option<String>,
+    /// The list item's icon name (or `flag:<cc>`), shown by every game type (feature 016).
+    pub icon_name: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -463,6 +469,7 @@ pub fn redact(state: &SessionState, role: UserRole) -> SessionState {
                     } else {
                         None
                     },
+                    icon_name: item.icon_name.clone(),
                 }
             })
             .collect(),
@@ -486,6 +493,7 @@ fn reveal_order_item(item: &OrderItem, show_values: bool) -> OrderItem {
         },
         revealed: show_values,
         placed_by: item.placed_by.clone(),
+        icon_name: item.icon_name.clone(),
     }
 }
 
@@ -508,6 +516,7 @@ mod tests {
             value: Some(value.to_string()),
             revealed: true,
             placed_by: None,
+            icon_name: None,
         }
     }
 
@@ -555,6 +564,7 @@ mod tests {
                     item_id: "a".to_string(),
                     name: "Apollo 11".to_string(),
                     value: "1969".to_string(),
+                    icon_name: None,
                 },
                 pool: vec![
                     order_item("i1", "Gutenberg", "1440"),
@@ -605,6 +615,7 @@ mod tests {
                     is_tripmine: true,
                     points_awarded: None,
                     picked_by: None,
+                    icon_name: None,
                 },
                 TripmineItem {
                     item_id: "m2".to_string(),
@@ -615,6 +626,7 @@ mod tests {
                     is_tripmine: false,
                     points_awarded: None,
                     picked_by: None,
+                    icon_name: None,
                 },
             ],
         });

@@ -99,9 +99,9 @@ export const TripmineBoard: React.FC<TripmineBoardProps> = ({
         </div>
       </div>
 
-      {/* Rank Progress Ladder (1 to 10) */}
+      {/* Rank Progress Ladder (one position per item: 10 or 20) */}
       <div className="mb-3 px-2 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-1 overflow-x-auto">
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rank) => {
+        {Array.from({ length: items.length }, (_, index) => index + 1).map((rank) => {
           const matchingItem = items.find((i) => i.trueRank === rank);
           const isRev = matchingItem?.isRevealed;
           const isTarget = currentSearchedRank === rank && !isCompleted;

@@ -67,7 +67,7 @@ describe('TripmineBoard mine marker', () => {
       currentSearchedRank: 1,
       tripmineHit: false,
       isCompleted: false,
-      mineRank: 4,
+      mineRank: 2,
       items: [
         { id: 'm1', name: 'A', value: '', numericValue: 0, trueRank: 0, isTripmine: false, isRevealed: false },
         { id: 'm2', name: 'B', value: '', numericValue: 0, trueRank: 0, isTripmine: false, isRevealed: false },
@@ -83,7 +83,7 @@ describe('TripmineBoard mine marker', () => {
       />,
     );
 
-    expect(screen.getByTitle(/rank 4 \(mine position\)/i)).toBeInTheDocument();
+    expect(screen.getByTitle(/rank 2 \(mine position\)/i)).toBeInTheDocument();
   });
 });
 
@@ -158,5 +158,48 @@ describe('TripmineBoard item count', () => {
     expect(
       screen.getAllByRole('button', { name: /hidden or already picked/i }),
     ).toHaveLength(20);
+  });
+
+  it('shows a bar position for every item', () => {
+    const make = (count: number) => ({
+      tripmineSide: 'highest' as const,
+      currentSearchedRank: 1,
+      tripmineHit: false,
+      isCompleted: false,
+      mineRank: count,
+      items: Array.from({ length: count }, (_, index) => ({
+        id: `m${index}`,
+        name: `Item ${index}`,
+        value: '',
+        numericValue: index,
+        trueRank: index + 1,
+        isTripmine: false,
+        isRevealed: false,
+      })),
+    });
+
+    const { rerender } = render(
+      <TripmineBoard
+        tripmineState={make(20)}
+        onPickItem={vi.fn()}
+        isMyTurn={false}
+        currentRole="view"
+        teams={TEAMS}
+      />,
+    );
+    expect(screen.getByText('#20')).toBeInTheDocument();
+    expect(screen.queryByText('#21')).not.toBeInTheDocument();
+
+    rerender(
+      <TripmineBoard
+        tripmineState={make(10)}
+        onPickItem={vi.fn()}
+        isMyTurn={false}
+        currentRole="view"
+        teams={TEAMS}
+      />,
+    );
+    expect(screen.getByText('#10')).toBeInTheDocument();
+    expect(screen.queryByText('#11')).not.toBeInTheDocument();
   });
 });

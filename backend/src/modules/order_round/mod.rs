@@ -553,7 +553,7 @@ fn load_item(
 ) -> ApiResult<Option<ListItemValue>> {
     let row = conn
         .query_row(
-            "SELECT i.name, v.numeric, v.display
+            "SELECT i.name, v.numeric, v.display, i.icon_name
              FROM item i
              LEFT JOIN item_value v ON v.item_id = i.id AND v.column_id = ?2
              WHERE i.id = ?1",
@@ -563,11 +563,12 @@ fn load_item(
                     row.get::<_, Option<String>>(0)?.unwrap_or_default(),
                     row.get::<_, Option<f64>>(1)?,
                     row.get::<_, Option<String>>(2)?,
+                    row.get::<_, Option<String>>(3)?,
                 ))
             },
         )
         .optional()?;
-    let Some((name, numeric, display)) = row else {
+    let Some((name, numeric, display, icon_name)) = row else {
         return Ok(None);
     };
     let numeric = numeric.or(fallback_numeric).unwrap_or_default();
@@ -576,6 +577,7 @@ fn load_item(
         name,
         display: display.unwrap_or_else(|| crate::state_reader::format_value(numeric)),
         numeric,
+        icon_name,
     }))
 }
 
@@ -632,6 +634,7 @@ pub fn load_board(conn: &Connection, session_id: &str) -> ApiResult<Option<Order
             name: String::new(),
             display: crate::state_reader::format_value(anchor_value),
             numeric: anchor_value,
+            icon_name: None,
         },
     );
 

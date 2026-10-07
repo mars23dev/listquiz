@@ -23,6 +23,8 @@ export interface OrderItem {
   revealed: boolean;
   /** The team that placed this item, or null while it is in the pool (US2). */
   placedBy: string | null;
+  /** The list item's icon (or `flag:<cc>`), shown by every game type (feature 016). */
+  iconName: string | null;
 }
 
 export interface AnchorItem {
@@ -30,6 +32,7 @@ export interface AnchorItem {
   name: string;
   /** Public by design: FR-026 requires the anchor to show its value. */
   value: string;
+  iconName: string | null;
 }
 
 export interface PendingPlacement {
@@ -66,6 +69,8 @@ export interface TripmineItem {
   pointsAwarded: number | null;
   /** The team that picked this item, or null while it is hidden (US2). */
   pickedBy: string | null;
+  /** The list item's icon (or `flag:<cc>`), shown by every game type (feature 016). */
+  iconName: string | null;
 }
 
 export interface TripmineView {

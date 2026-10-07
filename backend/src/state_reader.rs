@@ -167,7 +167,7 @@ fn read_order_items(
     for id in ids {
         let item = conn
             .query_row(
-                "SELECT i.name, v.display
+                "SELECT i.name, v.display, i.icon_name
                  FROM item i
                  LEFT JOIN item_value v ON v.item_id = i.id AND v.column_id = ?2
                  WHERE i.id = ?1",
@@ -180,6 +180,7 @@ fn read_order_items(
                         // Always populated here; redaction happens later.
                         revealed: true,
                         placed_by: placed_by.get(id).cloned(),
+                        icon_name: row.get(2)?,
                     })
                 },
             )
@@ -251,7 +252,7 @@ fn read_order(
 
     let anchor = conn
         .query_row(
-            "SELECT i.name, v.display
+            "SELECT i.name, v.display, i.icon_name
              FROM item i
              LEFT JOIN item_value v ON v.item_id = i.id AND v.column_id = ?2
              WHERE i.id = ?1",
@@ -263,6 +264,7 @@ fn read_order(
                     item_id: anchor_item_id.clone(),
                     name,
                     value: display.unwrap_or_else(|| format_value(anchor_value)),
+                    icon_name: row.get(2)?,
                 })
             },
         )
@@ -272,6 +274,7 @@ fn read_order(
         item_id: anchor_item_id.clone(),
         name: String::new(),
         value: format_value(anchor_value),
+        icon_name: None,
     });
 
     // On reveal (US3) the bar is shown in its correct order: every bar and pool item
@@ -303,6 +306,7 @@ fn read_order(
             name: anchor.name.clone(),
             display: anchor.value.clone(),
             numeric: anchor_value,
+            icon_name: anchor.icon_name.clone(),
         };
         let (sorted_left, sorted_right) =
             crate::modules::order_round::arrange_revealed_order(&anchor_value_item, &all);
@@ -337,7 +341,7 @@ fn read_value_item(
     id: &str,
 ) -> ApiResult<Option<crate::modules::sessions::round_state::ListItemValue>> {
     conn.query_row(
-        "SELECT i.name, v.display, v.numeric
+        "SELECT i.name, v.display, v.numeric, i.icon_name
          FROM item i
          LEFT JOIN item_value v ON v.item_id = i.id AND v.column_id = ?2
          WHERE i.id = ?1",
@@ -348,6 +352,7 @@ fn read_value_item(
                 name: row.get::<_, Option<String>>(0)?.unwrap_or_default(),
                 display: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
                 numeric: row.get::<_, Option<f64>>(2)?.unwrap_or(0.0),
+                icon_name: row.get(3)?,
             })
         },
     )
@@ -368,6 +373,7 @@ fn to_order_items(
             name: item.name,
             value: Some(item.display),
             revealed: true,
+            icon_name: item.icon_name,
         })
         .collect()
 }
@@ -428,9 +434,9 @@ fn read_tripmine(
 
     let mut items = Vec::with_capacity(slots.len());
     for slot in slots {
-        let (name, display) = conn
+        let (name, display, icon_name) = conn
             .query_row(
-                "SELECT i.name, v.display
+                "SELECT i.name, v.display, i.icon_name
                  FROM item i
                  LEFT JOIN item_value v ON v.item_id = i.id AND v.column_id = ?2
                  WHERE i.id = ?1",
@@ -439,11 +445,16 @@ fn read_tripmine(
                     Ok((
                         row.get::<_, Option<String>>(0)?.unwrap_or_default(),
                         row.get::<_, Option<String>>(1)?,
+                        row.get::<_, Option<String>>(2)?,
                     ))
                 },
             )
             .optional()?
-            .unwrap_or((slot.item.name.clone(), Some(slot.item.display.clone())));
+            .unwrap_or((
+                slot.item.name.clone(),
+                Some(slot.item.display.clone()),
+                slot.item.icon_name.clone(),
+            ));
 
         items.push(crate::app_state::TripmineItem {
             item_id: slot.item.item_id,
@@ -454,6 +465,7 @@ fn read_tripmine(
             is_tripmine: slot.is_tripmine,
             points_awarded: slot.points_awarded,
             picked_by: slot.revealed_by,
+            icon_name,
         });
     }
 

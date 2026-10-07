@@ -78,6 +78,7 @@ function toQuizItem(item: OrderItem): QuizItem {
     value: item.value ?? '',
     numericValue: 0,
     placedByTeamId: item.placedBy,
+    iconName: item.iconName ?? undefined,
   };
 }
 
@@ -108,6 +109,7 @@ function toTripmineItem(
     isRevealed: picked,
     pointsAwarded: item.pointsAwarded ?? undefined,
     revealedByTeamId: item.pickedBy ?? undefined,
+    iconName: item.iconName ?? undefined,
   };
 }
 
@@ -270,6 +272,7 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
       name: order.anchor.name,
       value: order.anchor.value,
       numericValue: 0,
+      iconName: order.anchor.iconName ?? undefined,
     } satisfies QuizItem;
   }, [order]);
 

@@ -15,6 +15,7 @@ fn items(count: usize) -> Vec<ListItemValue> {
             name: format!("Item {value}"),
             display: value.to_string(),
             numeric: value as f64,
+            icon_name: None,
         })
         .collect()
 }
@@ -29,6 +30,7 @@ fn board_with(anchor_value: f64, left: &[f64], right: &[f64], pool: &[f64]) -> O
         name: format!("Item {value}"),
         display: value.to_string(),
         numeric: value,
+        icon_name: None,
     };
     OrderBoard {
         anchor: make(anchor_value, "anchor"),
@@ -484,6 +486,7 @@ fn value(item_id: &str, numeric: f64) -> ListItemValue {
         name: item_id.to_string(),
         display: numeric.to_string(),
         numeric,
+        icon_name: None,
     }
 }
 

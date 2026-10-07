@@ -115,7 +115,8 @@ describe('ConnectBoard', () => {
 
     const nameRow = screen.getByRole('button', { name: /alpha/i });
     const valueRow = screen.getByRole('button', { name: /100/ });
-    expect(nameRow.className).toContain('min-h-[44px]');
-    expect(valueRow.className).toContain('min-h-[44px]');
+    expect(nameRow.className).toContain('h-12');
+    expect(valueRow.className).toContain('h-12');
+    expect(nameRow.className).not.toContain('min-h-');
   });
 });

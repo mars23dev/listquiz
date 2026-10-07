@@ -15,6 +15,7 @@ fn items(count: usize) -> Vec<ListItemValue> {
             name: format!("Item {value}"),
             display: value.to_string(),
             numeric: value as f64,
+            icon_name: None,
         })
         .collect()
 }
