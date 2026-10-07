@@ -18,6 +18,8 @@ struct SessionRow {
     reveal_values: bool,
     active_team_id: Option<String>,
     last_message: Option<String>,
+    timer_ends_at: Option<i64>,
+    timer_total_seconds: Option<i64>,
 }
 
 /// Load the full, unredacted state and redact it for `role`.
@@ -25,7 +27,8 @@ pub fn read_state(conn: &Connection, session_id: &str, role: UserRole) -> ApiRes
     let row: Option<SessionRow> = conn
         .query_row(
             "SELECT revision, status, team_count, round_count, current_round,
-                    muted, reveal_values, active_team_id, last_message
+                    muted, reveal_values, active_team_id, last_message,
+                    timer_ends_at, timer_total_seconds
              FROM game_session WHERE id = ?1",
             params![session_id],
             |row| {
@@ -39,6 +42,8 @@ pub fn read_state(conn: &Connection, session_id: &str, role: UserRole) -> ApiRes
                     reveal_values: row.get::<_, i64>(6)? != 0,
                     active_team_id: row.get(7)?,
                     last_message: row.get(8)?,
+                    timer_ends_at: row.get(9)?,
+                    timer_total_seconds: row.get(10)?,
                 })
             },
         )
@@ -52,6 +57,13 @@ pub fn read_state(conn: &Connection, session_id: &str, role: UserRole) -> ApiRes
     // read would make the gamemaster's own view unrecoverable.
     let order = read_order(conn, session_id)?;
     let tripmine = read_tripmine(conn, session_id)?;
+    let timer = match (row.timer_ends_at, row.timer_total_seconds) {
+        (Some(ends_at), Some(total)) => Some(crate::app_state::TimerView {
+            total_seconds: total.max(0) as u32,
+            seconds_left: crate::modules::turn_timer::remaining(ends_at, crate::db::now_ms()),
+        }),
+        _ => None,
+    };
 
     let state = SessionState {
         revision: row.revision,
@@ -63,6 +75,7 @@ pub fn read_state(conn: &Connection, session_id: &str, role: UserRole) -> ApiRes
         muted: row.muted,
         reveal_values: row.reveal_values,
         last_message: row.last_message,
+        timer,
         round,
         teams,
         order,

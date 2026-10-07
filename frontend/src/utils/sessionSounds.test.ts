@@ -35,6 +35,7 @@ function state(overrides: Partial<SessionState> = {}): SessionState {
     muted: false,
     revealValues: false,
     lastMessage: null,
+    timer: null,
     round: {
       roundNumber: 1,
       quizType: 'ORDER',

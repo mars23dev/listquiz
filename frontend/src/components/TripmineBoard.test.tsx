@@ -39,8 +39,7 @@ function tripmineState(): TripmineState {
   };
 }
 
-describe('TripmineBoard team-colored borders', () => {
-  it('frames a revealed item with the picking team color', () => {
+describe('TripmineBoard team-colored borders', () => {  it('frames a revealed item with the picking team color', () => {
     render(
       <TripmineBoard
         tripmineState={tripmineState()}
@@ -56,5 +55,43 @@ describe('TripmineBoard team-colored borders', () => {
 
     const hidden = screen.getByRole('button', { name: /Hidden, hidden or already picked/i });
     expect(hidden.style.borderColor).toBe('');
+  });
+});
+
+describe('TripmineBoard gamemaster visibility', () => {
+  function stateWithHiddenValue(): TripmineState {
+    const state = tripmineState();
+    state.items[1].value = '2800';
+    return state;
+  }
+
+  it('shows the gamemaster every value, even before a pick', () => {
+    render(
+      <TripmineBoard
+        tripmineState={stateWithHiddenValue()}
+        onPickItem={vi.fn()}
+        isMyTurn={false}
+        currentRole="gamemaster"
+        teams={TEAMS}
+      />,
+    );
+
+    expect(screen.getByText('2920')).toBeInTheDocument();
+    expect(screen.getByText('2800')).toBeInTheDocument();
+  });
+
+  it('still hides an unpicked value from a player', () => {
+    render(
+      <TripmineBoard
+        tripmineState={stateWithHiddenValue()}
+        onPickItem={vi.fn()}
+        isMyTurn={false}
+        currentRole="view"
+        teams={TEAMS}
+      />,
+    );
+
+    expect(screen.getByText('2920')).toBeInTheDocument();
+    expect(screen.queryByText('2800')).not.toBeInTheDocument();
   });
 });

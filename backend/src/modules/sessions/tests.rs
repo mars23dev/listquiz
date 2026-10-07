@@ -272,3 +272,41 @@ fn round_numbers_default_to_their_position() {
     let (_, _, _, rounds) = validate_request(&body).expect("explicit round number kept");
     assert_eq!(rounds[1].round_number, 7);
 }
+
+#[test]
+fn deleting_a_finished_session_removes_its_rows_and_is_idempotent() {
+    let conn = rusqlite::Connection::open_in_memory().unwrap();
+    conn.pragma_update(None, "foreign_keys", "ON").unwrap();
+    crate::db::apply_schema(&conn).unwrap();
+    crate::db::insert_test_session(&conn, "s1", 1);
+    conn.execute(
+        "INSERT INTO team
+            (id, session_id, name, color, primary_hex, accent_glow, score, hearts, turn_index)
+         VALUES ('team_1', 's1', 'Team', 'cyan', '#06b6d4', 'rgba(0,0,0,0)', 0, 3, 0)",
+        [],
+    )
+    .unwrap();
+
+    // A running session cannot be deleted.
+    let error = delete_session(&conn, "s1").expect_err("a live session is protected");
+    assert_eq!(error.code, ErrorCode::NotReady);
+
+    conn.execute(
+        "UPDATE game_session SET status = 'finished' WHERE id = 's1'",
+        [],
+    )
+    .unwrap();
+    delete_session(&conn, "s1").expect("a finished session is deleted");
+
+    let sessions: i64 = conn
+        .query_row("SELECT COUNT(*) FROM game_session", [], |row| row.get(0))
+        .unwrap();
+    let teams: i64 = conn
+        .query_row("SELECT COUNT(*) FROM team", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(sessions, 0);
+    assert_eq!(teams, 0, "the cascade removed the session's teams");
+
+    // Idempotent: deleting again is fine.
+    delete_session(&conn, "s1").expect("a missing session is success");
+}

@@ -819,3 +819,54 @@ describe('round start affordance', () => {
     expect(screen.queryByText(/waiting for the game to be started/i)).not.toBeInTheDocument();
   });
 });
+
+describe('turn timer (005 US2)', () => {
+  beforeEach(() => {
+    FakeEventSource.instances = [];
+    vi.stubGlobal('EventSource', FakeEventSource as unknown as typeof EventSource);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubWithTimer(timer: { totalSeconds: number; secondsLeft: number }) {
+    const posted: Record<string, unknown>[] = [];
+    const withTimer = { ...SESSION_STATE, timer };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes('/actions')) {
+          posted.push(JSON.parse(String(init?.body ?? '{}')));
+          return jsonResponse({ ok: true });
+        }
+        if (url.includes('/state')) return jsonResponse(withTimer);
+        return jsonResponse({ error: { code: 'bad_request', message: 'unexpected' } }, 400);
+      }),
+    );
+    return posted;
+  }
+
+  it('shows a countdown for a running timer', async () => {
+    stubWithTimer({ totalSeconds: 20, secondsLeft: 20 });
+    render(<Session sessionId="lq-abcd1234" role="view" onNavigate={() => {}} />);
+
+    expect(await screen.findByLabelText('Turn timer')).toHaveTextContent(/\d+s/);
+  });
+
+  it('posts exactly one time_out when the countdown reaches zero', async () => {
+    const posted = stubWithTimer({ totalSeconds: 20, secondsLeft: 0 });
+    render(<Session sessionId="lq-abcd1234" role="p1" onNavigate={() => {}} />);
+
+    await screen.findByRole('heading', { name: 'Team Cyan Pulsar' });
+    await waitFor(() =>
+      expect(posted.filter((body) => body.action === 'time_out')).toHaveLength(1),
+    );
+    expect(posted.find((body) => body.action === 'time_out')).toMatchObject({
+      action: 'time_out',
+      teamId: 'team_1',
+      role: 'p1',
+    });
+  });
+});

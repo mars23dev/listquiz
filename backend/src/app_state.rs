@@ -293,6 +293,14 @@ pub struct TripmineView {
     pub items: Vec<TripmineItem>,
 }
 
+/// The gamemaster's turn timer as every role sees it (feature 005, US2).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TimerView {
+    pub total_seconds: u32,
+    pub seconds_left: u32,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RoundSummary {
@@ -317,6 +325,8 @@ pub struct SessionState {
     pub muted: bool,
     pub reveal_values: bool,
     pub last_message: Option<String>,
+    /// The running turn timer, or `null` (feature 005, US2). Public to every role.
+    pub timer: Option<TimerView>,
     pub round: Option<RoundSummary>,
     pub teams: Vec<TeamView>,
     pub order: Option<OrderView>,
@@ -519,6 +529,7 @@ mod tests {
             muted: false,
             reveal_values: false,
             last_message: None,
+            timer: None,
             round: Some(RoundSummary {
                 round_number: 1,
                 quiz_type: "ORDER".to_string(),

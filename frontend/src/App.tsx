@@ -13,6 +13,7 @@
 //   - the four page components moved from components/ to pages/
 import { useCallback, useEffect, useState } from 'react';
 import { StageLighting } from './components/StageLighting';
+import { createQuickSession } from './api/client';
 import { Landing } from './pages/Landing';
 import { ListManagement } from './pages/ListManagement';
 import { SetupQuiz } from './pages/SetupQuiz';
@@ -62,6 +63,19 @@ export default function App() {
     setRoute(parseRoute(to));
   }, []);
 
+  // US5 (005): a quick game is created then opened straight in the player view;
+  // no gamemaster link is ever offered.
+  const startQuickGame = useCallback(
+    (gameType: 'ORDER' | 'TRIPMINE') => {
+      createQuickSession(gameType)
+        .then((created) => navigate(`/${created.sessionId}/p1`))
+        .catch(() => {
+          // The backend refused (e.g. no list is large enough); stay on the title.
+        });
+    },
+    [navigate],
+  );
+
   return (
     <ThemeProvider>
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between overflow-x-hidden selection:bg-cyan-500/30">
@@ -71,6 +85,7 @@ export default function App() {
           <Landing
             onNavigateToLists={() => navigate('/lists')}
             onNavigateToSetup={() => navigate('/setup')}
+            onNavigateToQuick={startQuickGame}
           />
         )}
 

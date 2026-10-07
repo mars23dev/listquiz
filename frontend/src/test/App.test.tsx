@@ -24,6 +24,19 @@ describe('App shell', () => {
             { status: 200, headers: { 'Content-Type': 'application/json' } },
           );
         }
+        if (url === '/api/sessions/quick') {
+          return new Response(
+            JSON.stringify({
+              sessionId: 'lq-quick01',
+              links: {
+                gamemaster: '/lq-quick01/gamemaster',
+                players: [{ role: 'p1', path: '/lq-quick01/p1', hasTeam: true }],
+                spectator: '/lq-quick01/view',
+              },
+            }),
+            { status: 201, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
         return new Response(
           JSON.stringify({
             lists: [
@@ -107,6 +120,16 @@ describe('App shell', () => {
     expect(document.body.textContent).not.toMatch(/countdown/i);
   });
 
+  it('starts a quick game and opens the player view', async () => {
+    render(<App />);
+
+    screen.getByRole('button', { name: /^order$/i }).click();
+
+    await screen.findByText('lq-quick01');
+    expect(window.location.pathname).toBe('/lq-quick01/p1');
+    expect(screen.queryByRole('button', { name: /gamemaster/i })).not.toBeInTheDocument();
+  });
+
   it('uses history paths rather than hash fragments', async () => {
     render(<App />);
 
@@ -116,20 +139,16 @@ describe('App shell', () => {
     expect(window.location.hash).toBe('');
   });
 
-  it('keeps the theme across navigation without a reload', async () => {
-    window.localStorage.clear();
-    const user = userEvent.setup();
+  it('offers no theme toggle and keeps the dark theme', async () => {
     render(<App />);
 
-    const toggle = screen.getByRole('button', { name: /switch to .* theme/i });
-    await user.click(toggle);
-    const chosen = document.documentElement.getAttribute('data-theme');
-    expect(window.localStorage.getItem('listquiz-theme')).toBe(chosen);
+    expect(screen.queryByRole('button', { name: /switch to .* theme/i })).not.toBeInTheDocument();
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
 
     screen.getByRole('button', { name: /manage lists/i }).click();
     await screen.findByRole('heading', { name: /list management/i });
 
-    expect(document.documentElement.getAttribute('data-theme')).toBe(chosen);
-    window.localStorage.clear();
+    expect(screen.queryByRole('button', { name: /switch to .* theme/i })).not.toBeInTheDocument();
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
   });
 });

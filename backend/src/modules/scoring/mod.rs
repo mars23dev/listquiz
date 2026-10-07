@@ -11,6 +11,8 @@ pub const REASON_SEARCHED_ITEM_FOUND: &str = "searched_item_found";
 pub const REASON_SAFE_PICK: &str = "safe_pick";
 pub const REASON_FINAL_ITEM: &str = "final_item";
 pub const REASON_ZERO_HEARTS: &str = "zero_hearts";
+/// A turn ended because the gamemaster's timer ran out: one heart gone (feature 005).
+pub const REASON_TIME_OUT: &str = "time_out";
 pub const REASON_GAME_MASTER: &str = "game_master";
 pub const REASON_ROUND_RESET: &str = "round_reset";
 

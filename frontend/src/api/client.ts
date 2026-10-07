@@ -99,11 +99,26 @@ export function createSession(body: CreateSessionRequest): Promise<CreateSession
   return request<CreateSessionResponse>('/api/sessions', { method: 'POST', body });
 }
 
+/** Start a one-team quick game of the chosen type (feature 005, US5). */
+export function createQuickSession(
+  gameType: 'ORDER' | 'TRIPMINE',
+): Promise<CreateSessionResponse> {
+  return request<CreateSessionResponse>('/api/sessions/quick', {
+    method: 'POST',
+    body: { gameType },
+  });
+}
+
 export function unlockSession(sessionId: string, password: string): Promise<{ ok: boolean }> {
   return request<{ ok: boolean }>(`/api/sessions/${sessionId}/unlock`, {
     method: 'POST',
     body: { password },
   });
+}
+
+/** Delete a finished session (feature 005, US4); refused while the game runs. */
+export function deleteSession(sessionId: string): Promise<void> {
+  return request<void>(`/api/sessions/${sessionId}`, { method: 'DELETE' });
 }
 
 export function fetchSessionState(

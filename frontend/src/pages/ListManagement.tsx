@@ -17,7 +17,6 @@ import {
 } from '../api/client';
 import { IconPickerModal } from '../components/IconPickerModal';
 import { ItemIcon } from '../components/ItemIcon';
-import { ThemeToggle } from '../components/ThemeToggle';
 import type {
   ImportReport,
   ListDetail,
@@ -349,7 +348,6 @@ export function ListManagement({ onBackToHome }: ListManagementProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <ThemeToggle />
           <button
             type="button"
             onClick={() => setDialog({ kind: 'create' })}

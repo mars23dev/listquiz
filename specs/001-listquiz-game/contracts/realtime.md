@@ -8,6 +8,11 @@
 > `order[].placedBy` and the Tripmine view gains `tripmine.items[].pickedBy` (the acting team, public);
 > when `revealValues` is set the Order bar is sent in its correct arrangement with an empty pool; and
 > cues are driven from the reflected event (the client diffs consecutive revisions).
+>
+> **Amended by `specs/005-session-flow/contracts/session-flow.md`:** the state gains `timer`
+> (`{ totalSeconds, secondsLeft }` or `null`), driven by the `start_timer`/`stop_timer`/`time_out`
+> actions; a finished session can be deleted; and quick games are created through
+> `POST /api/sessions/quick`. The Tripmine gamemaster view always carries the answer key.
 
 ## Why revisions instead of pushed state
 

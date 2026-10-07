@@ -6,7 +6,7 @@
 
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
-use axum::routing::{get, post};
+use axum::routing::{delete, get, post};
 use axum::{Json, Router};
 use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
@@ -14,10 +14,13 @@ use std::collections::HashMap;
 
 use crate::app_state::{AppState, SessionLinks, UserRole, build_links};
 use crate::errors::{ApiError, ApiResult};
+use crate::modules::default_lists;
 use crate::modules::order_round;
+use crate::modules::quick_game;
 use crate::modules::scoring;
 use crate::modules::sessions::{self, CreateSessionRequest};
 use crate::modules::tripmine_round;
+use crate::modules::turn_timer;
 use crate::state_reader;
 
 /// The `POST /api/sessions` answer: the new id plus its five role links.
@@ -123,6 +126,9 @@ pub struct ActionRequest {
     pub muted: Option<bool>,
     #[serde(default)]
     pub delta: Option<i32>,
+    /// The turn timer's duration in seconds (feature 005, US2).
+    #[serde(default)]
+    pub seconds: Option<u32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -177,7 +183,7 @@ pub async fn session_action(
 fn is_player_action(action: &str) -> bool {
     matches!(
         action,
-        "select_item" | "choose_slot" | "cancel_selection" | "pick_tripitem"
+        "select_item" | "choose_slot" | "cancel_selection" | "pick_tripitem" | "time_out"
     )
 }
 
@@ -186,11 +192,28 @@ fn apply_action(state: &AppState, session_id: &str, request: &ActionRequest) -> 
     match request.action.as_str() {
         "next_round" => {
             state.with_db(|conn| sessions::advance_round(conn, session_id))?;
+            state.with_db(|conn| sessions::clear_timer(conn, session_id))?;
             state.bump_revision(session_id)
         }
         // FR-024: one flag, honoured by `redact`, for both quiz types.
         "reveal_values" => {
             state.with_db(|conn| order_round::set_reveal_values(conn, session_id, true))?;
+            state.bump_revision(session_id)
+        }
+        // feature 005, US2: the gamemaster's turn timer.
+        "start_timer" => {
+            let seconds = request
+                .seconds
+                .ok_or_else(|| ApiError::bad_request("seconds is required."))?;
+            state.with_db(|conn| sessions::start_timer(conn, session_id, seconds))?;
+            state.bump_revision(session_id)
+        }
+        "stop_timer" => {
+            state.with_db(|conn| sessions::clear_timer(conn, session_id))?;
+            state.bump_revision(session_id)
+        }
+        "time_out" => {
+            state.with_db(|conn| apply_time_out(conn, session_id, request))?;
             state.bump_revision(session_id)
         }
         action if is_order_action(action) => {
@@ -219,11 +242,13 @@ fn apply_action(state: &AppState, session_id: &str, request: &ActionRequest) -> 
         // FR-018: pass the turn without scoring.
         "pass_turn" => {
             state.with_db(|conn| apply_pass_turn(conn, session_id))?;
+            state.with_db(|conn| sessions::clear_timer(conn, session_id))?;
             state.bump_revision(session_id)
         }
         // FR-064: the gamemaster simulating a turn.
         "set_turn" => {
             state.with_db(|conn| apply_set_turn(conn, session_id, request))?;
+            state.with_db(|conn| sessions::clear_timer(conn, session_id))?;
             state.bump_revision(session_id)
         }
         // FR-023: manual score and heart changes, recorded as `game_master` events.
@@ -340,6 +365,7 @@ fn apply_order_action(
                 ],
             )?;
             tx.commit()?;
+            sessions::clear_timer(conn, session_id)?;
             Ok(())
         }
         "cancel_selection" => {
@@ -401,6 +427,7 @@ fn apply_tripmine_action(
         ],
     )?;
     tx.commit()?;
+    sessions::clear_timer(conn, session_id)?;
     Ok(())
 }
 
@@ -412,6 +439,38 @@ fn current_round_number(conn: &rusqlite::Connection, session_id: &str) -> ApiRes
         [session_id],
         |row| row.get(0),
     )?)
+}
+
+/// The gamemaster's timer ran out: the on-turn team loses one heart and the turn
+/// passes (feature 005, US2). Accepted only when a timer is running and has expired;
+/// the caller must be the gamemaster or the on-turn team (checked by the caller).
+fn apply_time_out(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+    request: &ActionRequest,
+) -> ApiResult<()> {
+    let (ends_at, _total) = sessions::load_timer(conn, session_id)?
+        .ok_or_else(|| ApiError::not_ready("No timer is running."))?;
+    if !turn_timer::is_expired(ends_at, crate::db::now_ms()) {
+        return Err(ApiError::not_ready("The timer has not run out yet."));
+    }
+
+    let active = require_team_on_turn(conn, session_id, request.team_id.as_deref())?;
+    let teams = order_round::load_teams(conn, session_id)?;
+    let (teams, events, next) = turn_timer::expire(&teams, &active);
+    let round = current_round_number(conn, session_id)?;
+
+    let tx = conn.unchecked_transaction()?;
+    order_round::save_teams(&tx, session_id, &teams)?;
+    order_round::append_events(&tx, session_id, round, &events)?;
+    tx.execute(
+        "UPDATE game_session
+         SET active_team_id = ?2, timer_ends_at = NULL, timer_total_seconds = NULL, last_message = ?3
+         WHERE id = ?1",
+        rusqlite::params![session_id, next, Some("Time ran out! -1 heart".to_string())],
+    )?;
+    tx.commit()?;
+    Ok(())
 }
 
 /// Pass the turn to the next team with hearts, scoring nothing (FR-018).
@@ -481,10 +540,49 @@ fn apply_manual(
     Ok(())
 }
 
+/// The `POST /api/sessions/quick` body (feature 005, US5).
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QuickSessionRequest {
+    pub game_type: String,
+}
+
+/// Start a one-team quick game of the chosen type immediately (feature 005, US5).
+pub async fn create_quick_session(
+    State(state): State<AppState>,
+    Json(request): Json<QuickSessionRequest>,
+) -> ApiResult<(StatusCode, Json<CreateSessionResponse>)> {
+    let session_id = state.with_db(|conn| {
+        let body = quick_game::build_request(&request.game_type, &default_lists::DEFAULT_LISTS)?;
+        let session_id = sessions::create_session(conn, &body)?;
+        // Start the single round at once so the game is playable immediately.
+        sessions::advance_round(conn, &session_id)?;
+        Ok::<String, ApiError>(session_id)
+    })?;
+    let links = build_links(&session_id, 1);
+    Ok((
+        StatusCode::CREATED,
+        Json(CreateSessionResponse { session_id, links }),
+    ))
+}
+
+/// Delete a finished session (feature 005, US4). Idempotent: deleting an already
+/// missing session succeeds. Refused while the game is still running or between
+/// rounds, so a live game cannot be wiped.
+pub async fn delete_session(
+    State(state): State<AppState>,
+    Path(session_id): Path<String>,
+) -> ApiResult<StatusCode> {
+    state.with_db(|conn| sessions::delete_session(conn, &session_id))?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
 /// Mount the session routes onto the `/api` sub-router.
 pub fn mount(api: Router<AppState>) -> Router<AppState> {
     api.route("/sessions", post(create_session))
+        .route("/sessions/quick", post(create_quick_session))
         .route("/sessions/{session_id}/unlock", post(unlock_session))
         .route("/sessions/{session_id}/state", get(session_state))
         .route("/sessions/{session_id}/actions", post(session_action))
+        .route("/sessions/{session_id}", delete(delete_session))
 }

@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Layers, ShieldCheck, Tv, User } from 'lucide-react';
-import { ApiError, postSessionAction, unlockSession } from '../api/client';
+import { ApiError, deleteSession, postSessionAction, unlockSession } from '../api/client';
 import { useSessionStream } from '../hooks/useSessionStream';
 import { BottomTeams } from '../components/BottomTeams';
+import { GameEndDialog } from '../components/GameEndDialog';
 import { MiddleItemGrid } from '../components/MiddleItemGrid';
 import { StageLighting } from '../components/StageLighting';
 import { TopBarOrdering } from '../components/TopBarOrdering';
 import { TripmineBoard } from '../components/TripmineBoard';
-import { ThemeToggle } from '../components/ThemeToggle';
 import {
   playBonusChime,
   playChimeSound,
@@ -207,6 +207,35 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
   const canAct = isGamemaster || isPlayersTurn;
   const teams = useMemo(() => (state?.teams ?? []).map(toQuizTeam), [state?.teams]);
 
+  // US2 (005): the turn timer. The server reports secondsLeft; the client counts down
+  // locally and posts one time_out at zero. Only the acting role posts, so a timeout
+  // is reported once (the server refuses a second report anyway).
+  const timer = state?.timer ?? null;
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  useEffect(() => {
+    if (!timer) {
+      setSecondsLeft(0);
+      return;
+    }
+    setSecondsLeft(timer.secondsLeft);
+    const id = window.setInterval(() => {
+      setSecondsLeft((current) => (current > 0 ? current - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [timer?.totalSeconds, timer?.secondsLeft, state?.revision, timer]);
+
+  const timeoutPostedRef = useRef(false);
+  useEffect(() => {
+    if (!timer) {
+      timeoutPostedRef.current = false;
+      return;
+    }
+    if (secondsLeft > 0 || timeoutPostedRef.current) return;
+    if (!canAct || !onTurnTeamId) return;
+    timeoutPostedRef.current = true;
+    void sendAction({ action: 'time_out', teamId: onTurnTeamId });
+  }, [secondsLeft, timer, canAct, onTurnTeamId]);
+
   // The slot a pending item is being dropped on is a client-side step: the server
   // only learns the slot once the placement is confirmed, so CONFIRM is a real
   // second step rather than a formality.
@@ -327,6 +356,15 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
     await sendAction({ action: 'reveal_values' });
   }
 
+  // US2 (005): the gamemaster's turn-timer controls.
+  const [timerSeconds, setTimerSeconds] = useState(20);
+  function handleStartTimer() {
+    void sendAction({ action: 'start_timer', seconds: timerSeconds });
+  }
+  function handleStopTimer() {
+    void sendAction({ action: 'stop_timer' });
+  }
+
   async function handleToggleMute() {
     await sendAction({ action: 'set_muted', muted: !(state?.muted ?? false) });
   }
@@ -337,6 +375,17 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
 
   function handleNextRound() {
     void sendAction({ action: 'next_round' });
+  }
+
+  // US3/US4 (005): dismissing the end dialog deletes the finished session, then
+  // returns home. The delete is idempotent, so a missing session is fine.
+  async function handleEndGame() {
+    try {
+      await deleteSession(sessionId);
+    } catch {
+      // Already gone, or the delete is refused; either way leave the finished game.
+    }
+    onNavigate('/');
   }
 
   function handleSetTurn(teamId: string) {
@@ -524,7 +573,6 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
                 {playerTeam?.name} {isPlayersTurn ? '(YOUR TURN!)' : '(Waiting...)'}
               </span>
             )}
-            <ThemeToggle />
           </div>
         </div>
       </nav>
@@ -594,6 +642,33 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
               </button>
             </div>
 
+            <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900/90 px-2 py-1">
+              <label htmlFor="timer-seconds" className="text-xs text-slate-400">
+                Timer
+              </label>
+              <input
+                id="timer-seconds"
+                type="number"
+                min={1}
+                value={timerSeconds}
+                onChange={(event) =>
+                  setTimerSeconds(Math.max(1, Number(event.target.value) || 1))
+                }
+                className="w-14 rounded border border-slate-700 bg-slate-950 px-1 text-sm text-slate-200"
+              />
+              <button type="button" onClick={handleStartTimer} className="px-1 text-cyan-300">
+                Start
+              </button>
+              <button
+                type="button"
+                onClick={handleStopTimer}
+                disabled={!timer}
+                className="px-1 text-slate-300 disabled:opacity-40"
+              >
+                Stop
+              </button>
+            </div>
+
             <button
               type="button"
               onClick={handleNextRound}
@@ -627,6 +702,16 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
           revision {state?.revision ?? 0} / {status} / round {state?.currentRound ?? 0} of{' '}
           {state?.roundCount ?? 0}
         </p>
+
+        {timer ? (
+          <div
+            role="status"
+            aria-label="Turn timer"
+            className="mx-auto mt-2 w-fit rounded-xl border border-amber-400/50 bg-amber-400/10 px-4 py-1 font-mono text-sm font-bold text-amber-200"
+          >
+            {secondsLeft}s
+          </div>
+        ) : null}
 
         {streamError ? (
           <p role="alert" className="mt-4 rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
@@ -743,29 +828,7 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
       ) : null}
 
       {state && state.status === 'finished' ? (
-        <section className="mx-auto mt-6 w-full max-w-3xl rounded-2xl border border-amber-400/50 bg-slate-900/90 p-4">
-          <h2 className="font-display text-xl font-black uppercase text-amber-300">
-            Final Ranking
-          </h2>
-          <ol className="mt-3 space-y-2">
-            {[...state.teams]
-              .sort((first, second) => second.score - first.score)
-              .map((team, index) => (
-                <li
-                  key={team.id}
-                  className="flex items-center justify-between rounded-lg border bg-slate-950 px-3 py-2"
-                  style={{ borderColor: team.primaryHex }}
-                >
-                  <span className="font-bold text-white">
-                    #{index + 1} {team.name}
-                  </span>
-                  <span className="font-mono text-slate-300">
-                    {team.score} pts / {team.hearts} hearts
-                  </span>
-                </li>
-              ))}
-          </ol>
-        </section>
+        <GameEndDialog teams={teams} onDismiss={() => void handleEndGame()} />
       ) : null}
       </main>
 

@@ -40,6 +40,12 @@ export interface PendingPlacement {
   teamId: string;
 }
 
+/** The gamemaster's turn timer (feature 005, US2). Public to every role. */
+export interface TimerView {
+  totalSeconds: number;
+  secondsLeft: number;
+}
+
 export interface OrderView {
   anchor: AnchorItem;
   pool: OrderItem[];
@@ -104,6 +110,7 @@ export interface SessionState {
   muted: boolean;
   revealValues: boolean;
   lastMessage: string | null;
+  timer: TimerView | null;
   round: RoundSummary | null;
   teams: TeamView[];
   order: OrderView | null;

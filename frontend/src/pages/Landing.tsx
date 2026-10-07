@@ -1,16 +1,12 @@
-import { ThemeToggle } from '../components/ThemeToggle';
-
 interface LandingProps {
   onNavigateToLists: () => void;
   onNavigateToSetup: () => void;
+  onNavigateToQuick: (gameType: 'ORDER' | 'TRIPMINE') => void;
 }
 
-export function Landing({ onNavigateToLists, onNavigateToSetup }: LandingProps) {
+export function Landing({ onNavigateToLists, onNavigateToSetup, onNavigateToQuick }: LandingProps) {
   return (
     <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-3xl flex-col items-center justify-center gap-10 px-6 py-14">
-      <div className="absolute right-6 top-6 z-20">
-        <ThemeToggle />
-      </div>
       <header className="mb-2 text-center">
         <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-950/60 px-3 py-1 font-mono text-xs font-semibold uppercase tracking-wider text-cyan-300">
           Interactive Broadcast Quiz Platform
@@ -75,6 +71,31 @@ export function Landing({ onNavigateToLists, onNavigateToSetup }: LandingProps) 
             Host a Quiz
           </span>
         </button>
+      </div>
+
+      <div className="w-full rounded-2xl border-2 border-emerald-500/40 bg-emerald-950/30 p-5">
+        <h2 className="font-display text-lg font-black uppercase tracking-wide text-emerald-300">
+          Quick Game
+        </h2>
+        <p className="mt-1 text-xs text-slate-400 sm:text-sm">
+          Pick a game type and play immediately — one team, no host controls.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => onNavigateToQuick('ORDER')}
+            className="rounded-lg border border-emerald-400/60 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-200 hover:bg-emerald-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+          >
+            Order
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigateToQuick('TRIPMINE')}
+            className="rounded-lg border border-emerald-400/60 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-200 hover:bg-emerald-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+          >
+            Tripmine
+          </button>
+        </div>
       </div>
     </main>
   );

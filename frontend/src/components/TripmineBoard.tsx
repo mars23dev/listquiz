@@ -269,6 +269,13 @@ export const TripmineBoard: React.FC<TripmineBoardProps> = ({
                       {isMine ? '-10 PTS' : `+${item.pointsAwarded || 5} PTS`}
                     </span>
                   </div>
+                ) : isGamemaster ? (
+                  <div className="w-full flex items-center justify-between text-[11px] font-mono">
+                    <span className="text-slate-400 truncate font-semibold">
+                      {item.value}
+                    </span>
+                    <span className="text-slate-600 font-black">GM</span>
+                  </div>
                 ) : canClick ? (
                   <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider animate-pulse flex items-center gap-1">
                     <span>Click to Pick</span>

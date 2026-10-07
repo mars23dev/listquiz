@@ -416,8 +416,66 @@ pub fn advance_round(conn: &Connection, session_id: &str) -> ApiResult<RoundAdva
     })
 }
 
-/// The team a player role owns: `p1`..`p4` map to `team_1`..`team_4`; the
-/// gamemaster, spectator, and unknown roles own no team.
+/// Record a running turn timer (feature 005, US2). The duration must be positive.
+pub fn start_timer(conn: &Connection, session_id: &str, seconds: u32) -> ApiResult<()> {
+    let timer = crate::modules::turn_timer::start(crate::db::now_ms(), seconds)?;
+    conn.execute(
+        "UPDATE game_session SET timer_ends_at = ?2, timer_total_seconds = ?3 WHERE id = ?1",
+        params![session_id, timer.ends_at, timer.total_seconds],
+    )?;
+    Ok(())
+}
+
+/// Clear the running timer (feature 005, US2). A no-op when none runs.
+pub fn clear_timer(conn: &Connection, session_id: &str) -> ApiResult<()> {
+    conn.execute(
+        "UPDATE game_session SET timer_ends_at = NULL, timer_total_seconds = NULL WHERE id = ?1",
+        params![session_id],
+    )?;
+    Ok(())
+}
+
+/// The running timer's end time and duration, if any.
+pub fn load_timer(conn: &Connection, session_id: &str) -> ApiResult<Option<(i64, u32)>> {
+    let row: Option<(Option<i64>, Option<i64>)> = conn
+        .query_row(
+            "SELECT timer_ends_at, timer_total_seconds FROM game_session WHERE id = ?1",
+            params![session_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    Ok(match row {
+        Some((Some(ends_at), Some(total))) => Some((ends_at, total.max(0) as u32)),
+        _ => None,
+    })
+}
+
+/// Delete a finished session and, through the schema's cascade, its teams, rounds,
+/// round state, and score events (feature 005, US4). A missing session is success
+/// (idempotent); a session that is not `finished` is refused so a live game cannot
+/// be wiped. Quiz lists are never touched.
+pub fn delete_session(conn: &Connection, session_id: &str) -> ApiResult<()> {
+    let status: Option<String> = conn
+        .query_row(
+            "SELECT status FROM game_session WHERE id = ?1",
+            params![session_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    match status.as_deref() {
+        None => Ok(()),
+        Some("finished") => {
+            conn.execute(
+                "DELETE FROM game_session WHERE id = ?1",
+                params![session_id],
+            )?;
+            Ok(())
+        }
+        Some(_) => Err(ApiError::not_ready("Only a finished game can be deleted.")),
+    }
+}
+
+/// The team a player role owns: `p1`..`p4` map to `team_1`..`team_4`; the/// gamemaster, spectator, and unknown roles own no team.
 pub fn player_role_team(role: &str) -> Option<String> {
     let index: u32 = role.strip_prefix('p')?.parse().ok()?;
     (1..=4).contains(&index).then(|| format!("team_{index}"))

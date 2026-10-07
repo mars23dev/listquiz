@@ -137,6 +137,20 @@ CREATE INDEX IF NOT EXISTS idx_score_event_session ON score_event(session_id, ro
 pub fn apply_schema(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(SCHEMA)?;
     add_order_state_placed_by(conn)?;
+    add_turn_timer_columns(conn)?;
+    Ok(())
+}
+
+/// Additive migration (feature 005): the gamemaster turn timer's end time and
+/// duration. Both are `NULL` together (no timer). Guarded so an existing database
+/// upgrades in place and the step is safe to run on every open.
+fn add_turn_timer_columns(conn: &Connection) -> rusqlite::Result<()> {
+    if !column_exists(conn, "game_session", "timer_ends_at")? {
+        conn.execute_batch("ALTER TABLE game_session ADD COLUMN timer_ends_at INTEGER")?;
+    }
+    if !column_exists(conn, "game_session", "timer_total_seconds")? {
+        conn.execute_batch("ALTER TABLE game_session ADD COLUMN timer_total_seconds INTEGER")?;
+    }
     Ok(())
 }
 
@@ -273,5 +287,56 @@ mod tests {
             .unwrap();
         assert_eq!(left, "[\"item_b\"]");
         assert_eq!(placed_by, None);
+    }
+
+    #[test]
+    fn a_fresh_database_gets_the_timer_columns() {
+        let conn = Connection::open_in_memory().unwrap();
+        apply_schema(&conn).unwrap();
+
+        assert!(column_exists(&conn, "game_session", "timer_ends_at").unwrap());
+        assert!(column_exists(&conn, "game_session", "timer_total_seconds").unwrap());
+    }
+
+    #[test]
+    fn an_old_game_session_is_upgraded_in_place_without_losing_rows() {
+        let conn = Connection::open_in_memory().unwrap();
+        // The pre-feature table, with a row already present.
+        conn.execute_batch(
+            "CREATE TABLE game_session (
+                 id             TEXT PRIMARY KEY,
+                 gm_password    TEXT NOT NULL,
+                 team_count     INTEGER NOT NULL,
+                 round_count    INTEGER NOT NULL,
+                 current_round  INTEGER NOT NULL DEFAULT 0,
+                 status         TEXT NOT NULL,
+                 muted          INTEGER NOT NULL DEFAULT 0,
+                 reveal_values  INTEGER NOT NULL DEFAULT 0,
+                 active_team_id TEXT,
+                 last_message   TEXT,
+                 revision       INTEGER NOT NULL DEFAULT 0,
+                 created_at     INTEGER NOT NULL
+             );
+             INSERT INTO game_session
+                 (id, gm_password, team_count, round_count, current_round, status, revision, created_at)
+             VALUES ('s1', 'letmein', 2, 3, 1, 'setup', 4, 0);",
+        )
+        .unwrap();
+
+        apply_schema(&conn).unwrap();
+        // Running it again must be a no-op, not an error.
+        apply_schema(&conn).unwrap();
+
+        let (status, ends_at, total): (String, Option<i64>, Option<i64>) = conn
+            .query_row(
+                "SELECT status, timer_ends_at, timer_total_seconds
+                 FROM game_session WHERE id = 's1'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(status, "setup");
+        assert_eq!(ends_at, None);
+        assert_eq!(total, None);
     }
 }
