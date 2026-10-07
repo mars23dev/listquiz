@@ -382,6 +382,53 @@ describe('order board actions', () => {
     await screen.findByText('Alpha');
     expect(screen.queryByText(/to place an item/i)).not.toBeInTheDocument();
   });
+
+  it('maps the dropped column to a valid gap on a partly-filled side', async () => {
+    // Left side already holds one item; the far column is the far gap and the column
+    // beside the anchor is the gap after the last item.
+    stateResponse = () =>
+      orderState({
+        left: [ORDER_POOL[0]],
+        pending: {
+          itemId: 'item_b',
+          name: 'Bravo',
+          side: 'left',
+          slotIndex: -1,
+          teamId: 'team_1',
+        },
+      });
+    const posted: { body: Record<string, unknown> }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes('/unlock')) return jsonResponse({ ok: true });
+        if (url.includes('/actions')) {
+          posted.push({ body: JSON.parse(String(init?.body ?? '{}')) });
+          return jsonResponse({ ok: true });
+        }
+        if (url.includes('/state')) return jsonResponse(stateResponse());
+        return jsonResponse({ error: { code: 'bad_request', message: 'unexpected' } }, 400);
+      }),
+    );
+    const user = userEvent.setup();
+    render(<Session sessionId="lq-abcd1234" role="gamemaster" onNavigate={() => {}} />);
+    await user.type(screen.getByPlaceholderText('Enter password...'), 'letmein');
+    await user.click(screen.getByRole('button', { name: /unlock/i }));
+
+    await user.click(
+      await screen.findByRole('button', { name: /place the selected item in left slot 5/i }),
+    );
+    await user.click(await screen.findByRole('button', { name: /confirm placement/i }));
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0].body).toMatchObject({
+      action: 'choose_slot',
+      side: 'left',
+      slotIndex: 1,
+    });
+    expect(screen.queryByText(/is not on the left side/i)).not.toBeInTheDocument();
+  });
 });
 
 function tripmineState() {

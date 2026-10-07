@@ -381,22 +381,23 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
                       </label>
                     ) : null}
 
-                    <label className="text-xs font-semibold text-slate-300">
-                      Tripmine side
-                      <select
-                        value={round.tripmineSide}
-                        disabled={round.quizType !== 'TRIPMINE'}
-                        onChange={(event) =>
-                          updateRound(index, {
-                            tripmineSide: event.target.value as 'highest' | 'lowest',
-                          })
-                        }
-                        className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
-                      >
-                        <option value="highest">Highest</option>
-                        <option value="lowest">Lowest</option>
-                      </select>
-                    </label>
+                    {round.quizType === 'TRIPMINE' ? (
+                      <label className="text-xs font-semibold text-slate-300">
+                        Tripmine side
+                        <select
+                          value={round.tripmineSide}
+                          onChange={(event) =>
+                            updateRound(index, {
+                              tripmineSide: event.target.value as 'highest' | 'lowest',
+                            })
+                          }
+                          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
+                        >
+                          <option value="highest">Highest</option>
+                          <option value="lowest">Lowest</option>
+                        </select>
+                      </label>
+                    ) : null}
                   </div>
                 </li>
               );

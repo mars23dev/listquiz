@@ -9,6 +9,7 @@ import { TopBarOrdering } from '../components/TopBarOrdering';
 import { TripmineBoard } from '../components/TripmineBoard';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { setSoundMuted } from '../utils/audio';
+import { positionForGap } from '../utils/orderBar';
 import type {
   QuizItem,
   Team as QuizTeam,
@@ -69,7 +70,8 @@ function toQuizItem(item: OrderItem): QuizItem {
 interface ChosenSlot {
   itemId: string;
   side: 'left' | 'right';
-  slotIndex: number;
+  /** The bar column the player dropped on; mapped to a gap when confirming. */
+  column: number;
 }
 
 /**
@@ -180,7 +182,7 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
     return {
       item: { id: pending.itemId, name: pending.name, value: '', numericValue: 0 },
       side: chosenSlot.side,
-      slotIndex: chosenSlot.slotIndex,
+      slotIndex: chosenSlot.column,
     };
   }, [order?.pending, chosenSlot]);
 
@@ -211,28 +213,32 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
     void sendAction({ action: 'select_item', itemId: item.id, teamId: onTurnTeamId });
   }
 
-  function handleDropToPending(item: QuizItem, side: 'left' | 'right', slotIndex: number) {
-    setChosenSlot({ itemId: item.id, side, slotIndex });
+  function handleDropToPending(item: QuizItem, side: 'left' | 'right', column: number) {
+    setChosenSlot({ itemId: item.id, side, column });
     // Dragging a pool item straight onto a slot also has to select it first.
     if (order?.pending?.itemId !== item.id && onTurnTeamId) {
       void sendAction({ action: 'select_item', itemId: item.id, teamId: onTurnTeamId });
     }
   }
 
-  function handleChooseSlot(side: 'left' | 'right', slotIndex: number) {
+  function handleChooseSlot(side: 'left' | 'right', column: number) {
     const pending = order?.pending;
     if (!pending) return;
-    setChosenSlot({ itemId: pending.itemId, side, slotIndex });
+    setChosenSlot({ itemId: pending.itemId, side, column });
   }
 
   function handleConfirmPlacement() {
     const pending = order?.pending;
     if (!pending || !chosenSlot || !onTurnTeamId) return;
+    // The dropped column is mapped to a gap on the contiguous side, so the server
+    // receives a position the side actually has (contracts/order-placement.md).
+    const sideLength = chosenSlot.side === 'left' ? leftItems.length : rightItems.length;
+    const gap = positionForGap(chosenSlot.side, chosenSlot.column, sideLength);
     void sendAction({
       action: 'choose_slot',
       itemId: pending.itemId,
       side: chosenSlot.side,
-      slotIndex: chosenSlot.slotIndex,
+      slotIndex: gap,
       teamId: onTurnTeamId,
     });
   }

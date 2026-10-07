@@ -191,4 +191,22 @@ describe('setup wizard', () => {
     expect(field).toHaveValue('Team Cyan Pulsar');
     expect(document.activeElement).toBe(field);
   });
+
+  it('shows the tripmine side control only for Tripmine rounds', async () => {
+    const user = userEvent.setup();
+    render(<SetupQuiz onBackToHome={() => {}} onLaunchRole={() => {}} />);
+    await user.type(await screen.findByLabelText(/moderator password/i), 'letmein');
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+    await screen.findByRole('heading', { name: /step 2/i });
+
+    // The default round is Order: no tripmine side control.
+    expect(screen.queryByLabelText(/tripmine side/i)).not.toBeInTheDocument();
+
+    const quizType = screen.getAllByRole('combobox')[0];
+    await user.selectOptions(quizType, 'TRIPMINE');
+    expect(screen.getByLabelText(/tripmine side/i)).toBeInTheDocument();
+
+    await user.selectOptions(quizType, 'ORDER');
+    expect(screen.queryByLabelText(/tripmine side/i)).not.toBeInTheDocument();
+  });
 });
