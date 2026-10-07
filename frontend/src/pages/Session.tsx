@@ -754,7 +754,7 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
 
         {/* US2 (FR-006 to FR-008): before any round starts, the host gets an obvious
             start control and the room gets a waiting message in the board area. */}
-        {state && !order && !tripmine && state.status !== 'finished' ? (
+        {state && !connect && !order && !tripmine && state.status !== 'finished' ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 py-20 text-center">
             {isGamemaster ? (
               <button

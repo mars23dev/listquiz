@@ -774,6 +774,27 @@ describe('gamemaster dashboard controls', () => {
 describe('round start affordance', () => {
   const NOT_STARTED = { ...SESSION_STATE, status: 'setup', currentRound: 0, order: null, tripmine: null };
 
+  /** A Connect round is active: the pre-round prompt must behave as for Order/Tripmine. */
+  function connectState() {
+    return {
+      ...SESSION_STATE,
+      order: null,
+      tripmine: null,
+      connect: {
+        names: [
+          { itemId: 'a', name: 'Alpha', iconName: 'BookOpen' },
+          { itemId: 'b', name: 'Bravo', iconName: null },
+        ],
+        values: [
+          { itemId: 'b', display: '200' },
+          { itemId: 'a', display: '100' },
+        ],
+        matched: [],
+        pending: { nameItemId: null, valueItemId: null },
+      },
+    };
+  }
+
   function stub(state: unknown, onAction?: (body: Record<string, unknown>) => void) {
     vi.stubGlobal('EventSource', FakeEventSource as unknown as typeof EventSource);
     vi.stubGlobal(
@@ -834,6 +855,41 @@ describe('round start affordance', () => {
     await screen.findByRole('heading', { name: 'Team Cyan Pulsar' });
     expect(screen.queryByRole('button', { name: /start round/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/waiting for the game to be started/i)).not.toBeInTheDocument();
+  });
+
+  it('hides the start control and the waiting message once a Connect board exists (US1)', async () => {
+    stub(connectState());
+    const user = userEvent.setup();
+    render(<Session sessionId="lq-abcd1234" role="gamemaster" onNavigate={() => {}} />);
+    await user.type(screen.getByPlaceholderText('Enter password...'), 'letmein');
+    await user.click(screen.getByRole('button', { name: /unlock/i }));
+
+    // The Connect board renders once the round is active.
+    expect(await screen.findByText('Alpha')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /start round/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/waiting for the game to be started/i)).not.toBeInTheDocument();
+  });
+
+  it('does not show a player the waiting message once a Connect board exists (US1)', async () => {
+    stub(connectState());
+    render(<Session sessionId="lq-abcd1234" role="p1" onNavigate={() => {}} />);
+
+    expect(await screen.findByText('Alpha')).toBeInTheDocument();
+    expect(screen.queryByText(/waiting for the game to be started/i)).not.toBeInTheDocument();
+  });
+
+  it('shows the pre-round prompt only while no game type is active (US2)', async () => {
+    for (const state of [orderState(), tripmineState(), connectState()]) {
+      stub(state);
+      const { unmount } = render(<Session sessionId="lq-abcd1234" role="p1" onNavigate={() => {}} />);
+      expect(await screen.findByText('Alpha')).toBeInTheDocument();
+      expect(screen.queryByText(/waiting for the game to be started/i)).not.toBeInTheDocument();
+      unmount();
+    }
+
+    stub(NOT_STARTED);
+    render(<Session sessionId="lq-abcd1234" role="p1" onNavigate={() => {}} />);
+    expect(await screen.findByText(/waiting for the game to be started/i)).toBeInTheDocument();
   });
 });
 
