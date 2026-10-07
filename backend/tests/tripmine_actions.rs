@@ -308,3 +308,36 @@ async fn setting_off_the_mine_pays_the_other_teams_and_ends_the_round() {
         "every position is revealed (FR-042)"
     );
 }
+
+#[tokio::test]
+async fn the_tripmine_target_value_is_shown_to_every_role() {
+    let (app, side, session_id) = started_tripmine_session().await;
+    let items = stored_items(&side, &session_id);
+    let mine_value = items
+        .iter()
+        .find(|slot| slot["is_tripmine"] == json!(true))
+        .expect("the mine")["item"]["display"]
+        .as_str()
+        .expect("a value")
+        .to_string();
+
+    for role in ["gamemaster", "p1", "view"] {
+        let (_, state) = get_state(&app, &session_id, role).await;
+        assert_eq!(
+            state["tripmine"]["targetValue"],
+            json!(mine_value),
+            "the {role} view shows the mined value"
+        );
+    }
+
+    // The hint reveals one value, not the cells.
+    let (_, player) = get_state(&app, &session_id, "p1").await;
+    assert!(
+        player["tripmine"]["items"]
+            .as_array()
+            .expect("items")
+            .iter()
+            .all(|item| item["value"].is_null()),
+        "no unpicked cell shows a value"
+    );
+}

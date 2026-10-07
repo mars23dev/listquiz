@@ -170,6 +170,16 @@ pub fn sample_tripmine_grid(
         .collect())
 }
 
+/// Shuffle the grid's display order in place. Each slot keeps its `true_rank` and
+/// `is_tripmine`; only the array sequence changes, and no rule reads by index, so
+/// every outcome is unaffected (FR-009, FR-010).
+pub fn shuffle_grid(grid: &mut [TripmineSlot], rng: &mut impl rand::Rng) {
+    for index in (1..grid.len()).rev() {
+        let pick = rng.random_range(0..=index);
+        grid.swap(index, pick);
+    }
+}
+
 /// Load a list's values and sample a Tripmine grid from them (T088).
 pub fn start_tripmine_round(
     conn: &Connection,
@@ -181,7 +191,10 @@ pub fn start_tripmine_round(
     // `true_rank` is always 1 (lowest) to 10 (highest) whatever order the list is
     // kept in, so the grid is always sampled and ranked ascending (FR-037).
     let items = round_state::load_ordered_items(conn, list_id, column_id, true)?;
-    let grid = sample_tripmine_grid(&items, side, rng)?;
+    let mut grid = sample_tripmine_grid(&items, side, rng)?;
+    // The displayed order is shuffled so the ten items are not sweepable in rank
+    // order (FR-009).
+    shuffle_grid(&mut grid, rng);
     Ok(TripmineRound {
         side,
         searched_rank: starting_search_rank(side),

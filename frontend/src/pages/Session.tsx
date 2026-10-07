@@ -101,6 +101,7 @@ function toTripmineState(view: TripmineView, isGamemaster: boolean): QuizTripmin
     items: view.items.map((item) => toTripmineItem(item, isGamemaster)),
     tripmineHit: view.hit,
     isCompleted: view.completed,
+    targetValue: view.targetValue,
   };
 }
 
@@ -144,6 +145,9 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
     ? state?.teams[Number(playerSlot[1]) - 1]
     : undefined;
   const isPlayersTurn = playerTeam?.onTurn === true;
+  // A board is interactive for the gamemaster or for the player role that owns the
+  // team on turn (FR-001, FR-002). Every other view is read-only.
+  const canAct = isGamemaster || isPlayersTurn;
   const teams = useMemo(() => (state?.teams ?? []).map(toQuizTeam), [state?.teams]);
 
   // The slot a pending item is being dropped on is a client-side step: the server
@@ -189,8 +193,10 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
 
   async function sendAction(action: Record<string, unknown>) {
     setActionError(null);
+    // A player action names its role; the gamemaster action carries the password.
+    const body = isGamemaster ? action : { ...action, role };
     try {
-      await postSessionAction(sessionId, action, isGamemaster ? password : undefined);
+      await postSessionAction(sessionId, body, isGamemaster ? password : undefined);
       await refresh();
     } catch (cause) {
       setActionError(
@@ -573,6 +579,26 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
           </p>
         ) : null}
 
+        {/* US2 (FR-006 to FR-008): before any round starts, the host gets an obvious
+            start control and the room gets a waiting message in the board area. */}
+        {state && !order && !tripmine && state.status !== 'finished' ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 py-20 text-center">
+            {isGamemaster ? (
+              <button
+                type="button"
+                onClick={handleNextRound}
+                className="rounded-2xl bg-cyan-500 px-12 py-7 text-2xl font-black uppercase tracking-widest text-slate-950 shadow-2xl shadow-cyan-500/30 hover:bg-cyan-400 focus:outline-none focus-visible:ring-4 focus-visible:ring-cyan-300"
+              >
+                Start Round
+              </button>
+            ) : (
+              <p className="font-mono text-sm text-slate-400">
+                Waiting for the game to be started…
+              </p>
+            )}
+          </div>
+        ) : null}
+
       {order && anchorItem ? (
         <section className="mt-6">
           {/* The draft's waiting banner, shown to players when it is not their turn. */}
@@ -596,7 +622,7 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
             rightItems={rightItems}
             pendingItem={pendingItem}
             hasPendingItem={Boolean(order.pending)}
-            interactive={isGamemaster}
+            interactive={canAct}
             onChooseSlot={handleChooseSlot}
             onDropToPending={handleDropToPending}
             onConfirmPlacement={handleConfirmPlacement}
@@ -634,7 +660,7 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
             revealAllValues={revealAllValues}
             onSelectItem={handleSelectItem}
             selectedItemId={order.pending?.itemId ?? null}
-            interactive={isGamemaster}
+            interactive={canAct}
           />
         </section>
       ) : null}
@@ -644,7 +670,7 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
           <TripmineBoard
             tripmineState={toTripmineState(tripmine, isGamemaster)}
             onPickItem={handlePickItem}
-            isMyTurn={isGamemaster}
+            isMyTurn={canAct}
             currentRole={role}
             feedbackMessage={tripmineFeedback}
           />

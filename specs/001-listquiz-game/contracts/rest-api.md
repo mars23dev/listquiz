@@ -223,6 +223,10 @@ role is the only one that does.
 
 ### `POST /api/sessions/{sessionId}/actions`
 
+> **Amended by `specs/002-fix-play-findings/contracts/actions-amendment.md`:** the body accepts an
+> optional `role`; a player role posts its own in-round actions for the team on turn without the
+> gamemaster password.
+
 Header `X-Quiz-Password`. Every gamemaster action is one of these:
 
 | `action` | Fields | Effect | Requirement |

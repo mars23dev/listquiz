@@ -281,6 +281,9 @@ pub struct TripmineView {
     pub searched_rank: i32,
     pub hit: bool,
     pub completed: bool,
+    /// The mined item's value for the round's column: a public hint (FR-015), shown
+    /// to every role even while per-cell values stay hidden.
+    pub target_value: Option<String>,
     pub items: Vec<TripmineItem>,
 }
 
@@ -415,6 +418,7 @@ pub fn redact(state: &SessionState, role: UserRole) -> SessionState {
         searched_rank: tripmine.searched_rank,
         hit: tripmine.hit,
         completed: tripmine.completed,
+        target_value: tripmine.target_value.clone(),
         items: tripmine
             .items
             .iter()
@@ -558,6 +562,7 @@ mod tests {
             searched_rank: 5,
             hit: false,
             completed: false,
+            target_value: Some("2920".to_string()),
             items: vec![
                 TripmineItem {
                     item_id: "m1".to_string(),

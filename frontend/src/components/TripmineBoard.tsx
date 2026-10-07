@@ -50,6 +50,14 @@ export const TripmineBoard: React.FC<TripmineBoardProps> = ({
             <span>
               TRIPMINE: {tripmineSide === 'highest' ? '#10 (HIGHEST)' : '#1 (LOWEST)'}
             </span>
+            {tripmineState.targetValue ? (
+              <span
+                className="text-amber-300"
+                aria-label={`Tripmine value ${tripmineState.targetValue}`}
+              >
+                · VALUE: {tripmineState.targetValue}
+              </span>
+            ) : null}
           </div>
         </div>
 

@@ -84,7 +84,6 @@ fn a_grid_holds_ten_ranked_items_with_one_mine_at_the_mined_end() {
 }
 
 // T080 ---------------------------------------------------------------------
-
 #[test]
 fn the_search_starts_at_the_far_end_from_the_mine() {
     assert_eq!(starting_search_rank(TripmineSide::Highest), 1);
@@ -244,4 +243,47 @@ fn the_side_is_fixed_once_the_round_has_started() {
 
     let nonsense = ensure_side_unchanged(&round, Some("sideways")).expect_err("not a side");
     assert_eq!(nonsense.code, ErrorCode::BadRequest);
+}
+
+// T010 ---------------------------------------------------------------------
+
+#[test]
+fn the_grid_is_shuffled_out_of_rank_order_without_changing_the_answer_key() {
+    let base =
+        sample_tripmine_grid(&items(10), TripmineSide::Highest, &mut rng(1)).expect("a grid");
+    let ascending: Vec<i32> = base.iter().map(|slot| slot.true_rank).collect();
+    assert_eq!(
+        ascending,
+        (1..=TRIPMINE_SLOTS as i32).collect::<Vec<_>>(),
+        "sampling ranks the grid ascending before display"
+    );
+
+    let order = |grid: &[TripmineSlot]| grid.iter().map(|slot| slot.true_rank).collect::<Vec<_>>();
+
+    let mut first = base.clone();
+    shuffle_grid(&mut first, &mut rng(2));
+    let mut second = base.clone();
+    shuffle_grid(&mut second, &mut rng(3));
+
+    assert_ne!(
+        order(&first),
+        order(&second),
+        "different seeds reorder differently"
+    );
+    assert_ne!(
+        order(&first),
+        ascending,
+        "the display order is not the rank order"
+    );
+
+    // Reordering touches nothing but the array sequence.
+    let mut ranks = order(&first);
+    ranks.sort_unstable();
+    assert_eq!(ranks, (1..=TRIPMINE_SLOTS as i32).collect::<Vec<_>>());
+    assert_eq!(first.iter().filter(|slot| slot.is_tripmine).count(), 1);
+    let mine = first
+        .iter()
+        .find(|slot| slot.is_tripmine)
+        .expect("the mine");
+    assert_eq!(mine.true_rank, TRIPMINE_SLOTS as i32);
 }

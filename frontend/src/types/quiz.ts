@@ -138,6 +138,8 @@ export interface TripmineState {
   tripmineHit: boolean;
   tripmineHitByTeamId?: string;
   isCompleted: boolean;
+  /** The mined item's value, shown as a public hint (FR-015). */
+  targetValue?: string | null;
 }
 
 export interface SessionConfig {

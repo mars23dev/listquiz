@@ -63,6 +63,8 @@ export interface TripmineView {
   searchedRank: number;
   hit: boolean;
   completed: boolean;
+  /** The mined item's value, shown as a public hint (FR-015). */
+  targetValue: string | null;
   items: TripmineItem[];
 }
 

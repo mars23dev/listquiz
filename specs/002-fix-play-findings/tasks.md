@@ -27,7 +27,7 @@ testable.
 
 **Purpose**: Confirm a green baseline before touching anything.
 
-- [ ] T001 Verify baseline: `cargo test --manifest-path backend/Cargo.toml` and `npm --prefix frontend test` both pass, and `npm --prefix frontend run build` succeeds.
+- [x] T001 Verify baseline: `cargo test --manifest-path backend/Cargo.toml` and `npm --prefix frontend test` both pass, and `npm --prefix frontend run build` succeeds.
 
 ---
 
@@ -35,7 +35,7 @@ testable.
 
 **Purpose**: The one shared request-shape change every player-action task needs.
 
-- [ ] T002 Add an optional `role` field (defaulted, serde camelCase) to `ActionRequest` in `backend/src/routes/sessions.rs`. No behaviour change yet.
+- [x] T002 Add an optional `role` field (defaulted, serde camelCase) to `ActionRequest` in `backend/src/routes/sessions.rs`. No behaviour change yet.
 
 **Checkpoint**: The action request can carry a requester role.
 
@@ -52,14 +52,14 @@ gamemaster still can.
 
 ### Tests for User Story 1
 
-- [ ] T003 [P] [US1] Integration test in `backend/tests/player_actions.rs`: an active-team player role (`p2` for team_2 on turn) posts `select_item`/`choose_slot` and `pick_tripitem` without `X-Quiz-Password` and is accepted; a non-active player role and `view` are refused with `not_ready`; the gamemaster path still requires and accepts the password.
-- [ ] T004 [P] [US1] Component test in `frontend/src/test/Session.test.tsx`: a player role that owns the team on turn gets an interactive board and its actions post with `role` and no password header; a non-active player role is read-only; the spectator view has no controls.
+- [x] T003 [P] [US1] Integration test in `backend/tests/player_actions.rs`: an active-team player role (`p2` for team_2 on turn) posts `select_item`/`choose_slot` and `pick_tripitem` without `X-Quiz-Password` and is accepted; a non-active player role and `view` are refused with `not_ready`; the gamemaster path still requires and accepts the password.
+- [x] T004 [P] [US1] Component test in `frontend/src/test/Session.test.tsx`: a player role that owns the team on turn gets an interactive board and its actions post with `role` and no password header; a non-active player role is read-only; the spectator view has no controls.
 
 ### Implementation for User Story 1
 
-- [ ] T005 [US1] Implement the named rule `actor_may_act(conn, session_id, role, team_id) -> ApiResult<()>` in `backend/src/modules/sessions/mod.rs`: the gamemaster may always act; a player role may act only for the team on turn (reuse `scoring::is_active_turn`); any other role or team is `not_ready`.
-- [ ] T006 [US1] Wire authorization into `session_action` in `backend/src/routes/sessions.rs`: require `X-Quiz-Password` only when `role` is the gamemaster (or absent); for a player role call `actor_may_act`; reject `view`; keep `return_to_pool` gamemaster-only.
-- [ ] T007 [US1] Make the player board interactive when the role owns the team on turn and send `role` (no password) with player actions for Order and Tripmine in `frontend/src/pages/Session.tsx`; leave spectator read-only and the gamemaster path unchanged.
+- [x] T005 [US1] Implement the named rule `actor_may_act(conn, session_id, role, team_id) -> ApiResult<()>` in `backend/src/modules/sessions/mod.rs`: the gamemaster may always act; a player role may act only for the team on turn (reuse `scoring::is_active_turn`); any other role or team is `not_ready`.
+- [x] T006 [US1] Wire authorization into `session_action` in `backend/src/routes/sessions.rs`: require `X-Quiz-Password` only when `role` is the gamemaster (or absent); for a player role call `actor_may_act`; reject `view`; keep `return_to_pool` gamemaster-only.
+- [x] T007 [US1] Make the player board interactive when the role owns the team on turn and send `role` (no password) with player actions for Order and Tripmine in `frontend/src/pages/Session.tsx`; leave spectator read-only and the gamemaster path unchanged.
 
 **Checkpoint**: The active team plays from its own view; other views cannot.
 
@@ -75,11 +75,11 @@ a spectator link show a waiting message, and starting the round replaces both wi
 
 ### Tests for User Story 2
 
-- [ ] T008 [P] [US2] Component test in `frontend/src/test/Session.test.tsx`: with no board present, the gamemaster sees a start control and players/spectators see a waiting message; after a board exists, neither is shown.
+- [x] T008 [P] [US2] Component test in `frontend/src/test/Session.test.tsx`: with no board present, the gamemaster sees a start control and players/spectators see a waiting message; after a board exists, neither is shown.
 
 ### Implementation for User Story 2
 
-- [ ] T009 [US2] Render a large start control (calls the existing `next_round`) for the gamemaster and a waiting-for-start message for players/spectators, shown only while no Order and no Tripmine board exists, in `frontend/src/pages/Session.tsx`.
+- [x] T009 [US2] Render a large start control (calls the existing `next_round`) for the gamemaster and a waiting-for-start message for players/spectators, shown only while no Order and no Tripmine board exists, in `frontend/src/pages/Session.tsx`.
 
 **Checkpoint**: A fresh session is never a blank page for any role.
 
@@ -95,11 +95,11 @@ reveals the correct position and advances the search.
 
 ### Tests for User Story 3
 
-- [ ] T010 [P] [US3] Unit test in `backend/src/modules/tripmine_round/tests.rs`: the stored grid order from two different seeds differs and does not equal the ascending/descending rank order, while each slot's `true_rank` and the single `is_tripmine` are unchanged, and a pick still scores and advances the searched rank.
+- [x] T010 [P] [US3] Unit test in `backend/src/modules/tripmine_round/tests.rs`: the stored grid order from two different seeds differs and does not equal the ascending/descending rank order, while each slot's `true_rank` and the single `is_tripmine` are unchanged, and a pick still scores and advances the searched rank.
 
 ### Implementation for User Story 3
 
-- [ ] T011 [US3] Shuffle the grid array order in `start_tripmine_round` in `backend/src/modules/tripmine_round/mod.rs` before it is stored (each slot keeps its `true_rank`/`is_tripmine`), reusing the module's Fisher–Yates shuffle.
+- [x] T011 [US3] Shuffle the grid array order in `start_tripmine_round` in `backend/src/modules/tripmine_round/mod.rs` before it is stored (each slot keeps its `true_rank`/`is_tripmine`), reusing the module's Fisher–Yates shuffle.
 
 **Checkpoint**: Tripmine is no longer sweepable left-to-right.
 
@@ -113,11 +113,11 @@ reveals the correct position and advances the search.
 
 ### Tests for User Story 4
 
-- [ ] T012 [P] [US4] Component test in `frontend/src/test/SetupQuiz.test.tsx`: typing a multi-character team name retains the full value and the field stays focused across keystrokes.
+- [x] T012 [P] [US4] Component test in `frontend/src/test/SetupQuiz.test.tsx`: typing a multi-character team name retains the full value and the field stays focused across keystrokes.
 
 ### Implementation for User Story 4
 
-- [ ] T013 [US4] Key the team-name inputs by stable index (not by the changing team name) in `frontend/src/pages/SetupQuiz.tsx`.
+- [x] T013 [US4] Key the team-name inputs by stable index (not by the changing team name) in `frontend/src/pages/SetupQuiz.tsx`.
 
 **Checkpoint**: Team naming works.
 
@@ -133,12 +133,12 @@ matches the mined item once picked.
 
 ### Tests for User Story 6
 
-- [ ] T014 [P] [US6] Integration test in `backend/tests/tripmine_actions.rs`: `tripmine.targetValue` is present for gamemaster, player, and spectator roles, equals the mined item's value, and unrevealed `items[].value` stays `null`.
+- [x] T014 [P] [US6] Integration test in `backend/tests/tripmine_actions.rs`: `tripmine.targetValue` is present for gamemaster, player, and spectator roles, equals the mined item's value, and unrevealed `items[].value` stays `null`.
 
 ### Implementation for User Story 6
 
-- [ ] T015 [US6] Add `target_value: Option<String>` to `TripmineView` in `backend/src/app_state.rs` and compute it in `read_tripmine` in `backend/src/state_reader.rs` from the mined slot's value for the round's column.
-- [ ] T016 [US6] Add `targetValue` to the Tripmine view type in `frontend/src/types/session.ts` and show it next to the highest/lowest text in `frontend/src/components/TripmineBoard.tsx`.
+- [x] T015 [US6] Add `target_value: Option<String>` to `TripmineView` in `backend/src/app_state.rs` and compute it in `read_tripmine` in `backend/src/state_reader.rs` from the mined slot's value for the round's column.
+- [x] T016 [US6] Add `targetValue` to the Tripmine view type in `frontend/src/types/session.ts` and show it next to the highest/lowest text in `frontend/src/components/TripmineBoard.tsx`.
 
 **Checkpoint**: The room knows the value to hunt without knowing the cell.
 
@@ -153,11 +153,11 @@ under their headings without an oversized empty column, down to a narrow width.
 
 ### Tests for User Story 5
 
-- [ ] T017 [P] [US5] Component test in `frontend/src/test/ListManagement.test.tsx`: a row's icon control does not read as the literal placeholder word and exposes an accessible label; the editor table renders name and value fields.
+- [x] T017 [P] [US5] Component test in `frontend/src/test/ListManagement.test.tsx`: a row's icon control does not read as the literal placeholder word and exposes an accessible label; the editor table renders name and value fields.
 
 ### Implementation for User Story 5
 
-- [ ] T018 [US5] Render the chosen icon via the existing icon component with a neutral fallback and an accessible label, and constrain the editor table column widths so fields sit under their headings, in `frontend/src/pages/ListManagement.tsx`.
+- [x] T018 [US5] Render the chosen icon via the existing icon component with a neutral fallback and an accessible label, and constrain the editor table column widths so fields sit under their headings, in `frontend/src/pages/ListManagement.tsx`.
 
 **Checkpoint**: The editor control reads as an icon and the table fits.
 
@@ -165,8 +165,8 @@ under their headings without an oversized empty column, down to a narrow width.
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T019 [P] Add a one-line pointer in `specs/001-listquiz-game/contracts/realtime.md` and `contracts/rest-api.md` to the `002-fix-play-findings` amendments, so the "host-only mutations" line is not read as current.
-- [ ] T020 Run the full verification pass: `cargo fmt --manifest-path backend/Cargo.toml --check`, `cargo clippy --manifest-path backend/Cargo.toml --all-targets -- -D warnings`, `cargo test`, `npm --prefix frontend run lint`, `npm --prefix frontend test`, `npm --prefix frontend run build`, and the `specs/002-fix-play-findings/quickstart.md` steps.
+- [x] T019 [P] Add a one-line pointer in `specs/001-listquiz-game/contracts/realtime.md` and `contracts/rest-api.md` to the `002-fix-play-findings` amendments, so the "host-only mutations" line is not read as current.
+- [x] T020 Run the full verification pass: `cargo fmt --manifest-path backend/Cargo.toml --check`, `cargo clippy --manifest-path backend/Cargo.toml --all-targets -- -D warnings`, `cargo test`, `npm --prefix frontend run lint`, `npm --prefix frontend test`, `npm --prefix frontend run build`, and the `specs/002-fix-play-findings/quickstart.md` steps.
 
 ---
 

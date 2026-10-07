@@ -333,6 +333,10 @@ fn read_tripmine(
         searched_rank,
         hit: hit != 0,
         completed: completed != 0,
+        target_value: items
+            .iter()
+            .find(|item| item.is_tripmine)
+            .and_then(|item| item.value.clone()),
         items,
     }))
 }

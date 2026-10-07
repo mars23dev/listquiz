@@ -94,11 +94,17 @@ pub async fn session_state(
     Ok(Json(snapshot))
 }
 
-/// `POST /api/sessions/{id}/actions` — the gamemaster's action channel.
+/// `POST /api/sessions/{id}/actions` — the session action channel.
+///
+/// The gamemaster sends no `role` (or `"gamemaster"`) and the password header. A
+/// player role sends its own role and no password, and may act only for the team
+/// on turn (FR-005, contracts/actions-amendment.md).
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionRequest {
     pub action: String,
+    #[serde(default)]
+    pub role: Option<String>,
     #[serde(default)]
     pub team_id: Option<String>,
     #[serde(default)]
@@ -133,18 +139,46 @@ pub async fn session_action(
     Json(request): Json<ActionRequest>,
 ) -> ApiResult<Json<ActionResponse>> {
     state.require_session(&session_id)?;
-    let password = headers
-        .get("x-quiz-password")
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or_default();
-    let matches =
-        state.with_db(|conn| sessions::gm_password_matches(conn, &session_id, password))?;
-    if !matches {
-        return Err(ApiError::unauthorized());
+
+    let role = request
+        .role
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_ascii_lowercase())
+        .unwrap_or_else(|| "gamemaster".to_string());
+
+    if role == "gamemaster" {
+        let password = headers
+            .get("x-quiz-password")
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or_default();
+        let matches =
+            state.with_db(|conn| sessions::gm_password_matches(conn, &session_id, password))?;
+        if !matches {
+            return Err(ApiError::unauthorized());
+        }
+    } else {
+        // A player role may only run an in-round action for its own team on turn.
+        if !is_player_action(&request.action) {
+            return Err(ApiError::bad_request(
+                "This action is available to the gamemaster only.",
+            ));
+        }
+        let requested_team = require_field(request.team_id.as_deref(), "teamId")?;
+        state.with_db(|conn| sessions::player_may_act(conn, &session_id, &role, requested_team))?;
     }
 
     let revision = apply_action(&state, &session_id, &request)?;
     Ok(Json(ActionResponse { ok: true, revision }))
+}
+
+/// The in-round actions a player role may post for its own team (FR-001).
+fn is_player_action(action: &str) -> bool {
+    matches!(
+        action,
+        "select_item" | "choose_slot" | "cancel_selection" | "pick_tripitem"
+    )
 }
 
 /// Run one action and bump the revision if it changed anything.

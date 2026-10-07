@@ -9,6 +9,7 @@ const STATE: TripmineState = {
   currentSearchedRank: 1,
   tripmineHit: false,
   isCompleted: false,
+  targetValue: '$2.92 Billion',
   items: [
     {
       id: 'a',
@@ -62,5 +63,17 @@ describe('tripmine grid keyboard operation', () => {
       />,
     );
     expect(screen.queryByRole('button', { name: /flip rule/i })).not.toBeInTheDocument();
+  });
+
+  it('shows the tripmine target value next to the hint', () => {
+    render(
+      <TripmineBoard
+        tripmineState={STATE}
+        onPickItem={() => {}}
+        isMyTurn
+        currentRole="p1"
+      />,
+    );
+    expect(screen.getByText(/\$2\.92 Billion/)).toBeInTheDocument();
   });
 });

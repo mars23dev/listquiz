@@ -1,5 +1,9 @@
 # Contract: Realtime Updates and Role Redaction
 
+> **Amended by `specs/002-fix-play-findings/contracts/realtime-amendment.md`:** the rule below that
+> "player and spectator views have no controls" is narrowed — the player role that owns the team on
+> turn may act, and the Tripmine view gains `targetValue`.
+
 ## Why revisions instead of pushed state
 
 Every mutation in ListQuiz comes from the gamemaster view; player and spectator views have no controls

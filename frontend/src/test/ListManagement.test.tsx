@@ -338,4 +338,18 @@ describe('list editor and CSV import', () => {
       await screen.findByRole('dialog', { name: /list form & table editor/i }),
     ).toBeInTheDocument();
   });
+
+  it('shows an icon control rather than the placeholder word', async () => {
+    const user = await openUnlockedFolder();
+    await user.click(screen.getByRole('button', { name: /^edit$/i }));
+    const dialog = await screen.findByRole('dialog', { name: /list form & table editor/i });
+
+    // The row control is an icon button with an accessible label, never the word.
+    const iconButtons = within(dialog).getAllByRole('button', {
+      name: /choose icon for row 1/i,
+    });
+    expect(iconButtons.length).toBeGreaterThan(0);
+    expect(iconButtons[0].textContent).not.toContain('Icon');
+    expect(within(dialog).queryByText('Icon')).not.toBeInTheDocument();
+  });
 });

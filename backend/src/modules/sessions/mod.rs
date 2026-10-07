@@ -10,6 +10,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 
 use crate::errors::{ApiError, ApiResult};
+use crate::modules::scoring;
 use crate::modules::teams::{self, NewTeam, TeamColorInput};
 
 pub const MIN_ROUNDS: i32 = 1;
@@ -413,6 +414,41 @@ pub fn advance_round(conn: &Connection, session_id: &str) -> ApiResult<RoundAdva
         finished: false,
         round_number: target,
     })
+}
+
+/// The team a player role owns: `p1`..`p4` map to `team_1`..`team_4`; the
+/// gamemaster, spectator, and unknown roles own no team.
+pub fn player_role_team(role: &str) -> Option<String> {
+    let index: u32 = role.strip_prefix('p')?.parse().ok()?;
+    (1..=4).contains(&index).then(|| format!("team_{index}"))
+}
+
+/// FR-005: a player role may act only for the team it owns while that team is on
+/// turn. The gamemaster is authorized separately by password.
+pub fn player_may_act(
+    conn: &Connection,
+    session_id: &str,
+    role: &str,
+    requested_team: &str,
+) -> ApiResult<()> {
+    let owned = player_role_team(role)
+        .ok_or_else(|| ApiError::not_ready(format!("Role '{role}' cannot act in a round.")))?;
+    if owned != requested_team {
+        return Err(ApiError::not_ready(
+            "A player can only act for their own team.",
+        ));
+    }
+    let active: Option<String> = conn
+        .query_row(
+            "SELECT active_team_id FROM game_session WHERE id = ?1",
+            params![session_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if !scoring::is_active_turn(active.as_deref(), requested_team) {
+        return Err(ApiError::not_ready("It is not this team's turn."));
+    }
+    Ok(())
 }
 
 /// True when the given password matches the session's gamemaster password.

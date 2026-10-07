@@ -264,7 +264,7 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             {teams.map((team, index) => (
-              <label key={team.name} className="block text-sm">
+              <label key={index} className="block text-sm">
                 <span className="flex items-center gap-2 font-semibold text-slate-200">
                   <span
                     aria-hidden="true"

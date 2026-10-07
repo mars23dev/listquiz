@@ -227,7 +227,7 @@ describe('order board actions', () => {
     vi.unstubAllGlobals();
   });
 
-  async function renderUnlocked(role: 'gamemaster' | 'p1') {
+  async function renderUnlocked(role: 'gamemaster' | 'p1' | 'p2') {
     const user = userEvent.setup();
     render(<Session sessionId="lq-abcd1234" role={role} onNavigate={() => {}} />);
     if (role === 'gamemaster') {
@@ -340,7 +340,7 @@ describe('order board actions', () => {
   });
 
   it('gives a player a read-only board with no action buttons', async () => {
-    await renderUnlocked('p1');
+    await renderUnlocked('p2');
 
     expect(await screen.findByText('Alpha')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /select alpha/i })).not.toBeInTheDocument();
@@ -452,7 +452,7 @@ describe('tripmine board actions', () => {
     vi.unstubAllGlobals();
   });
 
-  async function renderBoard(role: 'gamemaster' | 'p1') {
+  async function renderBoard(role: 'gamemaster' | 'p1' | 'p2') {
     const user = userEvent.setup();
     render(<Session sessionId="lq-abcd1234" role={role} onNavigate={() => {}} />);
     if (role === 'gamemaster') {
@@ -479,7 +479,7 @@ describe('tripmine board actions', () => {
   });
 
   it('gives a player a read-only grid', async () => {
-    await renderBoard('p1');
+    await renderBoard('p2');
 
     // A player's cells are present but disabled, so nothing can post an action.
     const cell = screen.queryByRole('button', { name: /alpha, hidden/i });
@@ -582,6 +582,71 @@ describe('role views and session controls', () => {
   });
 });
 
+describe('player turn interaction', () => {
+  let posted: { body: Record<string, unknown>; passwordHeader: string | null }[] = [];
+
+  function stub() {
+    posted = [];
+    vi.stubGlobal('EventSource', FakeEventSource as unknown as typeof EventSource);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes('/actions')) {
+          posted.push({
+            body: JSON.parse(String(init?.body ?? '{}')),
+            passwordHeader: new Headers(init?.headers).get('X-Quiz-Password'),
+          });
+          return jsonResponse({ ok: true });
+        }
+        if (url.includes('/state')) return jsonResponse(orderState());
+        return jsonResponse({ error: { code: 'bad_request', message: 'unexpected' } }, 400);
+      }),
+    );
+  }
+
+  beforeEach(() => {
+    FakeEventSource.instances = [];
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('lets the team on turn act from its player role, with the role and no password', async () => {
+    stub();
+    const user = userEvent.setup();
+    render(<Session sessionId="lq-abcd1234" role="p1" onNavigate={() => {}} />);
+
+    await user.click(await screen.findByRole('button', { name: /select alpha/i }));
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0].body).toEqual({
+      action: 'select_item',
+      itemId: 'item_a',
+      teamId: 'team_1',
+      role: 'p1',
+    });
+    expect(posted[0].passwordHeader).toBeNull();
+  });
+
+  it('keeps a player whose team is not on turn read-only', async () => {
+    stub();
+    render(<Session sessionId="lq-abcd1234" role="p2" onNavigate={() => {}} />);
+
+    await screen.findByRole('heading', { name: 'Team Cyan Pulsar' });
+    expect(screen.queryByRole('button', { name: /select alpha/i })).not.toBeInTheDocument();
+  });
+
+  it('keeps the spectator read-only', async () => {
+    stub();
+    render(<Session sessionId="lq-abcd1234" role="view" onNavigate={() => {}} />);
+
+    await screen.findByText(/stage broadcast screen/i);
+    expect(screen.queryByRole('button', { name: /select alpha/i })).not.toBeInTheDocument();
+  });
+});
+
 describe('gamemaster dashboard controls', () => {
   let posted: { url: string; body: Record<string, unknown> }[] = [];
 
@@ -639,5 +704,71 @@ describe('gamemaster dashboard controls', () => {
 
     expect(await screen.findByText(/final ranking/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Team Cyan Pulsar/).length).toBeGreaterThan(0);
+  });
+});
+
+describe('round start affordance', () => {
+  const NOT_STARTED = { ...SESSION_STATE, status: 'setup', currentRound: 0, order: null, tripmine: null };
+
+  function stub(state: unknown, onAction?: (body: Record<string, unknown>) => void) {
+    vi.stubGlobal('EventSource', FakeEventSource as unknown as typeof EventSource);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes('/unlock')) return jsonResponse({ ok: true });
+        if (url.includes('/actions')) {
+          onAction?.(JSON.parse(String(init?.body ?? '{}')));
+          return jsonResponse({ ok: true });
+        }
+        if (url.includes('/state')) return jsonResponse(state);
+        return jsonResponse({ error: { code: 'bad_request', message: 'unexpected' } }, 400);
+      }),
+    );
+  }
+
+  beforeEach(() => {
+    FakeEventSource.instances = [];
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('gives the gamemaster a start control that starts the first round', async () => {
+    let action: Record<string, unknown> | null = null;
+    stub(NOT_STARTED, (body) => {
+      action = body;
+    });
+    const user = userEvent.setup();
+    render(<Session sessionId="lq-abcd1234" role="gamemaster" onNavigate={() => {}} />);
+    await user.type(screen.getByPlaceholderText('Enter password...'), 'letmein');
+    await user.click(screen.getByRole('button', { name: /unlock/i }));
+
+    const start = await screen.findByRole('button', { name: /start round/i });
+    await user.click(start);
+
+    await waitFor(() => expect(action).not.toBeNull());
+    expect(action).toEqual({ action: 'next_round' });
+  });
+
+  it('shows players and spectators a waiting message before the round starts', async () => {
+    stub(NOT_STARTED);
+    render(<Session sessionId="lq-abcd1234" role="p1" onNavigate={() => {}} />);
+
+    expect(await screen.findByText(/waiting for the game to be started/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /start round/i })).not.toBeInTheDocument();
+  });
+
+  it('hides the start control and the waiting message once a board exists', async () => {
+    stub(orderState());
+    const user = userEvent.setup();
+    render(<Session sessionId="lq-abcd1234" role="gamemaster" onNavigate={() => {}} />);
+    await user.type(screen.getByPlaceholderText('Enter password...'), 'letmein');
+    await user.click(screen.getByRole('button', { name: /unlock/i }));
+
+    await screen.findByRole('heading', { name: 'Team Cyan Pulsar' });
+    expect(screen.queryByRole('button', { name: /start round/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/waiting for the game to be started/i)).not.toBeInTheDocument();
   });
 });

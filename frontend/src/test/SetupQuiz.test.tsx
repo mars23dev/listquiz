@@ -178,4 +178,17 @@ describe('setup wizard', () => {
 
     expect(await screen.findByRole('heading', { name: /step 2/i })).toBeInTheDocument();
   });
+
+  it('keeps a team-name field focused while a full name is typed', async () => {
+    const user = userEvent.setup();
+    render(<SetupQuiz onBackToHome={() => {}} onLaunchRole={() => {}} />);
+    await screen.findByRole('heading', { name: /step 1/i });
+
+    const field = screen.getAllByRole('textbox')[0];
+    field.focus();
+    await user.keyboard('Team Cyan Pulsar');
+
+    expect(field).toHaveValue('Team Cyan Pulsar');
+    expect(document.activeElement).toBe(field);
+  });
 });

@@ -16,6 +16,7 @@ import {
   type FolderSummary,
 } from '../api/client';
 import { IconPickerModal } from '../components/IconPickerModal';
+import { ItemIcon } from '../components/ItemIcon';
 import { ThemeToggle } from '../components/ThemeToggle';
 import type {
   ImportReport,
@@ -912,7 +913,7 @@ function ListEditor({
           Drag the grip icon on the left to rearrange rows
         </p>
         <div className="mt-2 overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
+          <table className="w-auto border-collapse text-sm">
             <thead>
               <tr className="text-left text-xs uppercase text-slate-400">
                 <th className="p-1" />
@@ -953,9 +954,13 @@ function ListEditor({
                         type="button"
                         onClick={() => setIconTarget(index)}
                         aria-label={`Choose icon for row ${index + 1}`}
-                        className="rounded border border-slate-700 px-1.5 py-0.5 text-xs text-slate-300"
+                        className="flex h-8 w-8 items-center justify-center rounded border border-slate-700 text-slate-300 hover:border-cyan-400"
                       >
-                        {item.iconName ?? 'Icon'}
+                        <ItemIcon
+                          name={item.iconName ?? undefined}
+                          customIconUrl={item.iconImage ?? undefined}
+                          className="h-4 w-4"
+                        />
                       </button>
                       <input
                         value={item.name}
