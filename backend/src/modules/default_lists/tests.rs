@@ -1,26 +1,62 @@
 use super::*;
 
 #[test]
-fn three_default_lists_are_seeded() {
-    assert_eq!(DEFAULT_LISTS.len(), 3);
+fn four_default_lists_are_seeded() {
+    assert_eq!(DEFAULT_LISTS.len(), 4);
     assert_eq!(DEFAULT_LISTS[0].title, "World History & Inventions");
     assert_eq!(
         DEFAULT_LISTS[1].title,
         "Iconic Statues & Architectural Marvels"
     );
     assert_eq!(DEFAULT_LISTS[2].title, "Blockbuster Cinema Box Office");
+    assert_eq!(DEFAULT_LISTS[3].title, "Countries of the World");
 }
 
 #[test]
-fn every_default_list_satisfies_the_minimum_of_eleven_items() {
-    for list in DEFAULT_LISTS.iter() {
+fn the_countries_list_holds_every_sovereign_state_with_a_flag_and_three_values() {
+    let list = DEFAULT_LISTS
+        .iter()
+        .find(|l| l.id == "default_countries")
+        .expect("the countries list");
+
+    assert_eq!(list.items.len(), 195, "every sovereign state");
+    for item in list.items.iter() {
         assert!(
-            list.items.len() >= MIN_ITEMS,
-            "{} has only {} items",
+            item.icon_name.starts_with("flag:"),
+            "{} has no flag icon (icon_name = {})",
+            item.name,
+            item.icon_name
+        );
+        for column in ["area_km2", "population", "founded"] {
+            let value = item
+                .values
+                .iter()
+                .find(|(c, _, _)| *c == column)
+                .unwrap_or_else(|| panic!("{} is missing the {column} value", item.name));
+            assert!(!value.1.is_empty(), "{} has an empty {column}", item.name);
+            assert!(
+                value.2.is_finite(),
+                "{} has a non-finite {column}",
+                item.name
+            );
+        }
+    }
+}
+
+#[test]
+fn the_expanded_default_lists_hold_twenty_to_fifty_items() {
+    for id in [
+        "default_world_history",
+        "default_statues_monuments",
+        "default_cinema_box_office",
+    ] {
+        let list = DEFAULT_LISTS.iter().find(|l| l.id == id).expect(id);
+        assert!(
+            (20..=50).contains(&list.items.len()),
+            "{} has {} items",
             list.title,
             list.items.len()
         );
-        assert_eq!(list.items.len(), 11);
         validate_list_size(list.items.len()).unwrap();
     }
 }
@@ -113,10 +149,24 @@ fn seeding_writes_every_list_item_and_value() {
         .query_row("SELECT COUNT(*) FROM item_value", [], |r| r.get(0))
         .unwrap();
 
-    assert_eq!(lists, 3);
-    assert_eq!(items, 33);
-    // 11 + 22 + 22 values for the three lists.
-    assert_eq!(values, 55);
+    assert_eq!(lists, DEFAULT_LISTS.len() as i64);
+    assert_eq!(items, expected_default_item_count());
+    assert_eq!(values, expected_default_value_count());
+}
+
+/// The number of items the shipped seed holds, read from the constants so the test
+/// tracks content changes instead of hard-coding a count.
+fn expected_default_item_count() -> i64 {
+    DEFAULT_LISTS.iter().map(|l| l.items.len() as i64).sum()
+}
+
+/// The number of value rows the shipped seed holds.
+fn expected_default_value_count() -> i64 {
+    DEFAULT_LISTS
+        .iter()
+        .flat_map(|l| l.items.iter())
+        .map(|i| i.values.len() as i64)
+        .sum()
 }
 
 #[test]
@@ -130,7 +180,7 @@ fn seeding_twice_does_not_duplicate_anything() {
     let items: i64 = conn
         .query_row("SELECT COUNT(*) FROM item", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(items, 33);
+    assert_eq!(items, expected_default_item_count());
 }
 
 #[test]

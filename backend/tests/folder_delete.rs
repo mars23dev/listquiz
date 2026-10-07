@@ -153,8 +153,8 @@ async fn deleting_a_folder_removes_its_lists_and_leaves_everything_else() {
     assert_eq!(remaining, 0);
     // ...the sibling folder and its list survive...
     assert_eq!(list_titles(&side, &keeper), vec!["Quarterly numbers"]);
-    // ...and so does the default folder with all three seeded lists (FR-046d).
-    assert_eq!(list_titles(&side, "default").len(), 3);
+    // ...and so does the default folder with all four seeded lists (FR-046d).
+    assert_eq!(list_titles(&side, "default").len(), 4);
 
     // A second delete cannot find the folder any more.
     let (status, _) = call(

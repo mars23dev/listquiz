@@ -38,6 +38,12 @@ export const ItemIcon: React.FC<ItemIconProps> = ({ name, customIconUrl, classNa
     );
   }
 
+  // A country flag (feature 014): `flag:<cc>` renders the bundled flag-icons SVG.
+  if (name?.startsWith('flag:')) {
+    const code = name.slice('flag:'.length).trim().toLowerCase();
+    return <span className={`fi fi-${code} ${className}`} aria-hidden="true" />;
+  }
+
   switch (name) {
     case 'Rocket':
       return <Rocket className={className} />;
