@@ -1,3 +1,5 @@
+import { ThemeToggle } from '../components/ThemeToggle';
+
 interface LandingProps {
   onNavigateToLists: () => void;
   onNavigateToSetup: () => void;
@@ -6,6 +8,9 @@ interface LandingProps {
 export function Landing({ onNavigateToLists, onNavigateToSetup }: LandingProps) {
   return (
     <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-3xl flex-col items-center justify-center gap-10 px-6 py-14">
+      <div className="absolute right-6 top-6 z-20">
+        <ThemeToggle />
+      </div>
       <header className="mb-2 text-center">
         <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-950/60 px-3 py-1 font-mono text-xs font-semibold uppercase tracking-wider text-cyan-300">
           Interactive Broadcast Quiz Platform

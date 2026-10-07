@@ -1,0 +1,71 @@
+import { describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { TopBarOrdering } from './TopBarOrdering';
+import type { QuizItem } from '../types/quiz';
+
+const ANCHOR: QuizItem = { id: 'anchor', name: 'Anchor', value: '15', numericValue: 15 };
+
+function renderBar(overrides: Partial<Parameters<typeof TopBarOrdering>[0]> = {}) {
+  const handlers = {
+    onChooseSlot: vi.fn(),
+    onConfirmPlacement: vi.fn(),
+    onCancelPlacement: vi.fn(),
+  };
+  render(
+    <TopBarOrdering
+      anchorItem={ANCHOR}
+      leftItems={[]}
+      rightItems={[]}
+      pendingItem={null}
+      hasPendingItem
+      interactive
+      draggingItem={null}
+      onChooseSlot={handlers.onChooseSlot}
+      onDropToPending={() => {}}
+      onConfirmPlacement={handlers.onConfirmPlacement}
+      onCancelPlacement={handlers.onCancelPlacement}
+      onDragStartItem={() => {}}
+      onDragEndItem={() => {}}
+      revealAllValues={false}
+      {...overrides}
+    />,
+  );
+  return handlers;
+}
+
+describe('order bar keyboard operation', () => {
+  it('every bar slot is a button and a slot is chosen with the keyboard', async () => {
+    const handlers = renderBar();
+    const user = userEvent.setup();
+
+    expect(screen.getAllByRole('button', { name: /slot \d/i })).toHaveLength(10);
+
+    const slot = screen.getByRole('button', { name: /place the selected item in left slot 1/i });
+    slot.focus();
+    expect(document.activeElement).toBe(slot);
+    await user.keyboard('{Enter}');
+
+    expect(handlers.onChooseSlot).toHaveBeenCalledWith('left', 0);
+  });
+
+  it('confirms or cancels a pending placement by keystroke', async () => {
+    const pendingItem = {
+      item: { id: 'a', name: 'Alpha', value: '', numericValue: 0 },
+      side: 'left' as const,
+      slotIndex: 0,
+    };
+    const handlers = renderBar({ pendingItem });
+    const user = userEvent.setup();
+
+    const confirm = screen.getByRole('button', { name: /confirm placement/i });
+    confirm.focus();
+    await user.keyboard('{Enter}');
+    expect(handlers.onConfirmPlacement).toHaveBeenCalled();
+
+    const cancel = screen.getByRole('button', { name: /cancel position/i });
+    cancel.focus();
+    await user.keyboard('{Enter}');
+    expect(handlers.onCancelPlacement).toHaveBeenCalled();
+  });
+});

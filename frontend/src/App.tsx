@@ -17,6 +17,7 @@ import { Landing } from './pages/Landing';
 import { ListManagement } from './pages/ListManagement';
 import { SetupQuiz } from './pages/SetupQuiz';
 import { Session } from './pages/Session';
+import { ThemeProvider } from './theme/ThemeProvider';
 import type { UserRole } from './types/quiz';
 
 type Route =
@@ -62,29 +63,31 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between overflow-x-hidden selection:bg-cyan-500/30">
-      <StageLighting />
+    <ThemeProvider>
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between overflow-x-hidden selection:bg-cyan-500/30">
+        <StageLighting />
 
-      {route.view === 'landing' && (
-        <Landing
-          onNavigateToLists={() => navigate('/lists')}
-          onNavigateToSetup={() => navigate('/setup')}
-        />
-      )}
+        {route.view === 'landing' && (
+          <Landing
+            onNavigateToLists={() => navigate('/lists')}
+            onNavigateToSetup={() => navigate('/setup')}
+          />
+        )}
 
-      {route.view === 'lists' && <ListManagement onBackToHome={() => navigate('/')} />}
+        {route.view === 'lists' && <ListManagement onBackToHome={() => navigate('/')} />}
 
-      {route.view === 'setup' && (
-        <SetupQuiz onBackToHome={() => navigate('/')} onLaunchRole={navigate} />
-      )}
+        {route.view === 'setup' && (
+          <SetupQuiz onBackToHome={() => navigate('/')} onLaunchRole={navigate} />
+        )}
 
-      {route.view === 'session' && (
-        <Session
-          sessionId={route.sessionId}
-          role={route.role}
-          onNavigate={navigate}
-        />
-      )}
-    </div>
+        {route.view === 'session' && (
+          <Session
+            sessionId={route.sessionId}
+            role={route.role}
+            onNavigate={navigate}
+          />
+        )}
+      </div>
+    </ThemeProvider>
   );
 }

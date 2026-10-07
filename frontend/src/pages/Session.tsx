@@ -7,6 +7,7 @@ import { MiddleItemGrid } from '../components/MiddleItemGrid';
 import { StageLighting } from '../components/StageLighting';
 import { TopBarOrdering } from '../components/TopBarOrdering';
 import { TripmineBoard } from '../components/TripmineBoard';
+import { ThemeToggle } from '../components/ThemeToggle';
 import { setSoundMuted } from '../utils/audio';
 import type {
   QuizItem,
@@ -437,7 +438,7 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
             ))}
           </div>
 
-          <div className="text-xs">
+          <div className="flex items-center gap-2 text-xs">
             {isGamemaster ? (
               <span className="flex items-center gap-1 font-bold text-amber-300">
                 <ShieldCheck className="h-3.5 w-3.5" /> Moderator Controls Active
@@ -456,6 +457,7 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
                 {playerTeam?.name} {isPlayersTurn ? '(YOUR TURN!)' : '(Waiting...)'}
               </span>
             )}
+            <ThemeToggle />
           </div>
         </div>
       </nav>

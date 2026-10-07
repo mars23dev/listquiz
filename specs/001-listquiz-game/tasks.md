@@ -333,33 +333,33 @@ keyboard in each theme, with no input freeze and no full-page reload.
 
 ### Tests for User Story 8
 
-- [ ] T139 [P] [US8] Unit test: every required CSS variable resolves under both `:root[data-theme="dark"]` and `:root[data-theme="light"]` in `frontend/src/theme/theme.test.ts`
-- [ ] T140 [P] [US8] Component test: the theme toggle flips `data-theme` and persists the choice in `frontend/src/components/ThemeToggle.test.tsx`
-- [ ] T141 [P] [US8] Component test: the pool grid is fully reachable and operable by keyboard, with a visible focus indicator, in `frontend/src/components/MiddleItemGrid.test.tsx`
-- [ ] T142 [P] [US8] Component test: a bar slot can be chosen and the pending placement confirmed or cancelled by keyboard alone in `frontend/src/components/TopBarOrdering.test.tsx`
-- [ ] T143 [P] [US8] Component test: a Tripmine grid cell is reachable and operable by keyboard alone in `frontend/src/components/TripmineBoard.test.tsx`
-- [ ] T144 [P] [US8] Component test: the setup wizard, list editor, and import modal are fully keyboard operable in `frontend/src/pages/SetupQuiz.test.tsx` and `frontend/src/pages/ListManagement.test.tsx`
+- [x] T139 [P] [US8] Unit test: every required CSS variable resolves under both `:root[data-theme="dark"]` and `:root[data-theme="light"]` in `frontend/src/theme/theme.test.ts`
+- [x] T140 [P] [US8] Component test: the theme toggle flips `data-theme` and persists the choice in `frontend/src/components/ThemeToggle.test.tsx`
+- [x] T141 [P] [US8] Component test: the pool grid is fully reachable and operable by keyboard, with a visible focus indicator, in `frontend/src/components/MiddleItemGrid.test.tsx`
+- [x] T142 [P] [US8] Component test: a bar slot can be chosen and the pending placement confirmed or cancelled by keyboard alone in `frontend/src/components/TopBarOrdering.test.tsx`
+- [x] T143 [P] [US8] Component test: a Tripmine grid cell is reachable and operable by keyboard alone in `frontend/src/components/TripmineBoard.test.tsx`
+- [x] T144 [P] [US8] Component test: the setup wizard, list editor, and import modal are fully keyboard operable in `frontend/src/pages/SetupQuiz.test.tsx` and `frontend/src/pages/ListManagement.test.tsx`
 
 ### Implementation for User Story 8
 
-- [ ] T145 [US8] Define the palette in `frontend/src/index.css` as CSS custom properties under `:root[data-theme="dark"]` and `:root[data-theme="light"]`, keeping the draft's team accents `#06b6d4`, `#f43f5e`, `#f59e0b`, `#10b981` and status colours identical in both themes
-- [ ] T146 [US8] Create the theme context in `frontend/src/theme/ThemeProvider.tsx` that reads the operating system preference on first visit, applies the `data-theme` attribute, and stores the override locally
-- [ ] T147 [US8] Replace hardcoded palette classes with theme variables across `frontend/src/components/StageLighting.tsx`, `frontend/src/components/BottomTeams.tsx`, `frontend/src/components/TopBarOrdering.tsx`, `frontend/src/components/MiddleItemGrid.tsx`, `frontend/src/components/TripmineBoard.tsx`, `frontend/src/pages/Landing.tsx`, `frontend/src/pages/ListManagement.tsx`, and `frontend/src/pages/Session.tsx`, changing no visual decision the draft made in dark mode
-- [ ] T148 [P] [US8] Build the theme toggle in `frontend/src/components/ThemeToggle.tsx` and place it in the landing, list-management, and session headers
-- [ ] T149 [US8] Add focus-visible styling in `frontend/src/index.css` so every interactive control shows a visible focus indicator
-- [ ] T150 [US8] Verify in `frontend/src/App.tsx` that no local action triggers a full-page reload and that state survives a theme switch without loss
-- [ ] T151 [P] [US8] Add the Playwright harness in `tests/e2e/` with two browser contexts on one run — a gamemaster context and a player context — and the scenario steps 4 through 8 of `quickstart.md`
+- [x] T145 [US8] Define the palette in `frontend/src/index.css` as CSS custom properties under `:root[data-theme="dark"]` and `:root[data-theme="light"]`, keeping the draft's team accents `#06b6d4`, `#f43f5e`, `#f59e0b`, `#10b981` and status colours identical in both themes
+- [x] T146 [US8] Create the theme context in `frontend/src/theme/ThemeProvider.tsx` that reads the operating system preference on first visit, applies the `data-theme` attribute, and stores the override locally
+- [x] T147 [US8] Replace hardcoded palette classes with theme variables across `frontend/src/components/StageLighting.tsx`, `frontend/src/components/BottomTeams.tsx`, `frontend/src/components/TopBarOrdering.tsx`, `frontend/src/components/MiddleItemGrid.tsx`, `frontend/src/components/TripmineBoard.tsx`, `frontend/src/pages/Landing.tsx`, `frontend/src/pages/ListManagement.tsx`, and `frontend/src/pages/Session.tsx`, changing no visual decision the draft made in dark mode
+- [x] T148 [P] [US8] Build the theme toggle in `frontend/src/components/ThemeToggle.tsx` and place it in the landing, list-management, and session headers
+- [x] T149 [US8] Add focus-visible styling in `frontend/src/index.css` so every interactive control shows a visible focus indicator
+- [x] T150 [US8] Verify in `frontend/src/App.tsx` that no local action triggers a full-page reload and that state survives a theme switch without loss
+- [x] T151 [P] [US8] Add the Playwright harness in `tests/e2e/` with two browser contexts on one run — a gamemaster context and a player context — and the scenario steps 4 through 8 of `quickstart.md`
 
 ---
 
 ## Phase 11: Polish & Cross-Cutting Concerns
 
-- [ ] T152 [P] Run the full verification pass from `quickstart.md` and record the outcome of every step, including the AppData check for escaped build state and the `git check-ignore` check
-- [ ] T153 [P] Verify the 1:1 parity contract in `contracts/ui-parity.md`: confirm no file under `frontend/` references `the reference frontend` and that every deviation is limited to the eight Design Authority corrections
-- [ ] T154 [P] Add the `README.md` at the repo root with the prerequisites, build and run commands from `quickstart.md`, and a pointer to `specs/001-listquiz-game/`
-- [ ] T155 Confirm `cargo test` and `npm run test` pass with no skipped test and no test requiring a running HTTP server, per constitution Principle II
-- [ ] T156 Run a contrast review of both themes on every screen and record the result against SC-012
-- [ ] T157 Remove the Sync Impact Report comment from `.specify/memory/constitution.md` before committing, per the report's own instruction
+- [x] T152 [P] Run the full verification pass from `quickstart.md` and record the outcome of every step, including the AppData check for escaped build state and the `git check-ignore` check
+- [x] T153 [P] Verify the 1:1 parity contract in `contracts/ui-parity.md`: confirm no file under `frontend/` references `the reference frontend` and that every deviation is limited to the eight Design Authority corrections
+- [x] T154 [P] Add the `README.md` at the repo root with the prerequisites, build and run commands from `quickstart.md`, and a pointer to `specs/001-listquiz-game/`
+- [x] T155 Confirm `cargo test` and `npm run test` pass with no skipped test and no test requiring a running HTTP server, per constitution Principle II
+- [x] T156 Run a contrast review of both themes on every screen and record the result against SC-012
+- [x] T157 Remove the Sync Impact Report comment from `.specify/memory/constitution.md` before committing, per the report's own instruction
 
 ---
 

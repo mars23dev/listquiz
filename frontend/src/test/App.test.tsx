@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import App from '../App';
 
 function setPath(path: string) {
@@ -113,5 +114,22 @@ describe('App shell', () => {
     await screen.findByRole('heading', { name: /list management/i });
 
     expect(window.location.hash).toBe('');
+  });
+
+  it('keeps the theme across navigation without a reload', async () => {
+    window.localStorage.clear();
+    const user = userEvent.setup();
+    render(<App />);
+
+    const toggle = screen.getByRole('button', { name: /switch to .* theme/i });
+    await user.click(toggle);
+    const chosen = document.documentElement.getAttribute('data-theme');
+    expect(window.localStorage.getItem('listquiz-theme')).toBe(chosen);
+
+    screen.getByRole('button', { name: /manage lists/i }).click();
+    await screen.findByRole('heading', { name: /list management/i });
+
+    expect(document.documentElement.getAttribute('data-theme')).toBe(chosen);
+    window.localStorage.clear();
   });
 });

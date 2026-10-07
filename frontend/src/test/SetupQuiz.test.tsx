@@ -162,4 +162,20 @@ describe('setup wizard', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/between 1 and 10/i);
     expect(screen.queryByText(/session ready:/i)).not.toBeInTheDocument();
   });
+
+  it('advances the wizard with the keyboard alone', async () => {
+    const user = userEvent.setup();
+    render(<SetupQuiz onBackToHome={() => {}} onLaunchRole={() => {}} />);
+    await screen.findByRole('heading', { name: /step 1/i });
+
+    const password = screen.getByLabelText(/moderator password/i);
+    password.focus();
+    await user.keyboard('letmein');
+
+    const continueButton = screen.getByRole('button', { name: /continue/i });
+    continueButton.focus();
+    await user.keyboard('{Enter}');
+
+    expect(await screen.findByRole('heading', { name: /step 2/i })).toBeInTheDocument();
+  });
 });

@@ -325,4 +325,17 @@ describe('list editor and CSV import', () => {
 
     expect(await screen.findByText(/imported 11 rows/i)).toBeInTheDocument();
   });
+
+  it('opens the editor by keyboard alone', async () => {
+    const user = await openUnlockedFolder();
+
+    const edit = screen.getByRole('button', { name: /^edit$/i });
+    edit.focus();
+    expect(document.activeElement).toBe(edit);
+    await user.keyboard('{Enter}');
+
+    expect(
+      await screen.findByRole('dialog', { name: /list form & table editor/i }),
+    ).toBeInTheDocument();
+  });
 });

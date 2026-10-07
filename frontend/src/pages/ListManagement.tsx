@@ -16,6 +16,7 @@ import {
   type FolderSummary,
 } from '../api/client';
 import { IconPickerModal } from '../components/IconPickerModal';
+import { ThemeToggle } from '../components/ThemeToggle';
 import type {
   ImportReport,
   ListDetail,
@@ -346,13 +347,16 @@ export function ListManagement({ onBackToHome }: ListManagementProps) {
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setDialog({ kind: 'create' })}
-          className="rounded-lg bg-cyan-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-cyan-400"
-        >
-          + New Folder
-        </button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <button
+            type="button"
+            onClick={() => setDialog({ kind: 'create' })}
+            className="rounded-lg bg-cyan-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-cyan-400"
+          >
+            + New Folder
+          </button>
+        </div>
       </div>
 
       <FolderBar

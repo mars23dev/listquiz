@@ -6,10 +6,102 @@
   --font-mono: 'JetBrains Mono', monospace;
 }
 
+/*
+ * Theme palette (FR-063, T145). The dark values are the draft's own slate ramp,
+ * so dark mode renders exactly what the draft rendered. The light theme remaps the
+ * same Tailwind colour variables, which flips every `bg-slate-*` / `text-slate-*`
+ * utility without touching a component. Team accents and status colours are
+ * declared once and left identical in both themes (FR-005, SC-012).
+ */
+:root[data-theme="dark"] {
+  --lq-bg: #020617;
+  --lq-surface: #0f172a;
+  --lq-surface-muted: #1e293b;
+  --lq-text: #f1f5f9;
+  --lq-muted: #94a3b8;
+  --lq-border: #1e293b;
+
+  --color-slate-950: #020617;
+  --color-slate-900: #0f172a;
+  --color-slate-800: #1e293b;
+  --color-slate-700: #334155;
+  --color-slate-600: #475569;
+  --color-slate-500: #64748b;
+  --color-slate-400: #94a3b8;
+  --color-slate-300: #cbd5e1;
+  --color-slate-200: #e2e8f0;
+  --color-slate-100: #f1f5f9;
+
+  /* Team accents and status colours are identical in both themes (SC-012). */
+  --lq-team-cyan: #06b6d4;
+  --lq-team-rose: #f43f5e;
+  --lq-team-amber: #f59e0b;
+  --lq-team-emerald: #10b981;
+  --lq-status-good: #10b981;
+  --lq-status-warn: #f59e0b;
+  --lq-status-bad: #f43f5e;
+}
+
+:root[data-theme="light"] {
+  --lq-bg: #f1f5f9;
+  --lq-surface: #ffffff;
+  --lq-surface-muted: #e2e8f0;
+  --lq-text: #0f172a;
+  --lq-muted: #475569;
+  --lq-border: #cbd5e1;
+
+  /* The slate ramp is inverted, so the same utilities now paint a light board. */
+  --color-slate-950: #f1f5f9;
+  --color-slate-900: #ffffff;
+  --color-slate-800: #e2e8f0;
+  --color-slate-700: #cbd5e1;
+  --color-slate-600: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-400: #475569;
+  --color-slate-300: #334155;
+  --color-slate-200: #1e293b;
+  --color-slate-100: #0f172a;
+
+  /* Identical to the dark theme, as required (SC-012). */
+  --lq-team-cyan: #06b6d4;
+  --lq-team-rose: #f43f5e;
+  --lq-team-amber: #f59e0b;
+  --lq-team-emerald: #10b981;
+  --lq-status-good: #10b981;
+  --lq-status-warn: #f59e0b;
+  --lq-status-bad: #f43f5e;
+}
+
+/* Team accents and status colours: identical in both themes (SC-012). */
+:root {
+  --lq-team-cyan: #06b6d4;
+  --lq-team-rose: #f43f5e;
+  --lq-team-amber: #f59e0b;
+  --lq-team-emerald: #10b981;
+  --lq-status-good: #10b981;
+  --lq-status-warn: #f59e0b;
+  --lq-status-bad: #f43f5e;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
 @layer base {
   body {
     font-family: var(--font-sans);
+    background-color: var(--lq-bg);
+    color: var(--lq-text);
   }
+}
+
+/* Every interactive control shows a visible focus indicator (FR-064, T149). */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--lq-team-cyan);
+  outline-offset: 2px;
 }
 
 /* Custom scrollbars for broadcast aesthetic */
@@ -18,12 +110,12 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
+  background: color-mix(in oklab, var(--lq-bg) 60%, transparent);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.4);
+  background: color-mix(in oklab, var(--lq-muted) 40%, transparent);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.6);
+  background: color-mix(in oklab, var(--lq-muted) 60%, transparent);
 }
