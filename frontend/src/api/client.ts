@@ -88,7 +88,7 @@ export interface CreateSessionRequest {
   roundCount?: number;
   rounds?: {
     roundNumber: number;
-    quizType: 'ORDER' | 'TRIPMINE';
+    quizType: 'ORDER' | 'TRIPMINE' | 'CONNECT';
     listId: string;
     columnId: string;
     tripmineSide?: 'highest' | 'lowest' | 'random';

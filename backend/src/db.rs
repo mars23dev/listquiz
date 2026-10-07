@@ -121,6 +121,14 @@ CREATE TABLE IF NOT EXISTS tripmine_state (
     completed     INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS connect_state (
+    session_id TEXT PRIMARY KEY REFERENCES game_session(id) ON DELETE CASCADE,
+    names      TEXT NOT NULL,
+    values_    TEXT NOT NULL,
+    matched    TEXT NOT NULL,
+    pending    TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS score_event (
     id           TEXT PRIMARY KEY,
     session_id   TEXT NOT NULL REFERENCES game_session(id) ON DELETE CASCADE,

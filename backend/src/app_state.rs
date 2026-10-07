@@ -290,6 +290,9 @@ pub struct TripmineView {
     /// The mined item's value for the round's column: a public hint (FR-015), shown
     /// to every role even while per-cell values stay hidden.
     pub target_value: Option<String>,
+    /// The rank (1..=10) of the mine, shown to every role as a position only
+    /// (feature 010); it does not reveal which item is the mine.
+    pub mine_rank: i32,
     pub items: Vec<TripmineItem>,
 }
 
@@ -331,6 +334,8 @@ pub struct SessionState {
     pub teams: Vec<TeamView>,
     pub order: Option<OrderView>,
     pub tripmine: Option<TripmineView>,
+    /// The Connect board (feature 010). Values are public: Connect is a matching game.
+    pub connect: Option<crate::modules::connect_round::ConnectBoard>,
     pub links: SessionLinks,
 }
 
@@ -435,6 +440,7 @@ pub fn redact(state: &SessionState, role: UserRole) -> SessionState {
         hit: tripmine.hit,
         completed: tripmine.completed,
         target_value: tripmine.target_value.clone(),
+        mine_rank: tripmine.mine_rank,
         items: tripmine
             .items
             .iter()
@@ -565,6 +571,7 @@ mod tests {
                 }),
             }),
             tripmine: None,
+            connect: None,
             links: build_links("s1", 3),
         }
     }
@@ -587,6 +594,7 @@ mod tests {
             hit: false,
             completed: false,
             target_value: Some("2920".to_string()),
+            mine_rank: 10,
             items: vec![
                 TripmineItem {
                     item_id: "m1".to_string(),
@@ -930,6 +938,16 @@ mod tests {
         let items = for_player.tripmine.expect("a tripmine view").items;
         assert_eq!(items[0].picked_by.as_deref(), Some("team_1"), "revealed");
         assert_eq!(items[1].picked_by, None, "still hidden");
+    }
+
+    #[test]
+    fn the_mine_position_is_public_to_every_role() {
+        let state = tripmine_state();
+
+        for role in [UserRole::Gamemaster, UserRole::P1, UserRole::View] {
+            let view = redact(&state, role).tripmine.expect("a tripmine view");
+            assert_eq!(view.mine_rank, 10, "the mine position is shown to {role:?}");
+        }
     }
 }
 

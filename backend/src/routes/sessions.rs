@@ -14,6 +14,7 @@ use std::collections::HashMap;
 
 use crate::app_state::{AppState, SessionLinks, UserRole, build_links};
 use crate::errors::{ApiError, ApiResult};
+use crate::modules::connect_round;
 use crate::modules::default_lists;
 use crate::modules::order_round;
 use crate::modules::quick_game;
@@ -183,7 +184,14 @@ pub async fn session_action(
 fn is_player_action(action: &str) -> bool {
     matches!(
         action,
-        "select_item" | "choose_slot" | "cancel_selection" | "pick_tripitem" | "time_out"
+        "select_item"
+            | "choose_slot"
+            | "cancel_selection"
+            | "pick_tripitem"
+            | "time_out"
+            | "pick_name"
+            | "pick_value"
+            | "confirm_connect"
     )
 }
 
@@ -222,6 +230,10 @@ fn apply_action(state: &AppState, session_id: &str, request: &ActionRequest) -> 
         }
         action if is_order_action(action) => {
             state.with_db(|conn| apply_order_action(conn, session_id, request))?;
+            state.bump_revision(session_id)
+        }
+        action if is_connect_action(action) => {
+            state.with_db(|conn| apply_connect_action(conn, session_id, request))?;
             state.bump_revision(session_id)
         }
         "pick_tripitem" => {
@@ -273,6 +285,11 @@ fn is_order_action(action: &str) -> bool {
         action,
         "select_item" | "choose_slot" | "cancel_selection" | "return_to_pool"
     )
+}
+
+/// The Connect actions (feature 010, US1).
+fn is_connect_action(action: &str) -> bool {
+    matches!(action, "pick_name" | "pick_value" | "confirm_connect")
 }
 
 fn require_field<'a>(value: Option<&'a str>, name: &str) -> ApiResult<&'a str> {
@@ -387,6 +404,71 @@ fn apply_order_action(
             let board = load_required_board(conn, session_id)?;
             let next = order_round::return_to_pool(&board, item_id)?;
             order_round::save_board(conn, session_id, &next)
+        }
+        other => Err(ApiError::bad_request(format!("Unknown action '{other}'."))),
+    }
+}
+
+/// The running Connect board, or why there is none.
+fn load_required_connect(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+) -> ApiResult<connect_round::ConnectBoard> {
+    connect_round::load_board(conn, session_id)?.ok_or_else(|| {
+        ApiError::not_ready("There is no Connect round running in this session yet.")
+    })
+}
+
+/// One Connect action (feature 010, US1). Confirming scores and hands the turn on.
+fn apply_connect_action(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+    request: &ActionRequest,
+) -> ApiResult<()> {
+    match request.action.as_str() {
+        "pick_name" => {
+            let item_id = require_field(request.item_id.as_deref(), "itemId")?;
+            let board = load_required_connect(conn, session_id)?;
+            require_team_on_turn(conn, session_id, request.team_id.as_deref())?;
+            let next = board.pick_name(item_id)?;
+            connect_round::save_board(conn, session_id, &next)
+        }
+        "pick_value" => {
+            let item_id = require_field(request.item_id.as_deref(), "itemId")?;
+            let board = load_required_connect(conn, session_id)?;
+            require_team_on_turn(conn, session_id, request.team_id.as_deref())?;
+            let next = board.pick_value(item_id)?;
+            connect_round::save_board(conn, session_id, &next)
+        }
+        "confirm_connect" => {
+            let board = load_required_connect(conn, session_id)?;
+            let team_id = require_team_on_turn(conn, session_id, request.team_id.as_deref())?;
+            let teams = order_round::load_teams(conn, session_id)?;
+            let outcome = connect_round::confirm(&board, &teams, &team_id)?;
+            let round_number = current_round_number(conn, session_id)?;
+
+            let tx = conn.unchecked_transaction()?;
+            connect_round::save_board(&tx, session_id, &outcome.board)?;
+            order_round::save_teams(&tx, session_id, &outcome.teams)?;
+            order_round::append_events(&tx, session_id, round_number, &outcome.events)?;
+            tx.execute(
+                "UPDATE game_session SET active_team_id = ?2, last_message = ?3 WHERE id = ?1",
+                rusqlite::params![
+                    session_id,
+                    outcome.next_team_id,
+                    if outcome.round_over {
+                        Some(format!("Round {round_number} is over."))
+                    } else {
+                        None
+                    }
+                ],
+            )?;
+            tx.commit()?;
+            sessions::clear_timer(conn, session_id)?;
+            if outcome.round_over {
+                sessions::finish_if_last_round(conn, session_id)?;
+            }
+            Ok(())
         }
         other => Err(ApiError::bad_request(format!("Unknown action '{other}'."))),
     }

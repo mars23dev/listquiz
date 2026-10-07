@@ -9,7 +9,7 @@ const TEAM_COLOURS = ['#06b6d4', '#fb7185', '#facc15', '#a78bfa'] as const;
 
 interface RoundDraft {
   roundNumber: number;
-  quizType: 'ORDER' | 'TRIPMINE';
+  quizType: 'ORDER' | 'TRIPMINE' | 'CONNECT';
   listId: string;
   columnId: string;
   tripmineSide: 'highest' | 'lowest' | 'random';
@@ -337,13 +337,14 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
                         value={round.quizType}
                         onChange={(event) =>
                           updateRound(index, {
-                            quizType: event.target.value as 'ORDER' | 'TRIPMINE',
+                            quizType: event.target.value as 'ORDER' | 'TRIPMINE' | 'CONNECT',
                           })
                         }
                         className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
                       >
-                        <option value="ORDER">Order</option>
-                        <option value="TRIPMINE">Tripmine</option>
+                          <option value="ORDER">Order</option>
+                          <option value="TRIPMINE">Tripmine</option>
+                          <option value="CONNECT">Connect</option>
                       </select>
                     </label>
 

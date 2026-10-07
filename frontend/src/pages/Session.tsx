@@ -3,6 +3,7 @@ import { ArrowLeft, Layers, ShieldCheck, Tv, User } from 'lucide-react';
 import { ApiError, deleteSession, postSessionAction, unlockSession } from '../api/client';
 import { useSessionStream } from '../hooks/useSessionStream';
 import { BottomTeams } from '../components/BottomTeams';
+import { ConnectBoard } from '../components/ConnectBoard';
 import { GameEndDialog } from '../components/GameEndDialog';
 import { MiddleItemGrid } from '../components/MiddleItemGrid';
 import { StageLighting } from '../components/StageLighting';
@@ -118,6 +119,7 @@ function toTripmineState(view: TripmineView, isGamemaster: boolean): QuizTripmin
     tripmineHit: view.hit,
     isCompleted: view.completed,
     targetValue: view.targetValue,
+    mineRank: view.mineRank,
   };
 }
 
@@ -196,6 +198,7 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
 
   const order = state?.order ?? null;
   const tripmine = state?.tripmine ?? null;
+  const connect = state?.connect ?? null;
   const isGamemaster = role === 'gamemaster';
   const onTurnTeamId = useMemo(
     () => state?.teams.find((team) => team.onTurn)?.id ?? null,
@@ -384,6 +387,22 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
 
   function handleNextRound() {
     void sendAction({ action: 'next_round' });
+  }
+
+  // Connect (feature 010): stage a name and a value, then confirm the pair.
+  function handlePickName(itemId: string) {
+    if (!onTurnTeamId) return;
+    void sendAction({ action: 'pick_name', itemId, teamId: onTurnTeamId });
+  }
+
+  function handlePickValue(itemId: string) {
+    if (!onTurnTeamId) return;
+    void sendAction({ action: 'pick_value', itemId, teamId: onTurnTeamId });
+  }
+
+  function handleConfirmConnect() {
+    if (!onTurnTeamId) return;
+    void sendAction({ action: 'confirm_connect', teamId: onTurnTeamId });
   }
 
   // US3/US4 (005): dismissing the end dialog deletes the finished session, then
@@ -831,6 +850,18 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
             currentRole={role}
             teams={teams}
             feedbackMessage={tripmineFeedback}
+          />
+        </section>
+      ) : null}
+
+      {connect ? (
+        <section className="mt-6">
+          <ConnectBoard
+            view={connect}
+            interactive={canAct}
+            onPickName={handlePickName}
+            onPickValue={handlePickValue}
+            onConfirm={handleConfirmConnect}
           />
         </section>
       ) : null}

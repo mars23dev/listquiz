@@ -14,6 +14,7 @@ function tripmineState(): TripmineState {
     currentSearchedRank: 5,
     tripmineHit: false,
     isCompleted: false,
+    mineRank: 4,
     items: [
       {
         id: 'm1',
@@ -39,7 +40,8 @@ function tripmineState(): TripmineState {
   };
 }
 
-describe('TripmineBoard team-colored borders', () => {  it('frames a revealed item with the picking team color', () => {
+describe('TripmineBoard team-colored borders', () => {
+  it('frames a revealed item with the picking team color', () => {
     render(
       <TripmineBoard
         tripmineState={tripmineState()}
@@ -55,6 +57,33 @@ describe('TripmineBoard team-colored borders', () => {  it('frames a revealed it
 
     const hidden = screen.getByRole('button', { name: /Hidden, hidden or already picked/i });
     expect(hidden.style.borderColor).toBe('');
+  });
+});
+
+describe('TripmineBoard mine marker', () => {
+  it('marks the mine position from the start for a player', () => {
+    const state: TripmineState = {
+      tripmineSide: 'random',
+      currentSearchedRank: 1,
+      tripmineHit: false,
+      isCompleted: false,
+      mineRank: 4,
+      items: [
+        { id: 'm1', name: 'A', value: '', numericValue: 0, trueRank: 0, isTripmine: false, isRevealed: false },
+        { id: 'm2', name: 'B', value: '', numericValue: 0, trueRank: 0, isTripmine: false, isRevealed: false },
+      ],
+    };
+    render(
+      <TripmineBoard
+        tripmineState={state}
+        onPickItem={vi.fn()}
+        isMyTurn={false}
+        currentRole="view"
+        teams={TEAMS}
+      />,
+    );
+
+    expect(screen.getByTitle(/rank 4 \(mine position\)/i)).toBeInTheDocument();
   });
 });
 

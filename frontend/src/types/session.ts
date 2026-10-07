@@ -75,12 +75,41 @@ export interface TripmineView {
   completed: boolean;
   /** The mined item's value, shown as a public hint (FR-015). */
   targetValue: string | null;
+  /** The rank (1..=10) of the mine, shown to every role as a position only (010). */
+  mineRank: number;
   items: TripmineItem[];
+}
+
+/** A name in the Connect left column (feature 010). */
+export interface ConnectName {
+  itemId: string;
+  name: string;
+  iconName: string | null;
+}
+
+/** A value in the Connect right column. */
+export interface ConnectValue {
+  itemId: string;
+  display: string;
+}
+
+/** The pair staged in the Connect middle box. */
+export interface ConnectPending {
+  nameItemId: string | null;
+  valueItemId: string | null;
+}
+
+/** The Connect board (feature 010). Values are public: it is a matching game. */
+export interface ConnectView {
+  names: ConnectName[];
+  values: ConnectValue[];
+  matched: string[];
+  pending: ConnectPending;
 }
 
 export interface RoundSummary {
   roundNumber: number;
-  quizType: 'ORDER' | 'TRIPMINE';
+  quizType: 'ORDER' | 'TRIPMINE' | 'CONNECT';
   tripmineSide: 'highest' | 'lowest' | 'random' | null;
   listTitle: string;
   listId: string;
@@ -115,6 +144,7 @@ export interface SessionState {
   teams: TeamView[];
   order: OrderView | null;
   tripmine: TripmineView | null;
+  connect: ConnectView | null;
   links: SessionLinks;
 }
 

@@ -37,7 +37,7 @@ export const TripmineBoard: React.FC<TripmineBoardProps> = ({
   feedbackMessage,
 }) => {
   const isGamemaster = currentRole === 'gamemaster';
-  const { currentSearchedRank, tripmineSide, items, tripmineHit, isCompleted } = tripmineState;
+  const { currentSearchedRank, tripmineSide, items, tripmineHit, isCompleted, mineRank } = tripmineState;
 
   // Count remaining unrevealed items
   const unrevealedItems = items.filter((i) => !i.isRevealed);
@@ -104,6 +104,9 @@ export const TripmineBoard: React.FC<TripmineBoardProps> = ({
           const isRev = matchingItem?.isRevealed;
           const isTarget = currentSearchedRank === rank && !isCompleted;
           const isMine = matchingItem?.isTripmine;
+          // The mine's position is public from the start (feature 010): a position,
+          // not the item.
+          const isMineRank = mineRank === rank;
 
           let badgeStyle = 'bg-slate-950 text-slate-500 border-slate-800';
           if (isRev) {
@@ -114,8 +117,8 @@ export const TripmineBoard: React.FC<TripmineBoardProps> = ({
             }
           } else if (isTarget) {
             badgeStyle = 'bg-amber-400 text-slate-950 border-amber-300 font-black ring-2 ring-amber-400/60 animate-bounce';
-          } else if (isGamemaster && isMine) {
-            badgeStyle = 'bg-rose-950/80 text-rose-300 border-rose-500/60 font-bold';
+          } else if (isMineRank) {
+            badgeStyle = 'bg-rose-950/70 text-rose-300 border-rose-500/60 font-bold';
           }
 
           return (
@@ -125,7 +128,9 @@ export const TripmineBoard: React.FC<TripmineBoardProps> = ({
               title={
                 matchingItem
                   ? `Rank ${rank}: ${matchingItem.name}${isMine ? ' (TRIPMINE)' : ''}`
-                  : `Rank ${rank}`
+                  : isMineRank
+                    ? `Rank ${rank} (mine position)`
+                    : `Rank ${rank}`
               }
             >
               <span className="block font-bold">#{rank}</span>
@@ -135,6 +140,8 @@ export const TripmineBoard: React.FC<TripmineBoardProps> = ({
                 <CheckCircle2 className="w-3 h-3 mx-auto mt-0.5 text-emerald-400" />
               ) : isTarget ? (
                 <Target className="w-3 h-3 mx-auto mt-0.5 text-slate-950" />
+              ) : isMineRank ? (
+                <Bomb className="w-3 h-3 mx-auto mt-0.5 text-rose-400" />
               ) : null}
             </div>
           );

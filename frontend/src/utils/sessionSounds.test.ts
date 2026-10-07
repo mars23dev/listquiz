@@ -51,6 +51,7 @@ function state(overrides: Partial<SessionState> = {}): SessionState {
     ],
     order: { anchor: { itemId: 'a', name: 'A', value: '5' }, pool: [], left: [], right: [], pending: null },
     tripmine: null,
+    connect: null,
     links: { gamemaster: '', players: [], spectator: '' },
     ...overrides,
   };
@@ -122,11 +123,11 @@ describe('deriveSessionCue', () => {
   it('plays an explosion when the mine is picked', () => {
     const base = state({
       revision: 1,
-      tripmine: { side: 'highest', searchedRank: 1, hit: false, completed: false, targetValue: null, items: [tripmineItem({ itemId: 'mine', isTripmine: true })] },
+      tripmine: { side: 'highest', searchedRank: 1, hit: false, completed: false, targetValue: null, mineRank: 10, items: [tripmineItem({ itemId: 'mine', isTripmine: true })] },
     });
     const hit = state({
       revision: 2,
-      tripmine: { side: 'highest', searchedRank: 1, hit: true, completed: true, targetValue: null, items: [tripmineItem({ itemId: 'mine', isTripmine: true, revealed: true, pointsAwarded: -10 })] },
+      tripmine: { side: 'highest', searchedRank: 1, hit: true, completed: true, targetValue: null, mineRank: 10, items: [tripmineItem({ itemId: 'mine', isTripmine: true, revealed: true, pointsAwarded: -10 })] },
     });
     expect(deriveSessionCues(base, hit)).toEqual(['explosion']);
   });
@@ -134,11 +135,11 @@ describe('deriveSessionCue', () => {
   it('plays a chime for a safe Tripmine reveal', () => {
     const base = state({
       revision: 1,
-      tripmine: { side: 'highest', searchedRank: 1, hit: false, completed: false, targetValue: null, items: [tripmineItem({ itemId: 'safe' })] },
+      tripmine: { side: 'highest', searchedRank: 1, hit: false, completed: false, targetValue: null, mineRank: 10, items: [tripmineItem({ itemId: 'safe' })] },
     });
     const safe = state({
       revision: 2,
-      tripmine: { side: 'highest', searchedRank: 1, hit: false, completed: false, targetValue: null, items: [tripmineItem({ itemId: 'safe', revealed: true, pointsAwarded: 5 })] },
+      tripmine: { side: 'highest', searchedRank: 1, hit: false, completed: false, targetValue: null, mineRank: 10, items: [tripmineItem({ itemId: 'safe', revealed: true, pointsAwarded: 5 })] },
     });
     expect(deriveSessionCues(base, safe)).toEqual(['chime']);
   });
@@ -146,11 +147,11 @@ describe('deriveSessionCue', () => {
   it('plays a chime when the Tripmine round completes without a new reveal', () => {
     const base = state({
       revision: 1,
-      tripmine: { side: 'highest', searchedRank: 1, hit: false, completed: false, targetValue: null, items: [tripmineItem({ itemId: 'x', revealed: true, pointsAwarded: 5 })] },
+      tripmine: { side: 'highest', searchedRank: 1, hit: false, completed: false, targetValue: null, mineRank: 10, items: [tripmineItem({ itemId: 'x', revealed: true, pointsAwarded: 5 })] },
     });
     const done = state({
       revision: 2,
-      tripmine: { side: 'highest', searchedRank: 1, hit: false, completed: true, targetValue: null, items: [tripmineItem({ itemId: 'x', revealed: true, pointsAwarded: 5 })] },
+      tripmine: { side: 'highest', searchedRank: 1, hit: false, completed: true, targetValue: null, mineRank: 10, items: [tripmineItem({ itemId: 'x', revealed: true, pointsAwarded: 5 })] },
     });
     expect(deriveSessionCues(base, done)).toEqual(['chime']);
   });
@@ -240,7 +241,7 @@ describe('deriveSessionCues order (round end before game end)', () => {
         searchedRank: 1,
         hit: false,
         completed: false,
-        targetValue: null,
+        targetValue: null, mineRank: 10,
         items: [tripmineItem({ itemId: 'mine', isTripmine: true })],
       },
     });
@@ -252,7 +253,7 @@ describe('deriveSessionCues order (round end before game end)', () => {
         searchedRank: 1,
         hit: true,
         completed: true,
-        targetValue: null,
+        targetValue: null, mineRank: 10,
         items: [tripmineItem({ itemId: 'mine', isTripmine: true, revealed: true, pointsAwarded: -10 })],
       },
     });

@@ -109,7 +109,7 @@ export interface ScoreEvent {
   createdAt: number;
 }
 
-export type QuizType = 'ORDER' | 'TRIPMINE';
+export type QuizType = 'ORDER' | 'TRIPMINE' | 'CONNECT';
 
 export interface RoundConfig {
   roundNumber: number;
@@ -142,6 +142,8 @@ export interface TripmineState {
   isCompleted: boolean;
   /** The mined item's value, shown as a public hint (FR-015). */
   targetValue?: string | null;
+  /** The rank (1..=10) of the mine, shown to every role as a position only (010). */
+  mineRank: number;
 }
 
 export interface SessionConfig {

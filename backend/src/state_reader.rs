@@ -57,6 +57,7 @@ pub fn read_state(conn: &Connection, session_id: &str, role: UserRole) -> ApiRes
     // read would make the gamemaster's own view unrecoverable.
     let order = read_order(conn, session_id)?;
     let tripmine = read_tripmine(conn, session_id)?;
+    let connect = crate::modules::connect_round::load_board(conn, session_id)?;
     let timer = match (row.timer_ends_at, row.timer_total_seconds) {
         (Some(ends_at), Some(total)) => Some(crate::app_state::TimerView {
             total_seconds: total.max(0) as u32,
@@ -80,6 +81,7 @@ pub fn read_state(conn: &Connection, session_id: &str, role: UserRole) -> ApiRes
         teams,
         order,
         tripmine,
+        connect,
         links: build_links(session_id, row.team_count),
     };
     Ok(redact(&state, role))
@@ -417,6 +419,12 @@ fn read_tripmine(
 
     let slots: Vec<crate::modules::tripmine_round::TripmineSlot> =
         serde_json::from_str(&raw_items).unwrap_or_default();
+    // The mine's position is public (feature 010): a position, not the item.
+    let mine_rank = slots
+        .iter()
+        .find(|slot| slot.is_tripmine)
+        .map(|slot| slot.true_rank)
+        .unwrap_or(0);
 
     let mut items = Vec::with_capacity(slots.len());
     for slot in slots {
@@ -458,6 +466,7 @@ fn read_tripmine(
             .iter()
             .find(|item| item.is_tripmine)
             .and_then(|item| item.value.clone()),
+        mine_rank,
         items,
     }))
 }

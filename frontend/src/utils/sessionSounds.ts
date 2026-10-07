@@ -28,6 +28,10 @@ function poolCount(state: SessionState): number {
   return state.order?.pool.length ?? 0;
 }
 
+function connectMatchedCount(state: SessionState): number {
+  return state.connect?.matched.length ?? 0;
+}
+
 function scoreRose(prev: SessionState, next: SessionState): boolean {
   return next.teams.some((team) => {
     const before = prev.teams.find((candidate) => candidate.id === team.id);
@@ -99,6 +103,12 @@ export function deriveSessionCues(
       event = 'failure';
     } else if (heartsDropped(prev, next)) {
       event = 'failure';
+    } else if (
+      connectMatchedCount(next) > connectMatchedCount(prev) &&
+      scoreRose(prev, next)
+    ) {
+      // Connect: a correct pair (feature 010) is a success.
+      event = 'chime';
     } else {
       const barGrew = barCount(next) > barCount(prev);
       const poolGrew = poolCount(next) > poolCount(prev);

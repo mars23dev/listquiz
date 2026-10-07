@@ -1,3 +1,4 @@
+pub mod connect_round;
 pub mod csv_import;
 pub mod default_lists;
 pub mod folders;

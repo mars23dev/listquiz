@@ -70,6 +70,8 @@ impl CreateSessionRequest {
 pub enum QuizType {
     Order,
     Tripmine,
+    /// Match item names to their values (feature 010).
+    Connect,
 }
 
 impl QuizType {
@@ -77,6 +79,7 @@ impl QuizType {
         match raw.trim().to_ascii_uppercase().as_str() {
             "ORDER" => Some(QuizType::Order),
             "TRIPMINE" => Some(QuizType::Tripmine),
+            "CONNECT" => Some(QuizType::Connect),
             _ => None,
         }
     }
@@ -85,6 +88,7 @@ impl QuizType {
         match self {
             QuizType::Order => "ORDER",
             QuizType::Tripmine => "TRIPMINE",
+            QuizType::Connect => "CONNECT",
         }
     }
 }
@@ -190,14 +194,14 @@ pub fn validate_request(
 pub fn validate_round(round: &RoundInput, position: i32) -> ApiResult<ValidRound> {
     let quiz_type = QuizType::parse(&round.quiz_type).ok_or_else(|| {
         ApiError::bad_request(format!(
-            "Round {position}: quizType must be ORDER or TRIPMINE."
+            "Round {position}: quizType must be ORDER, TRIPMINE, or CONNECT."
         ))
     })?;
 
     let tripmine_side = match (quiz_type, round.tripmine_side.as_deref()) {
         (QuizType::Tripmine, Some(raw)) => Some(TripmineSide::parse(raw).ok_or_else(|| {
             ApiError::bad_request(format!(
-                "Round {position}: tripmineSide must be highest or lowest."
+                "Round {position}: tripmineSide must be highest, lowest, or random."
             ))
         })?),
         (QuizType::Tripmine, None) => {
@@ -205,12 +209,12 @@ pub fn validate_round(round: &RoundInput, position: i32) -> ApiResult<ValidRound
                 "Round {position}: a TRIPMINE round needs a tripmineSide."
             )));
         }
-        (QuizType::Order, Some(_)) => {
+        (QuizType::Order | QuizType::Connect, Some(_)) => {
             return Err(ApiError::bad_request(format!(
-                "Round {position}: an ORDER round must not carry a tripmineSide."
+                "Round {position}: this round type must not carry a tripmineSide."
             )));
         }
-        (QuizType::Order, None) => None,
+        (QuizType::Order | QuizType::Connect, None) => None,
     };
 
     if round.list_id.trim().is_empty() {

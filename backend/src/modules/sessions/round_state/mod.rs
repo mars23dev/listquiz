@@ -165,7 +165,7 @@ pub fn reset_hearts(conn: &Connection, session_id: &str) -> ApiResult<()> {
 
 /// Drop any state left from an earlier round, so a replay starts clean.
 pub fn clear_round_state(conn: &Connection, session_id: &str) -> ApiResult<()> {
-    for table in ["order_state", "tripmine_state"] {
+    for table in ["order_state", "tripmine_state", "connect_state"] {
         conn.execute(
             &format!("DELETE FROM {table} WHERE session_id = ?1"),
             params![session_id],
@@ -203,6 +203,15 @@ pub fn store_round_start(
                 &mut rand::rng(),
             )?;
             tripmine_round::save_round(conn, session_id, &tripmine)?;
+        }
+        QuizType::Connect => {
+            let board = crate::modules::connect_round::start_connect_round(
+                conn,
+                &round.list_id,
+                &round.column_id,
+                &mut rand::rng(),
+            )?;
+            crate::modules::connect_round::save_board(conn, session_id, &board)?;
         }
     }
 

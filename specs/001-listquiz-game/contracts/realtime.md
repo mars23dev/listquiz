@@ -29,6 +29,10 @@
 > **Amended by `specs/009-tripmine-mode/contracts/tripmine-mode.md`:** Tripmine adds a Random (Hard)
 > side, hides hearts (hearts are Order-only), and a round end that also finishes the game plays the
 > round cue before the game-end cue.
+>
+> **Amended by `specs/010-connect-game/contracts/connect.md`:** adds a Connect game type
+> (`quizType: "CONNECT"`, a `connect` state with public names/values/matched/pending, and
+> `pick_name`/`pick_value`/`confirm_connect` actions) and a public `tripmine.mineRank`.
 
 ## Why revisions instead of pushed state
 
