@@ -13,6 +13,10 @@
 > (`{ totalSeconds, secondsLeft }` or `null`), driven by the `start_timer`/`stop_timer`/`time_out`
 > actions; a finished session can be deleted; and quick games are created through
 > `POST /api/sessions/quick`. The Tripmine gamemaster view always carries the answer key.
+>
+> **Amended by `specs/007-fix-game-end/contracts/game-end.md`:** the last configured round ending
+> finishes the session by itself (no gamemaster action), which is what makes the game-end dialog
+> appear in a gamemaster-less quick game.
 
 ## Why revisions instead of pushed state
 

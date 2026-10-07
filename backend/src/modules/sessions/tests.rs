@@ -310,3 +310,61 @@ fn deleting_a_finished_session_removes_its_rows_and_is_idempotent() {
     // Idempotent: deleting again is fine.
     delete_session(&conn, "s1").expect("a missing session is success");
 }
+
+fn session_with(conn: &rusqlite::Connection, status: &str, current: i32, count: i32) {
+    crate::db::insert_test_session(conn, "s1", 1);
+    conn.execute(
+        "UPDATE game_session SET status = ?1, current_round = ?2, round_count = ?3 WHERE id = 's1'",
+        rusqlite::params![status, current, count],
+    )
+    .unwrap();
+}
+
+#[test]
+fn finishing_the_last_round_ends_the_game() {
+    let conn = rusqlite::Connection::open_in_memory().unwrap();
+    crate::db::apply_schema(&conn).unwrap();
+    session_with(&conn, "running", 3, 3);
+
+    assert!(finish_if_last_round(&conn, "s1").expect("finished"));
+
+    let (status, reveal, active, message): (String, i64, Option<String>, Option<String>) = conn
+        .query_row(
+            "SELECT status, reveal_values, active_team_id, last_message
+             FROM game_session WHERE id = 's1'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )
+        .unwrap();
+    assert_eq!(status, "finished");
+    assert_eq!(reveal, 1, "values are revealed at game end");
+    assert_eq!(active, None, "no team is on turn");
+    assert_eq!(message.as_deref(), Some("Game over"));
+}
+
+#[test]
+fn finishing_a_non_last_round_changes_nothing() {
+    let conn = rusqlite::Connection::open_in_memory().unwrap();
+    crate::db::apply_schema(&conn).unwrap();
+    session_with(&conn, "running", 1, 3);
+
+    assert!(!finish_if_last_round(&conn, "s1").expect("no-op"));
+
+    let status: String = conn
+        .query_row(
+            "SELECT status FROM game_session WHERE id = 's1'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(status, "running");
+}
+
+#[test]
+fn finishing_an_already_finished_game_is_a_noop() {
+    let conn = rusqlite::Connection::open_in_memory().unwrap();
+    crate::db::apply_schema(&conn).unwrap();
+    session_with(&conn, "finished", 3, 3);
+
+    assert!(!finish_if_last_round(&conn, "s1").expect("no-op"));
+}

@@ -366,6 +366,9 @@ fn apply_order_action(
             )?;
             tx.commit()?;
             sessions::clear_timer(conn, session_id)?;
+            if outcome.round_over {
+                sessions::finish_if_last_round(conn, session_id)?;
+            }
             Ok(())
         }
         "cancel_selection" => {
@@ -428,6 +431,9 @@ fn apply_tripmine_action(
     )?;
     tx.commit()?;
     sessions::clear_timer(conn, session_id)?;
+    if outcome.round.completed {
+        sessions::finish_if_last_round(conn, session_id)?;
+    }
     Ok(())
 }
 
@@ -458,6 +464,7 @@ fn apply_time_out(
     let active = require_team_on_turn(conn, session_id, request.team_id.as_deref())?;
     let teams = order_round::load_teams(conn, session_id)?;
     let (teams, events, next) = turn_timer::expire(&teams, &active);
+    let round_over = next.is_none();
     let round = current_round_number(conn, session_id)?;
 
     let tx = conn.unchecked_transaction()?;
@@ -470,6 +477,9 @@ fn apply_time_out(
         rusqlite::params![session_id, next, Some("Time ran out! -1 heart".to_string())],
     )?;
     tx.commit()?;
+    if round_over {
+        sessions::finish_if_last_round(conn, session_id)?;
+    }
     Ok(())
 }
 

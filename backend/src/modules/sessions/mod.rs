@@ -475,6 +475,35 @@ pub fn delete_session(conn: &Connection, session_id: &str) -> ApiResult<()> {
     }
 }
 
+/// Finish the game when its last configured round has ended (feature 007).
+///
+/// The game-end dialog keys off the `finished` status, and a quick game has no
+/// gamemaster to press "Finish Game", so the last round's end finishes the game by
+/// itself. Reuses the manual finish's outcome (reveal values, clear the active team).
+/// A no-op when the session is already finished or the round is not the last.
+pub fn finish_if_last_round(conn: &Connection, session_id: &str) -> ApiResult<bool> {
+    let row: Option<(String, i32, i32)> = conn
+        .query_row(
+            "SELECT status, current_round, round_count FROM game_session WHERE id = ?1",
+            params![session_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()?;
+    let Some((status, current_round, round_count)) = row else {
+        return Ok(false);
+    };
+    if status == "finished" || current_round < round_count {
+        return Ok(false);
+    }
+    conn.execute(
+        "UPDATE game_session
+         SET status = 'finished', reveal_values = 1, active_team_id = NULL, last_message = ?2
+         WHERE id = ?1",
+        params![session_id, "Game over"],
+    )?;
+    Ok(true)
+}
+
 /// The team a player role owns: `p1`..`p4` map to `team_1`..`team_4`; the/// gamemaster, spectator, and unknown roles own no team.
 pub fn player_role_team(role: &str) -> Option<String> {
     let index: u32 = role.strip_prefix('p')?.parse().ok()?;

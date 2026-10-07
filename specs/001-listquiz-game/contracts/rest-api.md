@@ -2,6 +2,9 @@
 
 > **Amended by `specs/005-session-flow/contracts/session-flow.md`:** adds `POST /api/sessions/quick`
 > (one-team quick game) and `DELETE /api/sessions/{sessionId}` (delete a finished session).
+>
+> **Amended by `specs/007-fix-game-end/contracts/game-end.md`:** the last configured round ending
+> finishes the session automatically (no gamemaster action required).
 
 Base URL `http://<host>:8080`. All bodies are JSON unless stated otherwise. All endpoints are
 same-origin with the served frontend, so no CORS configuration is needed.
