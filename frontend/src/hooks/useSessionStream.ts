@@ -9,6 +9,8 @@ export interface UseSessionStream {
   state: SessionState | null;
   status: ConnectionStatus;
   error: string | null;
+  /** The API error code behind `error`, e.g. `not_found` for an unknown session. */
+  errorCode: ApiError['code'] | null;
   /** Re-read state on demand, e.g. after the gamemaster acts. */
   refresh: () => Promise<void>;
 }
@@ -38,6 +40,7 @@ export function useSessionStream(sessionId: string, role: UserRole): UseSessionS
   const [state, setState] = useState<SessionState | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<ApiError['code'] | null>(null);
 
   // Refs keep the EventSource callbacks reading current values without
   // re-subscribing on every state change.
@@ -51,6 +54,7 @@ export function useSessionStream(sessionId: string, role: UserRole): UseSessionS
     revisionRef.current = next.revision;
     setState(next);
     setError(null);
+    setErrorCode(null);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -59,6 +63,7 @@ export function useSessionStream(sessionId: string, role: UserRole): UseSessionS
     } catch (err) {
       if (mountedRef.current) {
         setError(err instanceof ApiError ? err.message : 'Could not load the session.');
+        setErrorCode(err instanceof ApiError ? err.code : null);
       }
     }
   }, [applyState, role, sessionId]);
@@ -115,7 +120,7 @@ export function useSessionStream(sessionId: string, role: UserRole): UseSessionS
     };
   }, [refresh, role, sessionId]);
 
-  return { state, status, error, refresh };
+  return { state, status, error, errorCode, refresh };
 }
 
 /**

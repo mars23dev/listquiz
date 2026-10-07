@@ -1,16 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Layers, ShieldCheck, Tv, User } from 'lucide-react';
 import { ApiError, postSessionAction, unlockSession } from '../api/client';
 import { useSessionStream } from '../hooks/useSessionStream';
+import { BottomTeams } from '../components/BottomTeams';
 import { MiddleItemGrid } from '../components/MiddleItemGrid';
+import { StageLighting } from '../components/StageLighting';
 import { TopBarOrdering } from '../components/TopBarOrdering';
 import { TripmineBoard } from '../components/TripmineBoard';
+import { setSoundMuted } from '../utils/audio';
 import type {
   QuizItem,
+  Team as QuizTeam,
   TripmineItem as QuizTripmineItem,
   TripmineState as QuizTripmineState,
   UserRole,
 } from '../types/quiz';
-import type { OrderItem, TripmineView } from '../types/session';
+import type { OrderItem, TeamView, TripmineView } from '../types/session';
 
 interface SessionProps {
   sessionId: string;
@@ -19,6 +24,31 @@ interface SessionProps {
 }
 
 const WRONG_PASSWORD_COPY = 'Incorrect password!';
+
+const TEAM_COLORS: QuizTeam['colorName'][] = ['cyan', 'rose', 'amber', 'emerald'];
+
+/** The server's `color` name, clamped to the draft palette the team card understands. */
+function toQuizTeam(team: TeamView): QuizTeam {
+  const colorName = TEAM_COLORS.includes(team.color as QuizTeam['colorName'])
+    ? (team.color as QuizTeam['colorName'])
+    : 'cyan';
+  return {
+    id: team.id,
+    name: team.name,
+    colorName,
+    primaryHex: team.primaryHex,
+    accentGlow: team.accentGlow,
+    score: team.score,
+    hearts: team.hearts,
+    isActiveTurn: team.onTurn,
+    turnIndex: 0,
+  };
+}
+
+/** The path segment for a role, matching the backend's link paths (FR-012). */
+function rolePath(role: UserRole): string {
+  return role === 'gamemaster' ? 'gamemaster' : role === 'view' ? 'view' : role;
+}
 
 /**
  * The board components predate the server-shaped state and take `QuizItem`, while
@@ -79,12 +109,23 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
   const [unlocking, setUnlocking] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const needsPassword = role === 'gamemaster' && !unlocked;
-  const { state, status, error: streamError, refresh } = useSessionStream(sessionId, role);
+  const {
+    state,
+    status,
+    error: streamError,
+    errorCode,
+    refresh,
+  } = useSessionStream(sessionId, role);
 
   useEffect(() => {
     if (needsPassword) return;
     void refresh();
   }, [needsPassword, refresh]);
+
+  // FR-024b: the session's mute silences audio in every view, not just the host's.
+  useEffect(() => {
+    setSoundMuted(state?.muted ?? false);
+  }, [state?.muted]);
 
   const order = state?.order ?? null;
   const tripmine = state?.tripmine ?? null;
@@ -102,6 +143,7 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
     ? state?.teams[Number(playerSlot[1]) - 1]
     : undefined;
   const isPlayersTurn = playerTeam?.onTurn === true;
+  const teams = useMemo(() => (state?.teams ?? []).map(toQuizTeam), [state?.teams]);
 
   // The slot a pending item is being dropped on is a client-side step: the server
   // only learns the slot once the placement is confirmed, so CONFIRM is a real
@@ -217,6 +259,10 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
     await sendAction({ action: 'reveal_values' });
   }
 
+  async function handleToggleMute() {
+    await sendAction({ action: 'set_muted', muted: !(state?.muted ?? false) });
+  }
+
   function handlePickItem(item: QuizTripmineItem) {
     if (!onTurnTeamId) return;
     const teamName = activeTeamName ?? 'The active team';
@@ -253,6 +299,24 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
     } finally {
       setUnlocking(false);
     }
+  }
+
+  if (errorCode === 'not_found') {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-950 p-4 text-white">
+        <h2 className="mb-2 text-xl font-bold">Session Not Found</h2>
+        <p className="mb-4 text-xs text-slate-400">
+          The session ID "{sessionId}" does not exist.
+        </p>
+        <button
+          type="button"
+          onClick={() => onNavigate('/')}
+          className="rounded-lg bg-cyan-500 px-4 py-2 text-xs font-bold text-slate-950"
+        >
+          Return to ListQuiz Home
+        </button>
+      </div>
+    );
   }
 
   if (needsPassword) {
@@ -307,62 +371,112 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
   }
 
   return (
-    <main className="relative z-10 mx-auto w-full max-w-7xl px-6 py-8">
-      <p className="font-mono text-sm text-slate-400">
-        {sessionId} / {role}
-      </p>
+    <div className="relative flex min-h-screen flex-col justify-between overflow-x-hidden bg-slate-950 text-slate-100 selection:bg-cyan-500/30">
+      <StageLighting />
 
-      {streamError ? (
-        <p role="alert" className="mt-4 rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
-          {streamError}
-        </p>
-      ) : null}
-
-      {actionError ? (
-        <p role="alert" className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-          {actionError}
-        </p>
-      ) : null}
-
-      {state ? (
-        <section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <p className="col-span-full font-mono text-xs text-slate-500">
-            revision {state.revision} / {status} / {state.status} / round{' '}
-            {state.currentRound} of {state.roundCount}
-          </p>
-          {state.teams.map((team) => (
-            <article
-              key={team.id}
-              className="rounded-xl border border-slate-800 bg-slate-900/90 p-4"
-              style={{ borderColor: team.primaryHex }}
+      <nav className="relative z-20 w-full border-b border-slate-800 bg-slate-950/90 px-3 py-2 backdrop-blur-md sm:px-6">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 md:flex-row">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => onNavigate('/')}
+              className="flex items-center gap-1 text-xs text-slate-400 hover:text-white"
             >
-              <h2 className="text-sm font-bold text-white">{team.name}</h2>
-              <p className="mt-1 font-mono text-xs text-slate-400">
-                {team.score} pts / {team.hearts} hearts
-              </p>
-              {team.onTurn ? (
-                <p className="mt-2 font-mono text-[10px] uppercase text-cyan-300">
-                  On turn
-                </p>
-              ) : null}
-            </article>
-          ))}
-        </section>
-      ) : null}
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>ListQuiz</span>
+            </button>
+            <span className="text-slate-700">/</span>
+            <span className="font-mono text-xs font-bold text-cyan-400">{sessionId}</span>
+            <span className="text-slate-700">·</span>
+            <span className="flex items-center gap-1 text-xs font-semibold text-amber-400">
+              <Layers className="h-3 w-3" /> Round {state?.currentRound ?? 0} of{' '}
+              {state?.roundCount ?? 0} ({state?.round?.quizType ?? ''})
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 p-1 text-xs">
+            <span className="hidden px-1.5 font-mono text-[10px] uppercase text-slate-500 lg:inline">
+              Role:
+            </span>
+            {(['gamemaster', 'p1', 'p2', 'p3', 'p4', 'view'] as UserRole[]).map((target) => (
+              <button
+                key={target}
+                type="button"
+                aria-pressed={role === target}
+                onClick={() => onNavigate(`/${sessionId}/${rolePath(target)}`)}
+                className={`rounded px-2 py-1 font-bold ${
+                  role === target
+                    ? 'bg-cyan-500 text-slate-950'
+                    : 'text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                {target === 'gamemaster' ? 'GM' : target === 'view' ? 'View' : target.toUpperCase()}
+              </button>
+            ))}
+          </div>
+
+          <div className="text-xs">
+            {isGamemaster ? (
+              <span className="flex items-center gap-1 font-bold text-amber-300">
+                <ShieldCheck className="h-3.5 w-3.5" /> Moderator Controls Active
+              </span>
+            ) : role === 'view' ? (
+              <span className="flex items-center gap-1 font-semibold text-cyan-300">
+                <Tv className="h-3.5 w-3.5" /> Stage Broadcast Screen
+              </span>
+            ) : (
+              <span
+                className={`flex items-center gap-1 font-bold ${
+                  isPlayersTurn ? 'animate-pulse text-emerald-400' : 'text-slate-400'
+                }`}
+              >
+                <User className="h-3.5 w-3.5" />
+                {playerTeam?.name} {isPlayersTurn ? '(YOUR TURN!)' : '(Waiting...)'}
+              </span>
+            )}
+          </div>
+        </div>
+      </nav>
 
       {isGamemaster && state ? (
-        <section className="mt-4 flex flex-wrap items-center justify-end gap-2">
-          {/* Global reveal applies to Order and Tripmine values (FR-024). */}
-          <button
-            type="button"
-            onClick={() => void handleRevealValues()}
-            disabled={state.revealValues}
-            className="rounded-lg border border-amber-400/60 bg-amber-400/10 px-4 py-2 text-sm font-bold text-amber-200 hover:bg-amber-400/20 disabled:opacity-50"
-          >
-            {state.revealValues ? 'Values revealed' : 'Reveal values'}
-          </button>
-        </section>
+        <div className="relative z-20 border-b border-amber-500/40 bg-amber-950/40 px-3 py-2 backdrop-blur-md sm:px-6">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-end gap-2 text-xs">
+            <button
+              type="button"
+              onClick={() => void handleRevealValues()}
+              disabled={state.revealValues}
+              className="rounded-lg border border-amber-400/60 bg-amber-400/10 px-4 py-2 text-sm font-bold text-amber-200 hover:bg-amber-400/20 disabled:opacity-50"
+            >
+              {state.revealValues ? 'Values revealed' : 'Reveal values'}
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleToggleMute()}
+              className="rounded-lg border border-slate-600 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+            >
+              {state.muted ? 'Unmute' : 'Mute'}
+            </button>
+          </div>
+        </div>
       ) : null}
+
+      <main className="relative z-10 flex flex-1 flex-col px-3 pb-2 sm:px-6">
+        <p className="mx-auto w-full max-w-7xl pt-2 font-mono text-xs text-slate-500">
+          revision {state?.revision ?? 0} / {status} / round {state?.currentRound ?? 0} of{' '}
+          {state?.roundCount ?? 0}
+        </p>
+
+        {streamError ? (
+          <p role="alert" className="mt-4 rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+            {streamError}
+          </p>
+        ) : null}
+
+        {actionError ? (
+          <p role="alert" className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+            {actionError}
+          </p>
+        ) : null}
 
       {order && anchorItem ? (
         <section className="mt-6">
@@ -441,6 +555,11 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
           />
         </section>
       ) : null}
-    </main>
+      </main>
+
+      {state ? (
+        <BottomTeams teams={teams} activeTeamCount={state.teamCount} currentRole={role} />
+      ) : null}
+    </div>
   );
 }

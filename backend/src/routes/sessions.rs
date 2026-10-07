@@ -112,6 +112,8 @@ pub struct ActionRequest {
     pub slot_index: Option<i32>,
     #[serde(default)]
     pub quantity: Option<i32>,
+    #[serde(default)]
+    pub muted: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -160,6 +162,21 @@ fn apply_action(state: &AppState, session_id: &str, request: &ActionRequest) -> 
         }
         "pick_tripitem" => {
             state.with_db(|conn| apply_tripmine_action(conn, session_id, request))?;
+            state.bump_revision(session_id)
+        }
+        // FR-024b: one flag, honoured by every view's audio.
+        "set_muted" => {
+            let muted = request
+                .muted
+                .ok_or_else(|| ApiError::bad_request("muted is required."))?;
+            state.with_db(|conn| {
+                conn.execute(
+                    "UPDATE game_session SET muted = ?2 WHERE id = ?1",
+                    rusqlite::params![session_id, i64::from(muted)],
+                )
+                .map_err(ApiError::from)?;
+                Ok::<(), ApiError>(())
+            })?;
             state.bump_revision(session_id)
         }
         other => Err(ApiError::bad_request(format!("Unknown action '{other}'."))),

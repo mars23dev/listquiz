@@ -488,3 +488,96 @@ describe('tripmine board actions', () => {
     expect(screen.queryByRole('button', { name: /pick alpha/i })).not.toBeInTheDocument();
   });
 });
+
+describe('role views and session controls', () => {
+  let posted: { url: string; body: Record<string, unknown> }[] = [];
+
+  beforeEach(() => {
+    FakeEventSource.instances = [];
+    posted = [];
+    vi.stubGlobal('EventSource', FakeEventSource as unknown as typeof EventSource);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('shows the perspective banner for each role', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('/unlock')) return jsonResponse({ ok: true });
+        if (url.includes('/state')) return jsonResponse(orderState());
+        return jsonResponse({ error: { code: 'bad_request', message: 'unexpected' } }, 400);
+      }),
+    );
+
+    const user = userEvent.setup();
+    const { unmount } = render(
+      <Session sessionId="lq-abcd1234" role="gamemaster" onNavigate={() => {}} />,
+    );
+    await user.type(screen.getByPlaceholderText('Enter password...'), 'letmein');
+    await user.click(screen.getByRole('button', { name: /unlock/i }));
+    expect(await screen.findByText(/moderator controls active/i)).toBeInTheDocument();
+    unmount();
+  });
+
+  it('shows the stage broadcast banner and no host controls to the spectator', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('/state')) return jsonResponse(pendingState());
+        return jsonResponse({ error: { code: 'bad_request', message: 'unexpected' } }, 400);
+      }),
+    );
+
+    render(<Session sessionId="lq-abcd1234" role="view" onNavigate={() => {}} />);
+
+    expect(await screen.findByText(/stage broadcast screen/i)).toBeInTheDocument();
+    expect(screen.queryByText(/moderator controls active/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /reveal values/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /select alpha/i })).not.toBeInTheDocument();
+  });
+
+  it('posts set_muted from the gamemaster dashboard', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes('/unlock')) return jsonResponse({ ok: true });
+        if (url.includes('/actions')) {
+          posted.push({ url, body: JSON.parse(String(init?.body ?? '{}')) });
+          return jsonResponse({ ok: true });
+        }
+        if (url.includes('/state')) return jsonResponse(orderState());
+        return jsonResponse({ error: { code: 'bad_request', message: 'unexpected' } }, 400);
+      }),
+    );
+
+    const user = userEvent.setup();
+    render(<Session sessionId="lq-abcd1234" role="gamemaster" onNavigate={() => {}} />);
+    await user.type(screen.getByPlaceholderText('Enter password...'), 'letmein');
+    await user.click(screen.getByRole('button', { name: /unlock/i }));
+
+    await user.click(await screen.findByRole('button', { name: /^mute$/i }));
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0].body).toEqual({ action: 'set_muted', muted: true });
+  });
+
+  it('renders a not-found view for an unknown session', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        jsonResponse({ error: { code: 'not_found', message: 'Unknown session.' } }, 404),
+      ),
+    );
+
+    render(<Session sessionId="lq-nope" role="p1" onNavigate={() => {}} />);
+
+    expect(await screen.findByText(/session not found/i)).toBeInTheDocument();
+    expect(screen.getByText(/lq-nope/)).toBeInTheDocument();
+  });
+});

@@ -236,23 +236,23 @@ values.
 
 ### Tests for User Story 5
 
-- [ ] T096 [US5] Integration test: a gamemaster action is visible on the next state read for the player role in `backend/tests/session_sync.rs`
-- [ ] T097 [US5] Integration test: a player role state contains no `pending`, no control list, and no un-revealed values in `backend/tests/session_sync.rs`
-- [ ] T098 [US5] Integration test: an unknown session id returns `not_found` on state read in `backend/tests/session_sync.rs`
-- [ ] T099 [US5] Integration test: the revision counter increases after every accepted action in `backend/tests/session_sync.rs`
-- [ ] T100 [US5] Integration test: `set_muted` applies to every role's state in `backend/tests/session_sync.rs`
+- [x] T096 [US5] Integration test: a gamemaster action is visible on the next state read for the player role in `backend/tests/session_sync.rs`
+- [x] T097 [US5] Integration test: a player role state contains no `pending`, no control list, and no un-revealed values in `backend/tests/session_sync.rs`
+- [x] T098 [US5] Integration test: an unknown session id returns `not_found` on state read in `backend/tests/session_sync.rs`
+- [x] T099 [US5] Integration test: the revision counter increases after every accepted action in `backend/tests/session_sync.rs`
+- [x] T100 [US5] Integration test: `set_muted` applies to every role's state in `backend/tests/session_sync.rs`
 
 ### Implementation for User Story 5
 
-- [ ] T101 [US5] Wire `GET /api/sessions/{id}/events` into `frontend/src/hooks/useSessionStream.ts` so a state event with a newer revision triggers exactly one refetch, and a heartbeat with no change triggers none
-- [ ] T102 [US5] Build the session view shell in `frontend/src/pages/Session.tsx` keeping the draft's top bar with `ListQuiz`, the session id link, `Round N of M (TYPE)`, and the role switcher labelled `Role:` with `GM`, `P1`–`P4`, and `View`
-- [ ] T103 [US5] Build the perspective banner in `frontend/src/pages/Session.tsx` keeping `Moderator Controls Active`, `Stage Broadcast Screen`, and the player variants `(YOUR TURN!)` and `(Waiting...)`
-- [ ] T104 [US5] Remove the draft's timer block entirely from `frontend/src/pages/Session.tsx` — the `Counter:` control, the `15s`/`20s`/`30s` buttons, the `Stop` button, and the `Turn Timer Running:` bar — since the product has no timer
-- [ ] T105 [US5] Build the read-only player and spectator rendering in `frontend/src/pages/Session.tsx` so no control issues an action, and the spectator view shows no turn emphasis and no team badge
-- [ ] T106 [P] [US5] Copy `the reference frontend's components/BottomTeams.tsx` to `frontend/src/components/BottomTeams.tsx` unchanged, including colour, score, hearts, active-turn highlight, and the `YOU` badge
-- [ ] T107 [US5] Copy `the reference frontend's components/StageLighting.tsx` to `frontend/src/components/StageLighting.tsx` unchanged and render it in `frontend/src/pages/Session.tsx`
-- [ ] T108 [US5] Add the mute toggle to the gamemaster dashboard in `frontend/src/pages/Session.tsx`, calling `set_muted`, and suppress audio in `frontend/src/utils/audio.ts` when the session is muted
-- [ ] T109 [US5] Add the not-found view in `frontend/src/pages/Session.tsx` shown when the state read returns `not_found`, replacing the draft's blank board
+- [x] T101 [US5] Wire `GET /api/sessions/{id}/events` into `frontend/src/hooks/useSessionStream.ts` so a state event with a newer revision triggers exactly one refetch, and a heartbeat with no change triggers none
+- [x] T102 [US5] Build the session view shell in `frontend/src/pages/Session.tsx` keeping the draft's top bar with `ListQuiz`, the session id link, `Round N of M (TYPE)`, and the role switcher labelled `Role:` with `GM`, `P1`–`P4`, and `View`
+- [x] T103 [US5] Build the perspective banner in `frontend/src/pages/Session.tsx` keeping `Moderator Controls Active`, `Stage Broadcast Screen`, and the player variants `(YOUR TURN!)` and `(Waiting...)`
+- [x] T104 [US5] Remove the draft's timer block entirely from `frontend/src/pages/Session.tsx` — the `Counter:` control, the `15s`/`20s`/`30s` buttons, the `Stop` button, and the `Turn Timer Running:` bar — since the product has no timer
+- [x] T105 [US5] Build the read-only player and spectator rendering in `frontend/src/pages/Session.tsx` so no control issues an action, and the spectator view shows no turn emphasis and no team badge
+- [x] T106 [P] [US5] Copy `the reference frontend's components/BottomTeams.tsx` to `frontend/src/components/BottomTeams.tsx` unchanged, including colour, score, hearts, active-turn highlight, and the `YOU` badge
+- [x] T107 [US5] Copy `the reference frontend's components/StageLighting.tsx` to `frontend/src/components/StageLighting.tsx` unchanged and render it in `frontend/src/pages/Session.tsx`
+- [x] T108 [US5] Add the mute toggle to the gamemaster dashboard in `frontend/src/pages/Session.tsx`, calling `set_muted`, and suppress audio in `frontend/src/utils/audio.ts` when the session is muted
+- [x] T109 [US5] Add the not-found view in `frontend/src/pages/Session.tsx` shown when the state read returns `not_found`, replacing the draft's blank board
 
 **Checkpoint**: Two devices stay in step; no leakage.
 

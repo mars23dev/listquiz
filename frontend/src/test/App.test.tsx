@@ -79,7 +79,8 @@ describe('App shell', () => {
 
     render(<App />);
 
-    expect(screen.getByText('lq-8fj2wkd9 / p2')).toBeInTheDocument();
+    expect(screen.getByText('lq-8fj2wkd9')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'P2', pressed: true })).toBeInTheDocument();
   });
 
   it('treats a bare session link as a player view, since the server redirects it', () => {
@@ -87,7 +88,8 @@ describe('App shell', () => {
 
     render(<App />);
 
-    expect(screen.getByText('lq-8fj2wkd9 / p1')).toBeInTheDocument();
+    expect(screen.getByText('lq-8fj2wkd9')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'P1', pressed: true })).toBeInTheDocument();
   });
 
   it('does not offer a demo session, because the product ships no session list', () => {
