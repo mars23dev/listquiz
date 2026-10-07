@@ -263,6 +263,28 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
     await sendAction({ action: 'set_muted', muted: !(state?.muted ?? false) });
   }
 
+  function handlePassTurn() {
+    void sendAction({ action: 'pass_turn' });
+  }
+
+  function handleNextRound() {
+    void sendAction({ action: 'next_round' });
+  }
+
+  function handleSetTurn(teamId: string) {
+    void sendAction({ action: 'set_turn', teamId });
+  }
+
+  function handleAdjustScore(delta: number) {
+    if (!onTurnTeamId) return;
+    void sendAction({ action: 'adjust_score', teamId: onTurnTeamId, delta });
+  }
+
+  function handleAdjustHearts(delta: number) {
+    if (!onTurnTeamId) return;
+    void sendAction({ action: 'adjust_hearts', teamId: onTurnTeamId, delta });
+  }
+
   function handlePickItem(item: QuizTripmineItem) {
     if (!onTurnTeamId) return;
     const teamName = activeTeamName ?? 'The active team';
@@ -443,16 +465,87 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-end gap-2 text-xs">
             <button
               type="button"
+              onClick={handlePassTurn}
+              disabled={state.status === 'finished'}
+              className="rounded-lg border border-amber-500/40 bg-slate-900 px-3 py-2 font-semibold text-amber-300 hover:bg-slate-800 disabled:opacity-50"
+            >
+              Pass Turn
+            </button>
+
+            {state.teams.length > 0 ? (
+              <label className="flex items-center gap-1 text-slate-300">
+                Turn
+                <select
+                  value={onTurnTeamId ?? ''}
+                  onChange={(event) => handleSetTurn(event.target.value)}
+                  disabled={state.status === 'finished'}
+                  className="rounded border border-slate-600 bg-slate-900 px-2 py-1 text-slate-200"
+                >
+                  {state.teams.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+
+            <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900/90 px-2 py-1">
+              <button
+                type="button"
+                onClick={() => handleAdjustScore(50)}
+                disabled={!onTurnTeamId}
+                className="px-1 text-emerald-300 disabled:opacity-40"
+              >
+                +50
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAdjustScore(-50)}
+                disabled={!onTurnTeamId}
+                className="px-1 text-rose-300 disabled:opacity-40"
+              >
+                -50
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAdjustHearts(1)}
+                disabled={!onTurnTeamId}
+                className="px-1 text-rose-300 disabled:opacity-40"
+              >
+                +1♥
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAdjustHearts(-1)}
+                disabled={!onTurnTeamId}
+                className="px-1 text-slate-300 disabled:opacity-40"
+              >
+                -1♥
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleNextRound}
+              disabled={state.status === 'finished'}
+              className="rounded-lg bg-cyan-500 px-3 py-2 font-bold text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
+            >
+              {state.currentRound >= state.roundCount ? 'Finish Game' : 'Next Round'}
+            </button>
+
+            <button
+              type="button"
               onClick={() => void handleRevealValues()}
               disabled={state.revealValues}
-              className="rounded-lg border border-amber-400/60 bg-amber-400/10 px-4 py-2 text-sm font-bold text-amber-200 hover:bg-amber-400/20 disabled:opacity-50"
+              className="rounded-lg border border-amber-400/60 bg-amber-400/10 px-3 py-2 font-bold text-amber-200 hover:bg-amber-400/20 disabled:opacity-50"
             >
               {state.revealValues ? 'Values revealed' : 'Reveal values'}
             </button>
             <button
               type="button"
               onClick={() => void handleToggleMute()}
-              className="rounded-lg border border-slate-600 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+              className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 font-semibold text-slate-200 hover:bg-slate-800"
             >
               {state.muted ? 'Unmute' : 'Mute'}
             </button>
@@ -553,6 +646,32 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
             currentRole={role}
             feedbackMessage={tripmineFeedback}
           />
+        </section>
+      ) : null}
+
+      {state && state.status === 'finished' ? (
+        <section className="mx-auto mt-6 w-full max-w-3xl rounded-2xl border border-amber-400/50 bg-slate-900/90 p-4">
+          <h2 className="font-display text-xl font-black uppercase text-amber-300">
+            Final Ranking
+          </h2>
+          <ol className="mt-3 space-y-2">
+            {[...state.teams]
+              .sort((first, second) => second.score - first.score)
+              .map((team, index) => (
+                <li
+                  key={team.id}
+                  className="flex items-center justify-between rounded-lg border bg-slate-950 px-3 py-2"
+                  style={{ borderColor: team.primaryHex }}
+                >
+                  <span className="font-bold text-white">
+                    #{index + 1} {team.name}
+                  </span>
+                  <span className="font-mono text-slate-300">
+                    {team.score} pts / {team.hearts} hearts
+                  </span>
+                </li>
+              ))}
+          </ol>
         </section>
       ) : null}
       </main>

@@ -349,6 +349,72 @@ pub fn create_session(conn: &Connection, request: &CreateSessionRequest) -> ApiR
     Ok(session_id)
 }
 
+/// What advancing the session did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RoundAdvance {
+    /// True when the last round was crossed and the game finished instead.
+    pub finished: bool,
+    /// The round now in play, or the last round when the game just finished.
+    pub round_number: i32,
+}
+
+/// Move the session on: start the next configured round, or finish the game when
+/// the last round is crossed (FR-023, FR-024, FR-015). Starting a round resets
+/// hearts to three, rotates the first turn, and leaves every score alone.
+pub fn advance_round(conn: &Connection, session_id: &str) -> ApiResult<RoundAdvance> {
+    let (current_round, round_count, status): (i32, i32, String) = conn
+        .query_row(
+            "SELECT current_round, round_count, status FROM game_session WHERE id = ?1",
+            params![session_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()?
+        .ok_or_else(|| ApiError::not_found(format!("No session with id '{session_id}'.")))?;
+
+    if status == "finished" {
+        return Err(ApiError::not_ready("The game has already finished."));
+    }
+
+    if current_round >= round_count {
+        // Crossing the last round finishes the game and unlocks every value (FR-024).
+        conn.execute(
+            "UPDATE game_session
+             SET status = 'finished', reveal_values = 1, active_team_id = NULL, last_message = ?2
+             WHERE id = ?1",
+            params![session_id, "Game over"],
+        )?;
+        return Ok(RoundAdvance {
+            finished: true,
+            round_number: current_round,
+        });
+    }
+
+    let target = current_round + 1;
+    let round = round_state::load_round(conn, session_id, target)?;
+    let starting_team = round_state::starting_team_id(conn, session_id, target)?;
+
+    let tx = conn.unchecked_transaction()?;
+    round_state::clear_round_state(&tx, session_id)?;
+    round_state::reset_hearts(&tx, session_id)?;
+    round_state::store_round_start(&tx, session_id, &round, &starting_team)?;
+    tx.execute(
+        "UPDATE game_session SET last_message = ?2 WHERE id = ?1",
+        params![
+            session_id,
+            format!(
+                "Round {target} Started: {} ({})",
+                round.list_title,
+                round.quiz_type.as_str()
+            )
+        ],
+    )?;
+    tx.commit()?;
+    Ok(RoundAdvance {
+        finished: false,
+        round_number: target,
+    })
+}
+
 /// True when the given password matches the session's gamemaster password.
 pub fn gm_password_matches(conn: &Connection, session_id: &str, attempt: &str) -> ApiResult<bool> {
     let stored: String = conn

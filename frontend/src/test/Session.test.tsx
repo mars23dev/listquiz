@@ -108,7 +108,7 @@ describe('gamemaster password gate', () => {
     await user.type(screen.getByPlaceholderText('Enter password...'), 'letmein');
     await user.click(screen.getByRole('button', { name: /unlock/i }));
 
-    expect(await screen.findByText('Team Cyan Pulsar')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Team Cyan Pulsar' })).toBeInTheDocument();
     expect(screen.getByText(/revision 4/)).toHaveTextContent('round 1 of 3');
   });
 
@@ -579,5 +579,65 @@ describe('role views and session controls', () => {
 
     expect(await screen.findByText(/session not found/i)).toBeInTheDocument();
     expect(screen.getByText(/lq-nope/)).toBeInTheDocument();
+  });
+});
+
+describe('gamemaster dashboard controls', () => {
+  let posted: { url: string; body: Record<string, unknown> }[] = [];
+
+  function stub(state: unknown) {
+    posted = [];
+    vi.stubGlobal('EventSource', FakeEventSource as unknown as typeof EventSource);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes('/unlock')) return jsonResponse({ ok: true });
+        if (url.includes('/actions')) {
+          posted.push({ url, body: JSON.parse(String(init?.body ?? '{}')) });
+          return jsonResponse({ ok: true });
+        }
+        if (url.includes('/state')) return jsonResponse(state);
+        return jsonResponse({ error: { code: 'bad_request', message: 'unexpected' } }, 400);
+      }),
+    );
+  }
+
+  beforeEach(() => {
+    FakeEventSource.instances = [];
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('sends pass_turn, next_round, and score adjustments', async () => {
+    stub(orderState());
+    const user = userEvent.setup();
+    render(<Session sessionId="lq-abcd1234" role="gamemaster" onNavigate={() => {}} />);
+    await user.type(screen.getByPlaceholderText('Enter password...'), 'letmein');
+    await user.click(screen.getByRole('button', { name: /unlock/i }));
+
+    await user.click(await screen.findByRole('button', { name: /pass turn/i }));
+    await screen.findByRole('button', { name: /next round/i });
+    await user.click(screen.getByRole('button', { name: /next round/i }));
+    await user.click(screen.getByRole('button', { name: /\+50/i }));
+
+    await waitFor(() => expect(posted).toHaveLength(3));
+    expect(posted.map((call) => call.body.action)).toEqual([
+      'pass_turn',
+      'next_round',
+      'adjust_score',
+    ]);
+    expect(posted[2].body).toEqual({ action: 'adjust_score', teamId: 'team_1', delta: 50 });
+  });
+
+  it('shows the final ranking once the game is finished', async () => {
+    stub({ ...orderState(), status: 'finished', revealValues: true });
+
+    render(<Session sessionId="lq-abcd1234" role="view" onNavigate={() => {}} />);
+
+    expect(await screen.findByText(/final ranking/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Team Cyan Pulsar/).length).toBeGreaterThan(0);
   });
 });

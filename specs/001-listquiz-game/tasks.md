@@ -304,20 +304,20 @@ team rotates, and the final screen shows the cross-round ranking.
 
 ### Tests for User Story 7
 
-- [ ] T128 [US7] Unit test: `starting_team_for_round` returns team 1 in round 1, team 2 in round 2, and wraps at the team count in `backend/src/modules/scoring/tests.rs`
-- [ ] T129 [US7] Unit test: the first turn of a round skips a team with 0 hearts in `backend/src/modules/scoring/tests.rs`
-- [ ] T130 [US7] Unit test: starting a round resets hearts to 3 and leaves scores untouched in `backend/src/modules/scoring/tests.rs`
-- [ ] T131 [US7] Unit test: crossing the last round sets status `finished` and enables the full reveal in `backend/src/modules/sessions/tests.rs`
-- [ ] T132 [US7] Integration test: a team's round-two opening score equals its round-one closing score in `backend/tests/round_progression.rs`
-- [ ] T133 [US7] Integration test: `next_round` beyond the last round returns `not_ready` in `backend/tests/round_progression.rs`
+- [x] T128 [US7] Unit test: `starting_team_for_round` returns team 1 in round 1, team 2 in round 2, and wraps at the team count in `backend/src/modules/scoring/tests.rs`
+- [x] T129 [US7] Unit test: the first turn of a round skips a team with 0 hearts in `backend/src/modules/scoring/tests.rs`
+- [x] T130 [US7] Unit test: starting a round resets hearts to 3 and leaves scores untouched in `backend/src/modules/scoring/tests.rs`
+- [x] T131 [US7] Unit test: crossing the last round sets status `finished` and enables the full reveal in `backend/src/modules/sessions/tests.rs`
+- [x] T132 [US7] Integration test: a team's round-two opening score equals its round-one closing score in `backend/tests/round_progression.rs`
+- [x] T133 [US7] Integration test: `next_round` beyond the last round returns `not_ready` in `backend/tests/round_progression.rs`
 
 ### Implementation for User Story 7
 
-- [ ] T134 [US7] Implement `advance_round` in `backend/src/modules/sessions/mod.rs`: reset hearts to 3, set the active team from `starting_team_for_round`, rebuild `order_state` or `tripmine_state` for the new round's list and column, and set `lastMessage` to `Round N Started: <list title> (<QUIZ_TYPE>)`
-- [ ] T135 [US7] Implement game completion in `backend/src/modules/sessions/mod.rs` when the last round ends: set `status = 'finished'`, set `revealValues` true, and expose the aggregated `score_event` totals as the final ranking
-- [ ] T136 [US7] Add `next_round`, `pass_turn`, `set_turn`, `adjust_score`, and `adjust_hearts` to `backend/src/routes/sessions.rs`, clamping hearts to 0-3 and recording a `manual_adjustment` score event with reason `game_master`
-- [ ] T137 [US7] Build the gamemaster dashboard controls in `frontend/src/pages/Session.tsx` keeping the draft's `Pass Turn` and `Next Round` buttons and its score and heart steppers
-- [ ] T138 [US7] Build the final ranking view in `frontend/src/pages/Session.tsx` showing cross-round totals with each team's colour, and the full value reveal
+- [x] T134 [US7] Implement `advance_round` in `backend/src/modules/sessions/mod.rs`: reset hearts to 3, set the active team from `starting_team_for_round`, rebuild `order_state` or `tripmine_state` for the new round's list and column, and set `lastMessage` to `Round N Started: <list title> (<QUIZ_TYPE>)`
+- [x] T135 [US7] Implement game completion in `backend/src/modules/sessions/mod.rs` when the last round ends: set `status = 'finished'`, set `revealValues` true, and expose the aggregated `score_event` totals as the final ranking
+- [x] T136 [US7] Add `next_round`, `pass_turn`, `set_turn`, `adjust_score`, and `adjust_hearts` to `backend/src/routes/sessions.rs`, clamping hearts to 0-3 and recording a `manual_adjustment` score event with reason `game_master`
+- [x] T137 [US7] Build the gamemaster dashboard controls in `frontend/src/pages/Session.tsx` keeping the draft's `Pass Turn` and `Next Round` buttons and its score and heart steppers
+- [x] T138 [US7] Build the final ranking view in `frontend/src/pages/Session.tsx` showing cross-round totals with each team's colour, and the full value reveal
 
 **Checkpoint**: US1 through US7 all independently functional.
 

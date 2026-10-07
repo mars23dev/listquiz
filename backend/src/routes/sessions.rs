@@ -15,7 +15,8 @@ use std::collections::HashMap;
 use crate::app_state::{AppState, SessionLinks, UserRole, build_links};
 use crate::errors::{ApiError, ApiResult};
 use crate::modules::order_round;
-use crate::modules::sessions::{self, CreateSessionRequest, round_state};
+use crate::modules::scoring;
+use crate::modules::sessions::{self, CreateSessionRequest};
 use crate::modules::tripmine_round;
 use crate::state_reader;
 
@@ -114,6 +115,8 @@ pub struct ActionRequest {
     pub quantity: Option<i32>,
     #[serde(default)]
     pub muted: Option<bool>,
+    #[serde(default)]
+    pub delta: Option<i32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -148,7 +151,7 @@ pub async fn session_action(
 fn apply_action(state: &AppState, session_id: &str, request: &ActionRequest) -> ApiResult<i64> {
     match request.action.as_str() {
         "next_round" => {
-            state.with_db(|conn| start_next_round(conn, session_id))?;
+            state.with_db(|conn| sessions::advance_round(conn, session_id))?;
             state.bump_revision(session_id)
         }
         // FR-024: one flag, honoured by `redact`, for both quiz types.
@@ -177,6 +180,25 @@ fn apply_action(state: &AppState, session_id: &str, request: &ActionRequest) -> 
                 .map_err(ApiError::from)?;
                 Ok::<(), ApiError>(())
             })?;
+            state.bump_revision(session_id)
+        }
+        // FR-018: pass the turn without scoring.
+        "pass_turn" => {
+            state.with_db(|conn| apply_pass_turn(conn, session_id))?;
+            state.bump_revision(session_id)
+        }
+        // FR-064: the gamemaster simulating a turn.
+        "set_turn" => {
+            state.with_db(|conn| apply_set_turn(conn, session_id, request))?;
+            state.bump_revision(session_id)
+        }
+        // FR-023: manual score and heart changes, recorded as `game_master` events.
+        "adjust_score" => {
+            state.with_db(|conn| apply_manual(conn, session_id, request, false))?;
+            state.bump_revision(session_id)
+        }
+        "adjust_hearts" => {
+            state.with_db(|conn| apply_manual(conn, session_id, request, true))?;
             state.bump_revision(session_id)
         }
         other => Err(ApiError::bad_request(format!("Unknown action '{other}'."))),
@@ -350,21 +372,77 @@ fn apply_tripmine_action(
 
 /// Move the session on to the next configured round. A round whose list or
 /// column has gone is reported as `not_ready` rather than half-started (T033).
-fn start_next_round(conn: &rusqlite::Connection, session_id: &str) -> ApiResult<()> {
-    let current_round: i32 = conn.query_row(
+fn current_round_number(conn: &rusqlite::Connection, session_id: &str) -> ApiResult<i32> {
+    Ok(conn.query_row(
         "SELECT current_round FROM game_session WHERE id = ?1",
         [session_id],
         |row| row.get(0),
-    )?;
-    let target = current_round + 1;
+    )?)
+}
 
-    let round = round_state::load_round(conn, session_id, target)?;
-    let starting_team = round_state::starting_team_id(conn, session_id, target)?;
+/// Pass the turn to the next team with hearts, scoring nothing (FR-018).
+fn apply_pass_turn(conn: &rusqlite::Connection, session_id: &str) -> ApiResult<()> {
+    let active: Option<String> = conn
+        .query_row(
+            "SELECT active_team_id FROM game_session WHERE id = ?1",
+            [session_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let active = active.ok_or_else(|| ApiError::not_ready("No team is on turn."))?;
+    let teams = order_round::load_teams(conn, session_id)?;
+    let next = scoring::advance_turn(&teams, &active);
+    conn.execute(
+        "UPDATE game_session SET active_team_id = ?2 WHERE id = ?1",
+        rusqlite::params![session_id, next],
+    )?;
+    Ok(())
+}
+
+/// Put a chosen team on turn (FR-064).
+fn apply_set_turn(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+    request: &ActionRequest,
+) -> ApiResult<()> {
+    let team_id = require_field(request.team_id.as_deref(), "teamId")?;
+    let exists: Option<i64> = conn
+        .query_row(
+            "SELECT 1 FROM team WHERE session_id = ?1 AND id = ?2",
+            rusqlite::params![session_id, team_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if exists.is_none() {
+        return Err(ApiError::not_found(format!(
+            "No team '{team_id}' in this session."
+        )));
+    }
+    conn.execute(
+        "UPDATE game_session SET active_team_id = ?2 WHERE id = ?1",
+        rusqlite::params![session_id, team_id],
+    )?;
+    Ok(())
+}
+
+/// A manual score or heart adjustment, clamped by the scoring module (FR-023).
+fn apply_manual(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+    request: &ActionRequest,
+    is_hearts: bool,
+) -> ApiResult<()> {
+    let team_id = require_field(request.team_id.as_deref(), "teamId")?;
+    let delta = request
+        .delta
+        .ok_or_else(|| ApiError::bad_request("delta is required."))?;
+    let teams = order_round::load_teams(conn, session_id)?;
+    let outcome = scoring::manual_adjustment(&teams, team_id, delta, is_hearts);
+    let round = current_round_number(conn, session_id)?;
 
     let tx = conn.unchecked_transaction()?;
-    round_state::clear_round_state(&tx, session_id)?;
-    round_state::reset_hearts(&tx, session_id)?;
-    round_state::store_round_start(&tx, session_id, &round, &starting_team)?;
+    order_round::save_teams(&tx, session_id, &outcome.teams)?;
+    order_round::append_events(&tx, session_id, round, &outcome.events)?;
     tx.commit()?;
     Ok(())
 }

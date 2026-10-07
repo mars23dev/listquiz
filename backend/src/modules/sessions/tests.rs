@@ -35,6 +35,47 @@ fn request() -> CreateSessionRequest {
     }
 }
 
+fn seeded_conn() -> rusqlite::Connection {
+    let conn = rusqlite::Connection::open_in_memory().expect("memory database");
+    crate::db::apply_schema(&conn).expect("schema");
+    crate::db::seed_default_folder(&conn).expect("default folder");
+    crate::modules::default_lists::seed_default_lists(&conn, "default").expect("default lists");
+    conn
+}
+
+// T131 ---------------------------------------------------------------------
+
+#[test]
+fn crossing_the_last_round_finishes_the_game_and_reveals_everything() {
+    let conn = seeded_conn();
+    let mut body = request();
+    body.round_count = Some(2);
+    body.rounds = vec![order_round(), order_round()];
+    for round in body.rounds.iter_mut() {
+        round.column_id = "year".to_string();
+    }
+    let session_id = create_session(&conn, &body).expect("session created");
+
+    assert!(!advance_round(&conn, &session_id).expect("round 1").finished);
+    assert!(!advance_round(&conn, &session_id).expect("round 2").finished);
+    let last = advance_round(&conn, &session_id).expect("finish");
+    assert!(last.finished, "crossing the last round finishes the game");
+
+    let (status, reveal, active): (String, i64, Option<String>) = conn
+        .query_row(
+            "SELECT status, reveal_values, active_team_id FROM game_session WHERE id = ?1",
+            [&session_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .expect("session row");
+    assert_eq!(status, "finished");
+    assert_eq!(reveal, 1, "the full reveal is on (FR-024)");
+    assert!(active.is_none(), "nobody is on turn once finished");
+
+    // Advancing a finished game is refused (T133).
+    assert!(advance_round(&conn, &session_id).is_err());
+}
+
 #[test]
 fn a_generated_session_id_has_the_documented_shape() {
     for _ in 0..200 {
