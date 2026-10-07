@@ -13,6 +13,7 @@ interface RoundDraft {
   listId: string;
   columnId: string;
   tripmineSide: 'highest' | 'lowest' | 'random';
+  tripmineSlots: 10 | 20;
 }
 
 interface SetupQuizProps {
@@ -28,6 +29,7 @@ function newRound(roundNumber: number, lists: ListSummary[]): RoundDraft {
     listId: first?.id ?? '',
     columnId: first?.columns[0]?.id ?? '',
     tripmineSide: 'highest',
+    tripmineSlots: 10,
   };
 }
 
@@ -135,7 +137,7 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
           listId: round.listId,
           columnId: round.columnId,
           ...(round.quizType === 'TRIPMINE'
-            ? { tripmineSide: round.tripmineSide }
+            ? { tripmineSide: round.tripmineSide, tripmineSlots: round.tripmineSlots }
             : {}),
         })),
       });
@@ -397,6 +399,24 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
                           <option value="highest">Highest</option>
                           <option value="lowest">Lowest</option>
                           <option value="random">Random (Hard)</option>
+                        </select>
+                      </label>
+                    ) : null}
+
+                    {round.quizType === 'TRIPMINE' ? (
+                      <label className="text-xs font-semibold text-slate-300">
+                        Tripmine items
+                        <select
+                          value={round.tripmineSlots}
+                          onChange={(event) =>
+                            updateRound(index, {
+                              tripmineSlots: Number(event.target.value) as 10 | 20,
+                            })
+                          }
+                          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
+                        >
+                          <option value={10}>10 items</option>
+                          <option value={20}>20 items</option>
                         </select>
                       </label>
                     ) : null}

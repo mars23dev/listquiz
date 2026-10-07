@@ -230,3 +230,61 @@ fn every_seeded_list_can_host_an_order_round() {
         );
     }
 }
+
+/// The column whose numeric value orders a shipped list (feature 015).
+fn ordering_column(list_id: &str) -> &'static str {
+    match list_id {
+        "default_world_history" => "year",
+        "default_statues_monuments" => "height",
+        "default_cinema_box_office" => "box_office",
+        "default_countries" => "area_km2",
+        other => panic!("no ordering column for {other}"),
+    }
+}
+
+#[test]
+fn format_value_renders_magnitudes_and_plain_numbers() {
+    assert_eq!(format_value(1_440_000_000.0), "1.44 Billion");
+    assert_eq!(format_value(2_920_000_000.0), "2.92 Billion");
+    assert_eq!(format_value(146_000_000.0), "146 Million");
+    assert_eq!(format_value(652_230.0), "652,230");
+    assert_eq!(format_value(1969.0), "1969");
+    assert_eq!(format_value(48.0), "48");
+    assert_eq!(format_value(-2560.0), "-2560");
+    assert_eq!(format_value(0.49), "0.49");
+}
+
+#[test]
+fn seeding_stores_each_shipped_list_in_ascending_value_order() {
+    let conn = Connection::open_in_memory().unwrap();
+    crate::db::apply_schema(&conn).unwrap();
+    crate::db::seed_default_folder(&conn).unwrap();
+    seed_default_lists(&conn, "default").unwrap();
+
+    for list in DEFAULT_LISTS.iter() {
+        let column = ordering_column(list.id);
+        let mut statement = conn
+            .prepare(
+                "SELECT v.numeric FROM item i
+                 JOIN item_value v ON v.item_id = i.id
+                 WHERE i.list_id = ?1 AND v.column_id = ?2
+                 ORDER BY i.position",
+            )
+            .unwrap();
+        let values: Vec<f64> = statement
+            .query_map(params![list.id, column], |row| row.get(0))
+            .unwrap()
+            .collect::<Result<Vec<f64>, _>>()
+            .unwrap();
+
+        for window in values.windows(2) {
+            assert!(
+                window[0] <= window[1],
+                "{} is not ascending by {column}: {} then {}",
+                list.title,
+                window[0],
+                window[1]
+            );
+        }
+    }
+}

@@ -63,6 +63,7 @@ pub struct RoundToStart {
     pub round_number: i32,
     pub quiz_type: QuizType,
     pub tripmine_side: Option<TripmineSide>,
+    pub tripmine_slots: Option<i32>,
     pub list_id: String,
     pub column_id: String,
     pub list_title: String,
@@ -78,7 +79,7 @@ pub fn load_round(
 ) -> ApiResult<RoundToStart> {
     let row = conn
         .query_row(
-            "SELECT rc.quiz_type, rc.tripmine_side, rc.list_id, rc.column_id,
+            "SELECT rc.quiz_type, rc.tripmine_side, rc.tripmine_slots, rc.list_id, rc.column_id,
                     l.title, l.order_direction, c.name
              FROM round_config rc
              JOIN quiz_list l ON l.id = rc.list_id
@@ -89,18 +90,19 @@ pub fn load_round(
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, Option<String>>(1)?,
-                    row.get::<_, String>(2)?,
+                    row.get::<_, Option<i32>>(2)?,
                     row.get::<_, String>(3)?,
                     row.get::<_, String>(4)?,
                     row.get::<_, String>(5)?,
                     row.get::<_, String>(6)?,
+                    row.get::<_, String>(7)?,
                 ))
             },
         )
         .optional()?;
 
-    let (quiz_type_raw, side_raw, list_id, column_id, list_title, direction, column_name) = row
-        .ok_or_else(|| {
+    let (quiz_type_raw, side_raw, slots, list_id, column_id, list_title, direction, column_name) =
+        row.ok_or_else(|| {
             ApiError::not_ready(format!(
                 "Round {round_number} is not ready: its list or column no longer exists."
             ))
@@ -116,6 +118,7 @@ pub fn load_round(
         round_number,
         quiz_type,
         tripmine_side: side_raw.as_deref().and_then(TripmineSide::parse),
+        tripmine_slots: slots,
         list_id,
         column_id,
         list_title,
@@ -195,11 +198,13 @@ pub fn store_round_start(
         }
         QuizType::Tripmine => {
             let side = round.tripmine_side.unwrap_or(TripmineSide::Highest);
+            let slots = round.tripmine_slots.unwrap_or(10).max(1) as usize;
             let tripmine = tripmine_round::start_tripmine_round(
                 conn,
                 &round.list_id,
                 &round.column_id,
                 side,
+                slots,
                 &mut rand::rng(),
             )?;
             tripmine_round::save_round(conn, session_id, &tripmine)?;

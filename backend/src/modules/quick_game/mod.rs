@@ -63,6 +63,7 @@ pub fn build_request(
                 QuizType::Tripmine => Some("highest".to_string()),
                 QuizType::Order | QuizType::Connect => None,
             },
+            tripmine_slots: None,
         }],
     })
 }

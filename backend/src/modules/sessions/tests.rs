@@ -12,6 +12,7 @@ fn order_round() -> RoundInput {
         list_id: "default_world_history".to_string(),
         column_id: "default_world_history_year".to_string(),
         tripmine_side: None,
+        tripmine_slots: None,
     }
 }
 
@@ -22,6 +23,7 @@ fn tripmine_round(side: Option<&str>) -> RoundInput {
         list_id: "default_world_history".to_string(),
         column_id: "default_world_history_year".to_string(),
         tripmine_side: side.map(str::to_string),
+        tripmine_slots: None,
     }
 }
 
@@ -203,6 +205,30 @@ fn tripmine_side_is_required_only_for_tripmine_rounds() {
         validate_request(&body).expect_err("ORDER with a side").code,
         ErrorCode::BadRequest
     );
+}
+
+#[test]
+fn tripmine_slots_are_ten_or_twenty_only() {
+    let mut body = request();
+    let mut round = tripmine_round(Some("highest"));
+    round.tripmine_slots = Some(20);
+    body.rounds = vec![round];
+    let validated = validate_request(&body).expect("20 is allowed");
+    assert_eq!(validated.3[0].tripmine_slots, Some(20));
+
+    let mut body = request();
+    let mut round = tripmine_round(Some("highest"));
+    round.tripmine_slots = Some(15);
+    body.rounds = vec![round];
+    assert_eq!(
+        validate_request(&body).expect_err("15 is refused").code,
+        ErrorCode::BadRequest
+    );
+
+    let mut body = request();
+    body.rounds = vec![tripmine_round(Some("highest"))];
+    let validated = validate_request(&body).expect("absent means ten");
+    assert_eq!(validated.3[0].tripmine_slots, Some(10));
 }
 
 #[test]

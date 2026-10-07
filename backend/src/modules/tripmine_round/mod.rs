@@ -77,12 +77,12 @@ pub struct PickOutcome {
     pub next_team_id: Option<String>,
 }
 
-/// The rank the search starts from: `1` when hunting the highest item, `10` when
-/// hunting the lowest (FR-037).
-pub fn starting_search_rank(side: TripmineSide) -> i32 {
+/// The rank the search starts from: `1` when hunting the highest item, the last rank
+/// when hunting the lowest (FR-037).
+pub fn starting_search_rank(side: TripmineSide, slots: usize) -> i32 {
     match side {
         TripmineSide::Highest => 1,
-        TripmineSide::Lowest => TRIPMINE_SLOTS as i32,
+        TripmineSide::Lowest => slots as i32,
         // Random has no fixed start; `start_tripmine_round` picks a random target.
         TripmineSide::Random => 1,
     }
@@ -155,11 +155,12 @@ pub fn next_searched_rank(
 pub fn sample_tripmine_grid(
     items: &[ListItemValue],
     side: TripmineSide,
+    slots: usize,
     rng: &mut impl rand::Rng,
 ) -> ApiResult<Vec<TripmineSlot>> {
-    if items.len() < TRIPMINE_SLOTS {
+    if items.len() < slots {
         return Err(ApiError::not_ready(format!(
-            "A Tripmine round needs at least {TRIPMINE_SLOTS} items with values."
+            "A Tripmine round needs at least {slots} items with values."
         )));
     }
 
@@ -170,7 +171,7 @@ pub fn sample_tripmine_grid(
     }
     let mut chosen: Vec<ListItemValue> = indices
         .into_iter()
-        .take(TRIPMINE_SLOTS)
+        .take(slots)
         .map(|index| items[index].clone())
         .collect();
     chosen.sort_by(|a, b| {
@@ -180,10 +181,10 @@ pub fn sample_tripmine_grid(
     });
 
     let mined_rank = match side {
-        TripmineSide::Highest => TRIPMINE_SLOTS as i32,
+        TripmineSide::Highest => slots as i32,
         TripmineSide::Lowest => 1,
         // Hard: the mine is any rank.
-        TripmineSide::Random => rng.random_range(1..=TRIPMINE_SLOTS as i32),
+        TripmineSide::Random => rng.random_range(1..=slots as i32),
     };
 
     Ok(chosen
@@ -219,18 +220,19 @@ pub fn start_tripmine_round(
     list_id: &str,
     column_id: &str,
     side: TripmineSide,
+    slots: usize,
     rng: &mut impl rand::Rng,
 ) -> ApiResult<TripmineRound> {
-    // `true_rank` is always 1 (lowest) to 10 (highest) whatever order the list is
-    // kept in, so the grid is always sampled and ranked ascending (FR-037).
+    // `true_rank` is always 1 (lowest) to `slots` (highest) whatever order the list
+    // is kept in, so the grid is always sampled and ranked ascending (FR-037).
     let items = round_state::load_ordered_items(conn, list_id, column_id, true)?;
-    let mut grid = sample_tripmine_grid(&items, side, rng)?;
+    let mut grid = sample_tripmine_grid(&items, side, slots, rng)?;
     // The displayed order is shuffled so the ten items are not sweepable in rank
     // order (FR-009).
     shuffle_grid(&mut grid, rng);
     let searched_rank = match side {
         TripmineSide::Random => random_search_rank(&grid, rng).unwrap_or(1),
-        _ => starting_search_rank(side),
+        _ => starting_search_rank(side, slots),
     };
     Ok(TripmineRound {
         side,

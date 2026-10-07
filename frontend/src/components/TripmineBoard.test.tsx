@@ -124,3 +124,39 @@ describe('TripmineBoard gamemaster visibility', () => {
     expect(screen.queryByText('2800')).not.toBeInTheDocument();
   });
 });
+
+describe('TripmineBoard item count', () => {
+  it('renders a twenty-item board', () => {
+    const items = Array.from({ length: 20 }, (_, index) => ({
+      id: `m${index}`,
+      name: `Item ${index}`,
+      value: '',
+      numericValue: index,
+      trueRank: index + 1,
+      isTripmine: false,
+      isRevealed: false,
+    }));
+    const state: TripmineState = {
+      tripmineSide: 'highest',
+      currentSearchedRank: 1,
+      tripmineHit: false,
+      isCompleted: false,
+      mineRank: 20,
+      items,
+    };
+
+    render(
+      <TripmineBoard
+        tripmineState={state}
+        onPickItem={vi.fn()}
+        isMyTurn={false}
+        currentRole="view"
+        teams={TEAMS}
+      />,
+    );
+
+    expect(
+      screen.getAllByRole('button', { name: /hidden or already picked/i }),
+    ).toHaveLength(20);
+  });
+});

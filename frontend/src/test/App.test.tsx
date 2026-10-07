@@ -94,7 +94,9 @@ describe('App shell', () => {
     render(<App />);
 
     expect(screen.getByText('lq-8fj2wkd9')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'P2', pressed: true })).toBeInTheDocument();
+    // The view switch is gamemaster-only (feature 015), so a player sees none.
+    expect(screen.queryByRole('button', { name: 'GM' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'P2' })).not.toBeInTheDocument();
   });
 
   it('treats a bare session link as a player view, since the server redirects it', () => {
@@ -103,7 +105,7 @@ describe('App shell', () => {
     render(<App />);
 
     expect(screen.getByText('lq-8fj2wkd9')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'P1', pressed: true })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'P1' })).not.toBeInTheDocument();
   });
 
   it('does not offer a demo session, because the product ships no session list', () => {

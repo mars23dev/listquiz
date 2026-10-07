@@ -101,4 +101,21 @@ describe('ConnectBoard', () => {
       within(screen.getByRole('button', { name: /bravo/i })).queryByText('200'),
     ).not.toBeInTheDocument();
   });
+
+  it('renders name and value rows with the same size', () => {
+    render(
+      <ConnectBoard
+        view={VIEW}
+        interactive
+        onPickName={vi.fn()}
+        onPickValue={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    );
+
+    const nameRow = screen.getByRole('button', { name: /alpha/i });
+    const valueRow = screen.getByRole('button', { name: /100/ });
+    expect(nameRow.className).toContain('min-h-[44px]');
+    expect(valueRow.className).toContain('min-h-[44px]');
+  });
 });

@@ -404,7 +404,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Pulp Fiction",
         icon_name: "Film",
         values: &[
-            ("box_office", "$213 Million", 213.0),
+            ("box_office", "$213 Million", 213000000.0),
             ("release_year", "1994", 1994.0),
         ],
     },
@@ -413,7 +413,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Star Wars: A New Hope",
         icon_name: "Film",
         values: &[
-            ("box_office", "$775 Million", 775.0),
+            ("box_office", "$775 Million", 775000000.0),
             ("release_year", "1977", 1977.0),
         ],
     },
@@ -422,7 +422,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "The Lion King",
         icon_name: "Film",
         values: &[
-            ("box_office", "$968 Million", 968.0),
+            ("box_office", "$968 Million", 968000000.0),
             ("release_year", "1994", 1994.0),
         ],
     },
@@ -431,7 +431,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "The Dark Knight",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.01 Billion", 1010.0),
+            ("box_office", "$1.01 Billion", 1010000000.0),
             ("release_year", "2008", 2008.0),
         ],
     },
@@ -440,7 +440,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Jurassic Park",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.05 Billion", 1050.0),
+            ("box_office", "$1.05 Billion", 1050000000.0),
             ("release_year", "1993", 1993.0),
         ],
     },
@@ -449,7 +449,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Barbie",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.44 Billion", 1440.0),
+            ("box_office", "$1.44 Billion", 1440000000.0),
             ("release_year", "2023", 2023.0),
         ],
     },
@@ -458,7 +458,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Titanic",
         icon_name: "Film",
         values: &[
-            ("box_office", "$2.26 Billion", 2260.0),
+            ("box_office", "$2.26 Billion", 2260000000.0),
             ("release_year", "1997", 1997.0),
         ],
     },
@@ -467,7 +467,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Top Gun: Maverick",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.49 Billion", 1490.0),
+            ("box_office", "$1.49 Billion", 1490000000.0),
             ("release_year", "2022", 2022.0),
         ],
     },
@@ -476,7 +476,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Spider-Man: No Way Home",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.92 Billion", 1920.0),
+            ("box_office", "$1.92 Billion", 1920000000.0),
             ("release_year", "2021", 2021.0),
         ],
     },
@@ -485,7 +485,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Avengers: Endgame",
         icon_name: "Film",
         values: &[
-            ("box_office", "$2.80 Billion", 2800.0),
+            ("box_office", "$2.80 Billion", 2800000000.0),
             ("release_year", "2019", 2019.0),
         ],
     },
@@ -494,7 +494,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Avatar",
         icon_name: "Film",
         values: &[
-            ("box_office", "$2.92 Billion", 2920.0),
+            ("box_office", "$2.92 Billion", 2920000000.0),
             ("release_year", "2009", 2009.0),
         ],
     },
@@ -503,7 +503,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "The Avengers",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.52 Billion", 1520.0),
+            ("box_office", "$1.52 Billion", 1520000000.0),
             ("release_year", "2012", 2012.0),
         ],
     },
@@ -512,7 +512,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Frozen II",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.45 Billion", 1450.0),
+            ("box_office", "$1.45 Billion", 1450000000.0),
             ("release_year", "2019", 2019.0),
         ],
     },
@@ -521,7 +521,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Avengers: Infinity War",
         icon_name: "Film",
         values: &[
-            ("box_office", "$2.05 Billion", 2050.0),
+            ("box_office", "$2.05 Billion", 2050000000.0),
             ("release_year", "2018", 2018.0),
         ],
     },
@@ -530,7 +530,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Star Wars: The Force Awakens",
         icon_name: "Film",
         values: &[
-            ("box_office", "$2.07 Billion", 2070.0),
+            ("box_office", "$2.07 Billion", 2070000000.0),
             ("release_year", "2015", 2015.0),
         ],
     },
@@ -539,7 +539,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "The Super Mario Bros. Movie",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.36 Billion", 1360.0),
+            ("box_office", "$1.36 Billion", 1360000000.0),
             ("release_year", "2023", 2023.0),
         ],
     },
@@ -548,7 +548,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Black Panther",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.35 Billion", 1350.0),
+            ("box_office", "$1.35 Billion", 1350000000.0),
             ("release_year", "2018", 2018.0),
         ],
     },
@@ -557,7 +557,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Harry Potter and the Deathly Hallows - Part 2",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.34 Billion", 1340.0),
+            ("box_office", "$1.34 Billion", 1340000000.0),
             ("release_year", "2011", 2011.0),
         ],
     },
@@ -566,7 +566,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Star Wars: The Last Jedi",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.33 Billion", 1330.0),
+            ("box_office", "$1.33 Billion", 1330000000.0),
             ("release_year", "2017", 2017.0),
         ],
     },
@@ -575,7 +575,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Jurassic World",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.67 Billion", 1670.0),
+            ("box_office", "$1.67 Billion", 1670000000.0),
             ("release_year", "2015", 2015.0),
         ],
     },
@@ -584,7 +584,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "The Lion King (2019)",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.66 Billion", 1660.0),
+            ("box_office", "$1.66 Billion", 1660000000.0),
             ("release_year", "2019", 2019.0),
         ],
     },
@@ -593,7 +593,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Furious 7",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.52 Billion", 1515.0),
+            ("box_office", "$1.52 Billion", 1515000000.0),
             ("release_year", "2015", 2015.0),
         ],
     },
@@ -602,7 +602,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Frozen",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.29 Billion", 1290.0),
+            ("box_office", "$1.29 Billion", 1290000000.0),
             ("release_year", "2013", 2013.0),
         ],
     },
@@ -611,7 +611,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Beauty and the Beast",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.27 Billion", 1266.0),
+            ("box_office", "$1.27 Billion", 1266000000.0),
             ("release_year", "2017", 2017.0),
         ],
     },
@@ -620,7 +620,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Incredibles 2",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.24 Billion", 1243.0),
+            ("box_office", "$1.24 Billion", 1243000000.0),
             ("release_year", "2018", 2018.0),
         ],
     },
@@ -629,7 +629,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "The Fate of the Furious",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.24 Billion", 1236.0),
+            ("box_office", "$1.24 Billion", 1236000000.0),
             ("release_year", "2017", 2017.0),
         ],
     },
@@ -638,7 +638,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Iron Man 3",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.21 Billion", 1215.0),
+            ("box_office", "$1.21 Billion", 1215000000.0),
             ("release_year", "2013", 2013.0),
         ],
     },
@@ -647,7 +647,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Minions",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.16 Billion", 1159.0),
+            ("box_office", "$1.16 Billion", 1159000000.0),
             ("release_year", "2015", 2015.0),
         ],
     },
@@ -656,7 +656,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Captain America: Civil War",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.15 Billion", 1153.0),
+            ("box_office", "$1.15 Billion", 1153000000.0),
             ("release_year", "2016", 2016.0),
         ],
     },
@@ -665,7 +665,7 @@ const CINEMA_ITEMS: &[DefaultItem] = &[
         name: "Aquaman",
         icon_name: "Film",
         values: &[
-            ("box_office", "$1.15 Billion", 1148.0),
+            ("box_office", "$1.15 Billion", 1148000000.0),
             ("release_year", "2018", 2018.0),
         ],
     },
@@ -2678,6 +2678,77 @@ pub const DEFAULT_LISTS: [DefaultList; 4] = [
     },
 ];
 
+/// The column whose numeric value orders a shipped list (feature 015).
+pub fn ordering_column(list_id: &str) -> &'static str {
+    match list_id {
+        "default_world_history" => "year",
+        "default_statues_monuments" => "height",
+        "default_cinema_box_office" => "box_office",
+        "default_countries" => "area_km2",
+        _ => "",
+    }
+}
+
+/// A shipped item's numeric value for `column_id`, or `0` when it has none.
+fn value_of(item: &DefaultItem, column_id: &str) -> f64 {
+    item.values
+        .iter()
+        .find(|(c, _, _)| *c == column_id)
+        .map(|(_, _, n)| *n)
+        .unwrap_or(0.0)
+}
+
+/// Format a numeric value for display: large magnitudes get a suffix, medium
+/// numbers get thousands separators, small numbers stay plain (feature 015).
+pub fn format_value(n: f64) -> String {
+    let abs = n.abs();
+    let (scaled, suffix) = if abs >= 1e12 {
+        (n / 1e12, " Trillion")
+    } else if abs >= 1e9 {
+        (n / 1e9, " Billion")
+    } else if abs >= 1e6 {
+        (n / 1e6, " Million")
+    } else {
+        (n, "")
+    };
+    if !suffix.is_empty() {
+        return format!("{}{}", trim_decimal(scaled), suffix);
+    }
+    if abs >= 10_000.0 {
+        return group_thousands(n);
+    }
+    if n.fract() == 0.0 {
+        format!("{}", n as i64)
+    } else {
+        format!("{n}")
+    }
+}
+
+/// Two decimals with trailing zeros trimmed (`1.44`, `146`, `9.98`).
+fn trim_decimal(v: f64) -> String {
+    let s = format!("{v:.2}");
+    s.trim_end_matches('0').trim_end_matches('.').to_string()
+}
+
+/// A whole number with thousands separators (`652,230`, `-2,560`).
+fn group_thousands(n: f64) -> String {
+    let negative = n < 0.0;
+    let whole = n.abs().round() as i64;
+    let digits = whole.to_string();
+    let len = digits.len();
+    let mut out = String::with_capacity(len + len / 3 + 1);
+    if negative {
+        out.push('-');
+    }
+    for (i, ch) in digits.chars().enumerate() {
+        if i > 0 && (len - i).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(ch);
+    }
+    out
+}
+
 /// One column as the API reports it.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ColumnSummary {
@@ -2778,17 +2849,30 @@ pub fn seed_default_lists(conn: &Connection, folder_id: &str) -> ApiResult<()> {
                 params![list.id, column.id, column.name, position as i64],
             )?;
         }
-        for (position, item) in list.items.iter().enumerate() {
+        // Emit the items in ascending order of the list's ordering column so the
+        // stored positions read low to high (feature 015).
+        let ordering = ordering_column(list.id);
+        let mut ordered: Vec<&DefaultItem> = list.items.iter().collect();
+        ordered.sort_by(|a, b| {
+            value_of(a, ordering)
+                .partial_cmp(&value_of(b, ordering))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        for (position, item) in ordered.iter().enumerate() {
             tx.execute(
-                "INSERT OR IGNORE INTO item (id, list_id, name, position, icon_name)
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                "INSERT INTO item (id, list_id, name, position, icon_name)
+                 VALUES (?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT(id) DO UPDATE SET
+                    name = excluded.name,
+                    position = excluded.position,
+                    icon_name = excluded.icon_name",
                 params![item.id, list.id, item.name, position as i64, item.icon_name],
             )?;
-            for (column_id, display, numeric) in item.values.iter() {
+            for (column_id, _display, numeric) in item.values.iter() {
                 tx.execute(
                     "INSERT OR REPLACE INTO item_value (item_id, column_id, display, numeric, was_defaulted)
                      VALUES (?1, ?2, ?3, ?4, 0)",
-                    params![item.id, column_id, display, numeric],
+                    params![item.id, column_id, format_value(*numeric), numeric],
                 )?;
             }
         }

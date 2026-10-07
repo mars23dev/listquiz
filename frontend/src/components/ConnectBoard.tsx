@@ -39,7 +39,7 @@ export const ConnectBoard: React.FC<ConnectBoardProps> = ({
   const canConfirm = interactive && pendingName !== null && pendingValue !== null;
 
   const cellClass = (isPicked: boolean, isMatched: boolean) =>
-    `relative flex w-full items-center gap-2 rounded-xl border-2 p-2 text-left transition-all select-none ${
+    `relative flex w-full items-center gap-2 rounded-xl border-2 p-2 min-h-[44px] text-left transition-all select-none ${
       isMatched
         ? 'border-slate-800/60 bg-slate-950/40 opacity-30'
         : isPicked

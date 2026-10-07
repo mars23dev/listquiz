@@ -38,6 +38,8 @@ export const TripmineBoard: React.FC<TripmineBoardProps> = ({
 }) => {
   const isGamemaster = currentRole === 'gamemaster';
   const { currentSearchedRank, tripmineSide, items, tripmineHit, isCompleted, mineRank } = tripmineState;
+  // A 20-item round uses a denser grid and smaller cells so it fits one screen.
+  const dense = items.length > 10;
 
   // Count remaining unrevealed items
   const unrevealedItems = items.filter((i) => !i.isRevealed);
@@ -166,8 +168,12 @@ export const TripmineBoard: React.FC<TripmineBoardProps> = ({
         )}
       </AnimatePresence>
 
-      {/* 10 Items Tripmine Grid (5 columns x 2 rows) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+      {/* Tripmine grid: 5 columns for 10 items, 10 columns for 20 so all fit. */}
+      <div
+        className={`grid gap-3 ${
+          dense ? 'grid-cols-4 sm:grid-cols-5 md:grid-cols-10' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-5'
+        }`}
+      >
         {items.map((item, index) => {
           const isRevealed = item.isRevealed;
           const isMine = item.isTripmine;
@@ -197,7 +203,9 @@ export const TripmineBoard: React.FC<TripmineBoardProps> = ({
                   onPickItem(item);
                 }
               }}
-              className={`relative flex flex-col justify-between rounded-xl p-3 border transition-all min-h-[120px] select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+              className={`relative flex flex-col justify-between rounded-xl border transition-all select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+                dense ? 'p-1.5 min-h-[64px]' : 'p-3 min-h-[120px]'
+              } ${
                 isRevealed && isMine
                   ? 'border-rose-500 bg-rose-950/80 shadow-2xl shadow-rose-500/40 ring-4 ring-rose-500/60'
                   : isRevealed

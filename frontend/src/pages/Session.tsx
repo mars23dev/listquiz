@@ -561,26 +561,30 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
             </span>
           </div>
 
-          <div className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 p-1 text-xs">
-            <span className="hidden px-1.5 font-mono text-[10px] uppercase text-slate-500 lg:inline">
-              Role:
-            </span>
-            {(['gamemaster', 'p1', 'p2', 'p3', 'p4', 'view'] as UserRole[]).map((target) => (
-              <button
-                key={target}
-                type="button"
-                aria-pressed={role === target}
-                onClick={() => onNavigate(`/${sessionId}/${rolePath(target)}`)}
-                className={`rounded px-2 py-1 font-bold ${
-                  role === target
-                    ? 'bg-cyan-500 text-slate-950'
-                    : 'text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                {target === 'gamemaster' ? 'GM' : target === 'view' ? 'View' : target.toUpperCase()}
-              </button>
-            ))}
-          </div>
+          {isGamemaster ? (
+            <div className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 p-1 text-xs">
+              <span className="hidden px-1.5 font-mono text-[10px] uppercase text-slate-500 lg:inline">
+                Role:
+              </span>
+              {(['gamemaster', 'p1', 'p2', 'p3', 'p4', 'view'] as UserRole[]).map((target) => (
+                <button
+                  key={target}
+                  type="button"
+                  aria-pressed={role === target}
+                  onClick={() =>
+                    window.open(`/${sessionId}/${rolePath(target)}`, '_blank', 'noopener')
+                  }
+                  className={`rounded px-2 py-1 font-bold ${
+                    role === target
+                      ? 'bg-cyan-500 text-slate-950'
+                      : 'text-slate-300 hover:bg-slate-800'
+                  }`}
+                >
+                  {target === 'gamemaster' ? 'GM' : target === 'view' ? 'View' : target.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           <div className="flex items-center gap-2 text-xs">
             {isGamemaster ? (

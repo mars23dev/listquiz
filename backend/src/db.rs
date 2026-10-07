@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS round_config (
     round_number  INTEGER NOT NULL,
     quiz_type     TEXT NOT NULL,
     tripmine_side TEXT,
+    tripmine_slots INTEGER,
     list_id       TEXT NOT NULL,
     column_id     TEXT NOT NULL,
     PRIMARY KEY (session_id, round_number)
@@ -146,6 +147,16 @@ pub fn apply_schema(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(SCHEMA)?;
     add_order_state_placed_by(conn)?;
     add_turn_timer_columns(conn)?;
+    add_tripmine_slots_column(conn)?;
+    Ok(())
+}
+
+/// Additive migration (feature 015): the Tripmine item count (10 or 20). Guarded so
+/// an existing database upgrades in place and the step is safe on every open.
+fn add_tripmine_slots_column(conn: &Connection) -> rusqlite::Result<()> {
+    if !column_exists(conn, "round_config", "tripmine_slots")? {
+        conn.execute_batch("ALTER TABLE round_config ADD COLUMN tripmine_slots INTEGER")?;
+    }
     Ok(())
 }
 

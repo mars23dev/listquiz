@@ -34,6 +34,9 @@ pub struct RoundInput {
     pub column_id: String,
     #[serde(default)]
     pub tripmine_side: Option<String>,
+    /// Tripmine item count (10 or 20); absent means 10 (feature 015).
+    #[serde(default)]
+    pub tripmine_slots: Option<i32>,
 }
 
 /// The `POST /api/sessions` body.
@@ -128,6 +131,7 @@ pub struct ValidRound {
     pub round_number: i32,
     pub quiz_type: QuizType,
     pub tripmine_side: Option<TripmineSide>,
+    pub tripmine_slots: Option<i32>,
     pub list_id: String,
     pub column_id: String,
 }
@@ -217,6 +221,20 @@ pub fn validate_round(round: &RoundInput, position: i32) -> ApiResult<ValidRound
         (QuizType::Order | QuizType::Connect, None) => None,
     };
 
+    // The Tripmine item count is 10 or 20; absent means 10 (feature 015).
+    let tripmine_slots = match quiz_type {
+        QuizType::Tripmine => match round.tripmine_slots {
+            None | Some(10) => Some(10),
+            Some(20) => Some(20),
+            Some(_) => {
+                return Err(ApiError::bad_request(format!(
+                    "Round {position}: tripmineSlots must be 10 or 20."
+                )));
+            }
+        },
+        QuizType::Order | QuizType::Connect => None,
+    };
+
     if round.list_id.trim().is_empty() {
         return Err(ApiError::bad_request(format!(
             "Round {position}: listId is required."
@@ -236,6 +254,7 @@ pub fn validate_round(round: &RoundInput, position: i32) -> ApiResult<ValidRound
         },
         quiz_type,
         tripmine_side,
+        tripmine_slots,
         list_id: round.list_id.clone(),
         column_id: round.column_id.clone(),
     })
@@ -343,13 +362,14 @@ pub fn create_session(conn: &Connection, request: &CreateSessionRequest) -> ApiR
     for round in &rounds {
         tx.execute(
             "INSERT INTO round_config
-                (session_id, round_number, quiz_type, tripmine_side, list_id, column_id)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                (session_id, round_number, quiz_type, tripmine_side, tripmine_slots, list_id, column_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
                 session_id,
                 round.round_number,
                 round.quiz_type.as_str(),
                 round.tripmine_side.map(|side| side.as_str()),
+                round.tripmine_slots,
                 round.list_id,
                 round.column_id
             ],

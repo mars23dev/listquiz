@@ -1000,3 +1000,51 @@ describe('turn timer (005 US2)', () => {
     expect(screen.queryByText(/has not run out yet/i)).not.toBeInTheDocument();
   });
 });
+
+describe('view switch (015 US4)', () => {
+  function stub(state: unknown) {
+    vi.stubGlobal('EventSource', FakeEventSource as unknown as typeof EventSource);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('/unlock')) return jsonResponse({ ok: true });
+        if (url.includes('/state')) return jsonResponse(state);
+        return jsonResponse({ ok: true });
+      }),
+    );
+  }
+
+  beforeEach(() => {
+    FakeEventSource.instances = [];
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('hides the view switch from players and the spectator', async () => {
+    stub(orderState());
+    render(<Session sessionId="lq-abcd1234" role="p1" onNavigate={() => {}} />);
+    await screen.findByRole('heading', { name: 'Team Cyan Pulsar' });
+    expect(screen.queryByRole('button', { name: 'GM' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'View' })).not.toBeInTheDocument();
+  });
+
+  it('shows the switch to the gamemaster and opens the view in a new tab', async () => {
+    stub(orderState());
+    const navigate = vi.fn();
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const user = userEvent.setup();
+    render(<Session sessionId="lq-abcd1234" role="gamemaster" onNavigate={navigate} />);
+    await user.type(screen.getByPlaceholderText('Enter password...'), 'letmein');
+    await user.click(screen.getByRole('button', { name: /unlock/i }));
+
+    const view = await screen.findByRole('button', { name: 'View' });
+    await user.click(view);
+
+    expect(open).toHaveBeenCalledWith('/lq-abcd1234/view', '_blank', 'noopener');
+    expect(navigate).not.toHaveBeenCalled();
+    open.mockRestore();
+  });
+});

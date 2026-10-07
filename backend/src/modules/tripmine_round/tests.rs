@@ -25,10 +25,11 @@ fn rng(seed: u64) -> SmallRng {
 
 /// A sampled round over `items(20)`, ready to pick from.
 fn round(side: TripmineSide) -> TripmineRound {
-    let grid = sample_tripmine_grid(&items(20), side, &mut rng(11)).expect("a grid of ten");
+    let grid = sample_tripmine_grid(&items(20), side, TRIPMINE_SLOTS, &mut rng(11))
+        .expect("a grid of ten");
     TripmineRound {
         side,
-        searched_rank: starting_search_rank(side),
+        searched_rank: starting_search_rank(side, TRIPMINE_SLOTS),
         items: grid,
         hit: false,
         hit_by: None,
@@ -70,7 +71,8 @@ fn a_grid_holds_ten_ranked_items_with_one_mine_at_the_mined_end() {
         (TripmineSide::Highest, TRIPMINE_SLOTS as i32),
         (TripmineSide::Lowest, 1),
     ] {
-        let grid = sample_tripmine_grid(&items(20), side, &mut rng(3)).expect("a grid");
+        let grid =
+            sample_tripmine_grid(&items(20), side, TRIPMINE_SLOTS, &mut rng(3)).expect("a grid");
 
         assert_eq!(grid.len(), TRIPMINE_SLOTS);
         let mut ranks: Vec<i32> = grid.iter().map(|slot| slot.true_rank).collect();
@@ -83,11 +85,42 @@ fn a_grid_holds_ten_ranked_items_with_one_mine_at_the_mined_end() {
     }
 }
 
+#[test]
+fn a_twenty_slot_grid_ranks_twenty_items_with_the_mine_at_the_chosen_end() {
+    for (side, mined_rank) in [(TripmineSide::Highest, 20), (TripmineSide::Lowest, 1)] {
+        let grid = sample_tripmine_grid(&items(20), side, 20, &mut rng(5)).expect("a grid");
+
+        assert_eq!(grid.len(), 20);
+        let mut ranks: Vec<i32> = grid.iter().map(|slot| slot.true_rank).collect();
+        ranks.sort_unstable();
+        assert_eq!(ranks, (1..=20).collect::<Vec<_>>());
+
+        let mines: Vec<&TripmineSlot> = grid.iter().filter(|slot| slot.is_tripmine).collect();
+        assert_eq!(mines.len(), 1, "exactly one item is the mine");
+        assert_eq!(mines[0].true_rank, mined_rank);
+    }
+
+    let random =
+        sample_tripmine_grid(&items(20), TripmineSide::Random, 20, &mut rng(9)).expect("a grid");
+    let mine_rank = random
+        .iter()
+        .find(|slot| slot.is_tripmine)
+        .expect("a mine")
+        .true_rank;
+    assert!((1..=20).contains(&mine_rank));
+}
+
 // T080 ---------------------------------------------------------------------
 #[test]
 fn the_search_starts_at_the_far_end_from_the_mine() {
-    assert_eq!(starting_search_rank(TripmineSide::Highest), 1);
-    assert_eq!(starting_search_rank(TripmineSide::Lowest), 10);
+    assert_eq!(
+        starting_search_rank(TripmineSide::Highest, TRIPMINE_SLOTS),
+        1
+    );
+    assert_eq!(
+        starting_search_rank(TripmineSide::Lowest, TRIPMINE_SLOTS),
+        10
+    );
 
     assert_eq!(round(TripmineSide::Highest).searched_rank, 1);
     assert_eq!(round(TripmineSide::Lowest).searched_rank, 10);
@@ -249,8 +282,13 @@ fn the_side_is_fixed_once_the_round_has_started() {
 
 #[test]
 fn the_grid_is_shuffled_out_of_rank_order_without_changing_the_answer_key() {
-    let base =
-        sample_tripmine_grid(&items(10), TripmineSide::Highest, &mut rng(1)).expect("a grid");
+    let base = sample_tripmine_grid(
+        &items(10),
+        TripmineSide::Highest,
+        TRIPMINE_SLOTS,
+        &mut rng(1),
+    )
+    .expect("a grid");
     let ascending: Vec<i32> = base.iter().map(|slot| slot.true_rank).collect();
     assert_eq!(
         ascending,
@@ -300,8 +338,13 @@ fn random_side_parses_and_round_trips() {
 fn a_random_grid_has_one_mine_at_any_rank() {
     let mut mined_ranks = std::collections::BTreeSet::new();
     for seed in 1..=30 {
-        let grid =
-            sample_tripmine_grid(&items(20), TripmineSide::Random, &mut rng(seed)).expect("a grid");
+        let grid = sample_tripmine_grid(
+            &items(20),
+            TripmineSide::Random,
+            TRIPMINE_SLOTS,
+            &mut rng(seed),
+        )
+        .expect("a grid");
         let mut ranks: Vec<i32> = grid.iter().map(|slot| slot.true_rank).collect();
         ranks.sort_unstable();
         assert_eq!(
@@ -323,7 +366,13 @@ fn a_random_grid_has_one_mine_at_any_rank() {
 
 #[test]
 fn a_random_search_target_is_unrevealed_and_never_the_mine() {
-    let grid = sample_tripmine_grid(&items(20), TripmineSide::Random, &mut rng(7)).expect("grid");
+    let grid = sample_tripmine_grid(
+        &items(20),
+        TripmineSide::Random,
+        TRIPMINE_SLOTS,
+        &mut rng(7),
+    )
+    .expect("grid");
     let mine = grid.iter().find(|slot| slot.is_tripmine).unwrap().true_rank;
 
     for _ in 0..20 {
