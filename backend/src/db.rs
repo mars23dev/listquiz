@@ -136,7 +136,32 @@ CREATE INDEX IF NOT EXISTS idx_score_event_session ON score_event(session_id, ro
 /// Apply the schema. Safe to call repeatedly.
 pub fn apply_schema(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(SCHEMA)?;
+    add_order_state_placed_by(conn)?;
     Ok(())
+}
+
+/// Additive migration (feature 004): `CREATE TABLE IF NOT EXISTS` never adds a
+/// column to an existing database, so a store created before this feature must be
+/// upgraded in place. The guard makes the step safe to run on every open.
+fn add_order_state_placed_by(conn: &Connection) -> rusqlite::Result<()> {
+    if column_exists(conn, "order_state", "placed_by")? {
+        return Ok(());
+    }
+    conn.execute_batch("ALTER TABLE order_state ADD COLUMN placed_by TEXT")?;
+    Ok(())
+}
+
+/// True when `table` has a column named `column`.
+fn column_exists(conn: &Connection, table: &str, column: &str) -> rusqlite::Result<bool> {
+    let mut statement = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+    let mut rows = statement.query([])?;
+    while let Some(row) = rows.next()? {
+        let name: String = row.get(1)?;
+        if name == column {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// Open the project-local database, creating its folder if absent.
@@ -204,5 +229,49 @@ mod tests {
             .unwrap();
         assert_eq!(status, "setup");
         assert_eq!(revision, 7);
+    }
+
+    #[test]
+    fn a_fresh_database_gets_the_placed_by_column() {
+        let conn = Connection::open_in_memory().unwrap();
+        apply_schema(&conn).unwrap();
+
+        assert!(column_exists(&conn, "order_state", "placed_by").unwrap());
+    }
+
+    #[test]
+    fn an_old_order_state_is_upgraded_in_place_without_losing_rows() {
+        let conn = Connection::open_in_memory().unwrap();
+        // The pre-feature table, with a row already on the bar.
+        conn.execute_batch(
+            "CREATE TABLE order_state (
+                 session_id     TEXT PRIMARY KEY,
+                 anchor_item_id TEXT NOT NULL,
+                 anchor_value   REAL NOT NULL,
+                 pool           TEXT NOT NULL,
+                 left_ids       TEXT NOT NULL,
+                 right_ids      TEXT NOT NULL,
+                 pending        TEXT
+             );
+             INSERT INTO order_state
+                 (session_id, anchor_item_id, anchor_value, pool, left_ids, right_ids, pending)
+             VALUES ('s1', 'item_a', 5.0, '[]', '[\"item_b\"]', '[]', NULL);",
+        )
+        .unwrap();
+
+        apply_schema(&conn).unwrap();
+        // Running it again must be a no-op, not an error.
+        apply_schema(&conn).unwrap();
+
+        assert!(column_exists(&conn, "order_state", "placed_by").unwrap());
+        let (left, placed_by): (String, Option<String>) = conn
+            .query_row(
+                "SELECT left_ids, placed_by FROM order_state WHERE session_id = 's1'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(left, "[\"item_b\"]");
+        assert_eq!(placed_by, None);
     }
 }

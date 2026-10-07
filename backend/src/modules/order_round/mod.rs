@@ -13,6 +13,7 @@
 
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 use crate::errors::{ApiError, ApiResult};
 use crate::modules::scoring::{self, ScoreEvent, ScoringOutcome, TeamStanding};
@@ -91,6 +92,9 @@ pub struct OrderBoard {
     pub left: Vec<ListItemValue>,
     pub right: Vec<ListItemValue>,
     pub pending: Option<PendingPlacement>,
+    /// Which team placed each item on a side (feature 004, US2). Pool and anchor
+    /// items never appear here. Missing on an older database, hence an empty map.
+    pub placed_by: BTreeMap<String, String>,
 }
 
 /// A freshly sampled round: the anchor plus the ten candidates, before any placement.
@@ -109,6 +113,7 @@ impl OrderSetup {
             left: Vec::new(),
             right: Vec::new(),
             pending: None,
+            placed_by: BTreeMap::new(),
         }
     }
 }
@@ -372,6 +377,8 @@ pub fn confirm_placement(
             .insert(pending.slot_index as usize, item.clone());
         next.pool
             .retain(|candidate| candidate.item_id != item.item_id);
+        next.placed_by
+            .insert(item.item_id.clone(), pending.team_id.clone());
         scoring::apply_points(
             teams,
             &pending.team_id,
@@ -401,6 +408,33 @@ pub fn confirm_placement(
     })
 }
 
+/// Sort every item into its correct bar position, for the reveal (feature 004, US3).
+///
+/// Left holds the values `<=` the anchor and right the values `>` the anchor, each
+/// ascending, which is exactly the bar invariant `side_stays_ordered` checks. The
+/// sort is stable on the value, so ties keep the order they were handed in. Pure and
+/// presentational: it never mutates the stored board, so the reveal scores nothing.
+pub fn arrange_revealed_order(
+    anchor: &ListItemValue,
+    items: &[ListItemValue],
+) -> (Vec<ListItemValue>, Vec<ListItemValue>) {
+    let mut left: Vec<ListItemValue> = items
+        .iter()
+        .filter(|item| item.numeric <= anchor.numeric)
+        .cloned()
+        .collect();
+    let mut right: Vec<ListItemValue> = items
+        .iter()
+        .filter(|item| item.numeric > anchor.numeric)
+        .cloned()
+        .collect();
+    left.sort_by(|a, b| a.numeric.total_cmp(&b.numeric));
+    right.sort_by(|a, b| a.numeric.total_cmp(&b.numeric));
+    left.truncate(BAR_SLOTS_PER_SIDE);
+    right.truncate(BAR_SLOTS_PER_SIDE);
+    (left, right)
+}
+
 /// Take a placed item off the bar and put it back in the pool (FR-033). No scoring and
 /// no turn change: only the gamemaster may do this, to undo a misdrop.
 pub fn return_to_pool(board: &OrderBoard, item_id: &str) -> ApiResult<OrderBoard> {
@@ -413,6 +447,7 @@ pub fn return_to_pool(board: &OrderBoard, item_id: &str) -> ApiResult<OrderBoard
         {
             let item = next.side_mut(side).remove(index);
             next.pool.push(item);
+            next.placed_by.remove(item_id);
             return Ok(next);
         }
     }
@@ -555,11 +590,22 @@ fn load_ids(conn: &Connection, column_id: &str, raw: &str) -> ApiResult<Vec<List
     Ok(items)
 }
 
+/// The `order_state` columns a board is rebuilt from.
+type OrderStateRow = (
+    String,
+    f64,
+    String,
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+);
+
 /// Read the stored board back with its values, so a placement can be judged.
 pub fn load_board(conn: &Connection, session_id: &str) -> ApiResult<Option<OrderBoard>> {
-    let row: Option<(String, f64, String, String, String, Option<String>)> = conn
+    let row: Option<OrderStateRow> = conn
         .query_row(
-            "SELECT anchor_item_id, anchor_value, pool, left_ids, right_ids, pending
+            "SELECT anchor_item_id, anchor_value, pool, left_ids, right_ids, pending, placed_by
              FROM order_state WHERE session_id = ?1",
             params![session_id],
             |row| {
@@ -570,11 +616,12 @@ pub fn load_board(conn: &Connection, session_id: &str) -> ApiResult<Option<Order
                     row.get(3)?,
                     row.get(4)?,
                     row.get(5)?,
+                    row.get(6)?,
                 ))
             },
         )
         .optional()?;
-    let Some((anchor_item_id, anchor_value, pool, left, right, pending)) = row else {
+    let Some((anchor_item_id, anchor_value, pool, left, right, pending, placed_by)) = row else {
         return Ok(None);
     };
 
@@ -596,6 +643,10 @@ pub fn load_board(conn: &Connection, session_id: &str) -> ApiResult<Option<Order
         pending: pending
             .as_deref()
             .and_then(|raw| serde_json::from_str(raw).ok()),
+        placed_by: placed_by
+            .as_deref()
+            .and_then(|raw| serde_json::from_str(raw).ok())
+            .unwrap_or_default(),
     }))
 }
 
@@ -615,11 +666,12 @@ pub fn save_board(conn: &Connection, session_id: &str, board: &OrderBoard) -> Ap
         Some(pending) => serde_json::to_string(pending).map_err(ApiError::from)?,
         None => "null".to_string(),
     };
+    let placed_by = serde_json::to_string(&board.placed_by).map_err(ApiError::from)?;
 
     conn.execute(
         "INSERT OR REPLACE INTO order_state
-            (session_id, anchor_item_id, anchor_value, pool, left_ids, right_ids, pending)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            (session_id, anchor_item_id, anchor_value, pool, left_ids, right_ids, pending, placed_by)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         params![
             session_id,
             board.anchor.item_id,
@@ -627,7 +679,8 @@ pub fn save_board(conn: &Connection, session_id: &str, board: &OrderBoard) -> Ap
             ids(&board.pool)?,
             ids(&board.left)?,
             ids(&board.right)?,
-            pending
+            pending,
+            placed_by
         ],
     )
     .map_err(ApiError::from)?;

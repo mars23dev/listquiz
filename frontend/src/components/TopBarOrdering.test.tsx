@@ -69,3 +69,51 @@ describe('order bar keyboard operation', () => {
     expect(handlers.onCancelPlacement).toHaveBeenCalled();
   });
 });
+
+describe('order bar team-colored borders', () => {
+  const TEAMS = [
+    { id: 'team_1', primaryHex: '#06b6d4' },
+    { id: 'team_2', primaryHex: '#f43f5e' },
+  ];
+  const PLACED: QuizItem = {
+    id: 'x',
+    name: 'Placed',
+    value: '10',
+    numericValue: 10,
+    placedByTeamId: 'team_2',
+  };
+
+  it('frames a placed item with the placing team color', () => {
+    renderBar({ leftItems: [PLACED], teams: TEAMS, hasPendingItem: false });
+    const slot = screen.getByRole('button', { name: /holds Placed/i });
+    expect(slot.style.borderColor).toBe('rgb(244, 63, 94)');
+  });
+
+  it('frames the pending preview with the active team color', () => {
+    renderBar({
+      pendingItem: { item: { id: 'a', name: 'Alpha', value: '', numericValue: 0 }, side: 'left', slotIndex: 0 },
+      teams: TEAMS,
+      activeTeamId: 'team_1',
+    });
+    const slot = screen.getByRole('button', { name: /holds Alpha/i });
+    expect(slot.style.borderColor).toBe('rgb(6, 182, 212)');
+  });
+
+  it('uses a neutral border when values are revealed', () => {
+    renderBar({ leftItems: [PLACED], teams: TEAMS, neutralBorders: true, hasPendingItem: false });
+    const slot = screen.getByRole('button', { name: /holds Placed/i });
+    expect(slot.style.borderColor).toBe('rgb(71, 85, 105)');
+  });
+
+  it('keeps the team color for the gamemaster who merely sees values', () => {
+    renderBar({
+      leftItems: [PLACED],
+      teams: TEAMS,
+      revealAllValues: true,
+      neutralBorders: false,
+      hasPendingItem: false,
+    });
+    const slot = screen.getByRole('button', { name: /holds Placed/i });
+    expect(slot.style.borderColor).toBe('rgb(244, 63, 94)');
+  });
+});

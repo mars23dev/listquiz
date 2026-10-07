@@ -25,6 +25,8 @@ export interface QuizItem {
   hint?: string;
   iconName?: string;
   customIconUrl?: string;
+  /** The team that placed this item on the Order bar, if any (US2). */
+  placedByTeamId?: string | null;
 }
 
 export interface QuizCategory {

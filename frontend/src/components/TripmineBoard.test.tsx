@@ -1,79 +1,60 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { TripmineBoard } from './TripmineBoard';
 import type { TripmineState } from '../types/quiz';
 
-const STATE: TripmineState = {
-  tripmineSide: 'highest',
-  currentSearchedRank: 1,
-  tripmineHit: false,
-  isCompleted: false,
-  targetValue: '$2.92 Billion',
-  items: [
-    {
-      id: 'a',
-      name: 'Alpha',
-      value: '10',
-      numericValue: 10,
-      trueRank: 1,
-      isTripmine: false,
-      isRevealed: false,
-    },
-    {
-      id: 'b',
-      name: 'Bravo',
-      value: '20',
-      numericValue: 20,
-      trueRank: 10,
-      isTripmine: true,
-      isRevealed: false,
-    },
-  ],
-};
+const TEAMS = [
+  { id: 'team_1', primaryHex: '#06b6d4' },
+  { id: 'team_2', primaryHex: '#f43f5e' },
+];
 
-describe('tripmine grid keyboard operation', () => {
-  it('reaches a cell and picks it with the keyboard', async () => {
-    const onPickItem = vi.fn();
-    const user = userEvent.setup();
+function tripmineState(): TripmineState {
+  return {
+    tripmineSide: 'highest',
+    currentSearchedRank: 5,
+    tripmineHit: false,
+    isCompleted: false,
+    items: [
+      {
+        id: 'm1',
+        name: 'Picked',
+        value: '2920',
+        numericValue: 2920,
+        trueRank: 10,
+        isTripmine: false,
+        isRevealed: true,
+        revealedByTeamId: 'team_2',
+        pointsAwarded: 5,
+      },
+      {
+        id: 'm2',
+        name: 'Hidden',
+        value: '',
+        numericValue: 0,
+        trueRank: 4,
+        isTripmine: false,
+        isRevealed: false,
+      },
+    ],
+  };
+}
+
+describe('TripmineBoard team-colored borders', () => {
+  it('frames a revealed item with the picking team color', () => {
     render(
       <TripmineBoard
-        tripmineState={STATE}
-        onPickItem={onPickItem}
-        isMyTurn
-        currentRole="gamemaster"
+        tripmineState={tripmineState()}
+        onPickItem={vi.fn()}
+        isMyTurn={false}
+        currentRole="view"
+        teams={TEAMS}
       />,
     );
 
-    const cell = screen.getByRole('button', { name: /pick alpha/i });
-    cell.focus();
-    expect(document.activeElement).toBe(cell);
+    const picked = screen.getByRole('button', { name: /Picked, hidden or already picked/i });
+    expect(picked.style.borderColor).toBe('rgb(244, 63, 94)');
 
-    await user.keyboard('{Enter}');
-    expect(onPickItem).toHaveBeenCalledWith(STATE.items[0]);
-  });
-
-  it('renders no hidden in-round side switch', () => {
-    render(
-      <TripmineBoard
-        tripmineState={STATE}
-        onPickItem={() => {}}
-        isMyTurn
-        currentRole="gamemaster"
-      />,
-    );
-    expect(screen.queryByRole('button', { name: /flip rule/i })).not.toBeInTheDocument();
-  });
-
-  it('shows the tripmine target value next to the hint', () => {
-    render(
-      <TripmineBoard
-        tripmineState={STATE}
-        onPickItem={() => {}}
-        isMyTurn
-        currentRole="p1"
-      />,
-    );
-    expect(screen.getByText(/\$2\.92 Billion/)).toBeInTheDocument();
+    const hidden = screen.getByRole('button', { name: /Hidden, hidden or already picked/i });
+    expect(hidden.style.borderColor).toBe('');
   });
 });

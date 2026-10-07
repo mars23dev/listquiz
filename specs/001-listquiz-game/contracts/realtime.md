@@ -3,6 +3,11 @@
 > **Amended by `specs/002-fix-play-findings/contracts/realtime-amendment.md`:** the rule below that
 > "player and spectator views have no controls" is narrowed — the player role that owns the team on
 > turn may act, and the Tripmine view gains `targetValue`.
+>
+> **Amended by `specs/004-fix-session-feedback/contracts/session-feedback.md`:** the Order view gains
+> `order[].placedBy` and the Tripmine view gains `tripmine.items[].pickedBy` (the acting team, public);
+> when `revealValues` is set the Order bar is sent in its correct arrangement with an empty pool; and
+> cues are driven from the reflected event (the client diffs consecutive revisions).
 
 ## Why revisions instead of pushed state
 

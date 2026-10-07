@@ -21,6 +21,8 @@ export interface OrderItem {
   /** Null for a player until the gamemaster reveals values (FR-027). */
   value: string | null;
   revealed: boolean;
+  /** The team that placed this item, or null while it is in the pool (US2). */
+  placedBy: string | null;
 }
 
 export interface AnchorItem {
@@ -56,6 +58,8 @@ export interface TripmineItem {
   /** Only true for an item this view is allowed to know the answer for. */
   isTripmine: boolean;
   pointsAwarded: number | null;
+  /** The team that picked this item, or null while it is hidden (US2). */
+  pickedBy: string | null;
 }
 
 export interface TripmineView {

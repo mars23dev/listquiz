@@ -36,6 +36,7 @@ fn board_with(anchor_value: f64, left: &[f64], right: &[f64], pool: &[f64]) -> O
         left: left.iter().map(|v| make(*v, "left")).collect(),
         right: right.iter().map(|v| make(*v, "right")).collect(),
         pending: None,
+        placed_by: std::collections::BTreeMap::new(),
     }
 }
 
@@ -473,6 +474,71 @@ fn return_to_pool_refuses_an_item_that_is_not_on_the_bar() {
     let board = board_with(50.0, &[10.0], &[], &[30.0]);
     let error = return_to_pool(&board, "pool_30").expect_err("it is in the pool already");
     assert_eq!(error.code, ErrorCode::NotReady);
+}
+
+// US3 (feature 004) --------------------------------------------------------
+
+fn value(item_id: &str, numeric: f64) -> ListItemValue {
+    ListItemValue {
+        item_id: item_id.to_string(),
+        name: item_id.to_string(),
+        display: numeric.to_string(),
+        numeric,
+    }
+}
+
+#[test]
+fn reveal_arrangement_puts_lower_values_left_and_higher_right() {
+    let anchor = value("anchor", 5.0);
+    let items = vec![
+        value("a", 3.0),
+        value("b", 7.0),
+        value("c", 1.0),
+        value("d", 9.0),
+        value("e", 5.0),
+    ];
+
+    let (left, right) = arrange_revealed_order(&anchor, &items);
+
+    assert_eq!(
+        left.iter().map(|i| i.item_id.as_str()).collect::<Vec<_>>(),
+        ["c", "a", "e"],
+        "values <= the anchor, ascending"
+    );
+    assert_eq!(
+        right.iter().map(|i| i.item_id.as_str()).collect::<Vec<_>>(),
+        ["b", "d"],
+        "values > the anchor, ascending"
+    );
+}
+
+#[test]
+fn reveal_arrangement_keeps_input_order_for_ties() {
+    let anchor = value("anchor", 5.0);
+    let items = vec![value("first", 4.0), value("second", 4.0)];
+
+    let (left, _) = arrange_revealed_order(&anchor, &items);
+
+    assert_eq!(
+        left.iter().map(|i| i.item_id.as_str()).collect::<Vec<_>>(),
+        ["first", "second"],
+        "a stable sort keeps ties in the order they were handed in"
+    );
+}
+
+#[test]
+fn reveal_arrangement_caps_each_side_at_the_bar_limit() {
+    let anchor = value("anchor", 100.0);
+    let items: Vec<ListItemValue> = (0..7).map(|n| value(&format!("i{n}"), n as f64)).collect();
+
+    let (left, right) = arrange_revealed_order(&anchor, &items);
+
+    assert_eq!(
+        left.len(),
+        BAR_SLOTS_PER_SIDE,
+        "no side may overflow the bar"
+    );
+    assert!(right.is_empty());
 }
 
 // T065, FR-032 -------------------------------------------------------------

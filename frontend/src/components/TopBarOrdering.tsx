@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { QuizItem, DragItemPayload } from '../types/quiz';
 import { ItemIcon } from './ItemIcon';
 import { MoveHorizontal, Check, X, AlertTriangle } from 'lucide-react';
-import { playSlideSound } from '../utils/audio';
+import { NEUTRAL_BORDER, teamBorderStyle, type TeamColorSource } from '../utils/teamColors';
 
 interface TopBarOrderingProps {
   anchorItem: QuizItem;
@@ -13,6 +13,10 @@ interface TopBarOrderingProps {
   onDropToPending: (item: QuizItem, side: 'left' | 'right', slotIndex: number) => void;
   /** Keyboard path for choosing a slot for the already selected item (FR-028). */
   onChooseSlot: (side: 'left' | 'right', slotIndex: number) => void;
+  /** Teams for coloring a placed item's border (US2). */
+  teams?: TeamColorSource[];
+  /** The team on turn, used to color the pending preview (US2). */
+  activeTeamId?: string | null;
   /**
    * True while the server holds a pending item awaiting a slot. Kept apart from
    * `pendingItem`, which is only set once a slot has been picked, so the slot
@@ -27,6 +31,10 @@ interface TopBarOrderingProps {
   onDragStartItem: (item: QuizItem) => void;
   onDragEndItem: () => void;
   revealAllValues: boolean;
+  /** True when the session's reveal flag is set: borders go neutral and the bar is
+   * the server's arranged layout. Distinct from `revealAllValues`, which is also
+   * true for the gamemaster during normal play. */
+  neutralBorders?: boolean;
   feedbackMessage?: string | null;
 }
 
@@ -37,6 +45,8 @@ export const TopBarOrdering: React.FC<TopBarOrderingProps> = ({
   pendingItem,
   onDropToPending,
   onChooseSlot,
+  teams = [],
+  activeTeamId = null,
   hasPendingItem = false,
   interactive = true,
   onConfirmPlacement,
@@ -45,6 +55,7 @@ export const TopBarOrdering: React.FC<TopBarOrderingProps> = ({
   onDragStartItem,
   onDragEndItem,
   revealAllValues,
+  neutralBorders = false,
   feedbackMessage,
 }) => {
   // Currently hovered slot while dragging
@@ -145,7 +156,6 @@ export const TopBarOrdering: React.FC<TopBarOrderingProps> = ({
     try {
       const payload: DragItemPayload = JSON.parse(dataStr);
       onDropToPending(payload.item, targetSide, targetSlotIndex);
-      playSlideSound();
     } catch {
       // Ignored
     }
@@ -159,7 +169,6 @@ export const TopBarOrdering: React.FC<TopBarOrderingProps> = ({
     };
     e.dataTransfer.setData('application/json', JSON.stringify(payload));
     e.dataTransfer.effectAllowed = 'move';
-    playSlideSound();
   };
 
   return (
@@ -220,6 +229,15 @@ export const TopBarOrdering: React.FC<TopBarOrderingProps> = ({
               const isPending = pendingItem && item && item.id === pendingItem.item.id;
               // Check if currently dragging so confirm button is hidden while dragging
               const isBeingDragged = draggingItem && item && item.id === draggingItem.id;
+
+              // The border names the team that placed the item; the pending preview
+              // is framed by the team on turn. On reveal every border goes neutral.
+              const ownedTeamId = isPending ? activeTeamId : item?.placedByTeamId ?? null;
+              const borderStyle = neutralBorders
+                ? { borderColor: NEUTRAL_BORDER }
+                : ownedTeamId
+                  ? teamBorderStyle(ownedTeamId, teams)
+                  : undefined;
 
               const slotClassName = `group relative flex flex-col justify-between rounded-xl transition-all duration-150 select-none p-1.5 text-center border ${
                 isPending
@@ -291,6 +309,7 @@ export const TopBarOrdering: React.FC<TopBarOrderingProps> = ({
                   type="button"
                   disabled={!interactive}
                   aria-disabled={!canPlaceHere}
+                  style={borderStyle}
                   aria-label={
                     canPlaceHere
                       ? `Place the selected item in left slot ${slotIdx + 1}`
@@ -339,6 +358,15 @@ export const TopBarOrdering: React.FC<TopBarOrderingProps> = ({
               const isPending = pendingItem && item && item.id === pendingItem.item.id;
               // Check if currently dragging so confirm button is hidden while dragging
               const isBeingDragged = draggingItem && item && item.id === draggingItem.id;
+
+              // The border names the team that placed the item; the pending preview
+              // is framed by the team on turn. On reveal every border goes neutral.
+              const ownedTeamId = isPending ? activeTeamId : item?.placedByTeamId ?? null;
+              const borderStyle = neutralBorders
+                ? { borderColor: NEUTRAL_BORDER }
+                : ownedTeamId
+                  ? teamBorderStyle(ownedTeamId, teams)
+                  : undefined;
 
               const slotClassName = `group relative flex flex-col justify-between rounded-xl transition-all duration-150 select-none p-1.5 text-center border ${
                 isPending
@@ -408,6 +436,7 @@ export const TopBarOrdering: React.FC<TopBarOrderingProps> = ({
                   type="button"
                   disabled={!interactive}
                   aria-disabled={!canPlaceHere}
+                  style={borderStyle}
                   aria-label={
                     canPlaceHere
                       ? `Place the selected item in right slot ${slotIdx + 1}`

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Layers, ShieldCheck, Tv, User } from 'lucide-react';
 import { ApiError, postSessionAction, unlockSession } from '../api/client';
 import { useSessionStream } from '../hooks/useSessionStream';
@@ -8,8 +8,18 @@ import { StageLighting } from '../components/StageLighting';
 import { TopBarOrdering } from '../components/TopBarOrdering';
 import { TripmineBoard } from '../components/TripmineBoard';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { setSoundMuted } from '../utils/audio';
+import {
+  playBonusChime,
+  playChimeSound,
+  playExplosionSound,
+  playFailureSound,
+  playRemoveSound,
+  playSlideSound,
+  setSoundMuted,
+  unlockAudio,
+} from '../utils/audio';
 import { positionForGap } from '../utils/orderBar';
+import { deriveSessionCue } from '../utils/sessionSounds';
 import type {
   QuizItem,
   Team as QuizTeam,
@@ -17,7 +27,7 @@ import type {
   TripmineState as QuizTripmineState,
   UserRole,
 } from '../types/quiz';
-import type { OrderItem, TeamView, TripmineView } from '../types/session';
+import type { OrderItem, SessionState, TeamView, TripmineView } from '../types/session';
 
 interface SessionProps {
   sessionId: string;
@@ -64,6 +74,7 @@ function toQuizItem(item: OrderItem): QuizItem {
     name: item.name,
     value: item.value ?? '',
     numericValue: 0,
+    placedByTeamId: item.placedBy,
   };
 }
 
@@ -93,6 +104,7 @@ function toTripmineItem(
     isTripmine: item.isTripmine,
     isRevealed: picked,
     pointsAwarded: item.pointsAwarded ?? undefined,
+    revealedByTeamId: item.pickedBy ?? undefined,
   };
 }
 
@@ -130,6 +142,49 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
   useEffect(() => {
     setSoundMuted(state?.muted ?? false);
   }, [state?.muted]);
+
+  // US1: unlock audio on the first interaction (pointer or keyboard) so the
+  // server-driven cues are audible; a suspended context produces no sound.
+  useEffect(() => {
+    const unlock = () => unlockAudio();
+    window.addEventListener('pointerdown', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, []);
+
+  // US1: one cue per reflected event, derived by comparing the previous state with
+  // the new one. The first load and any reconnect emit nothing (deriveSessionCue).
+  const previousStateRef = useRef<SessionState | null>(null);
+  useEffect(() => {
+    if (!state) return;
+    const cue = deriveSessionCue(previousStateRef.current, state);
+    previousStateRef.current = state;
+    switch (cue) {
+      case 'slide':
+        playSlideSound();
+        break;
+      case 'chime':
+        playChimeSound();
+        break;
+      case 'failure':
+        playFailureSound();
+        break;
+      case 'explosion':
+        playExplosionSound();
+        break;
+      case 'remove':
+        playRemoveSound();
+        break;
+      case 'bonus':
+        playBonusChime();
+        break;
+      default:
+        break;
+    }
+  }, [state]);
 
   const order = state?.order ?? null;
   const tripmine = state?.tripmine ?? null;
@@ -627,6 +682,8 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
             leftItems={leftItems}
             rightItems={rightItems}
             pendingItem={pendingItem}
+            teams={teams}
+            activeTeamId={onTurnTeamId}
             hasPendingItem={Boolean(order.pending)}
             interactive={canAct}
             onChooseSlot={handleChooseSlot}
@@ -637,6 +694,7 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
             onDragStartItem={setDraggingItem}
             onDragEndItem={() => setDraggingItem(null)}
             revealAllValues={revealAllValues}
+            neutralBorders={state?.revealValues === true}
           />
 
           {isGamemaster && (leftItems.length > 0 || rightItems.length > 0) ? (
@@ -678,6 +736,7 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
             onPickItem={handlePickItem}
             isMyTurn={canAct}
             currentRole={role}
+            teams={teams}
             feedbackMessage={tripmineFeedback}
           />
         </section>

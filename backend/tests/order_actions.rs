@@ -125,14 +125,15 @@ async fn revealing_values_unmasks_them_for_the_player_roles() {
         json!(true),
         "the session carries the flag the views read (FR-024)"
     );
-    let same_item = after["order"]["pool"]
+    let on_bar = after["order"]["left"]
         .as_array()
-        .expect("pool")
+        .expect("left")
         .iter()
+        .chain(after["order"]["right"].as_array().expect("right").iter())
         .find(|item| item["itemId"] == hidden_id)
-        .expect("the same item is still in the pool");
+        .expect("the revealed item is arranged onto the bar (US3)");
     assert!(
-        !same_item["value"].is_null(),
+        !on_bar["value"].is_null(),
         "the very item that was hidden now shows its value to a player"
     );
 }
@@ -160,12 +161,13 @@ async fn the_reveal_also_covers_the_order_bar_and_the_anchor() {
 
     let after = state(&app, &session_id, "p1").await;
     assert!(
-        after["order"]["pool"]
+        after["order"]["left"]
             .as_array()
-            .expect("pool")
+            .expect("left")
             .iter()
+            .chain(after["order"]["right"].as_array().expect("right").iter())
             .all(|item| item["value"].is_string()),
-        "every pool value is revealed"
+        "every revealed value is shown on the arranged bar (US3)"
     );
 }
 
@@ -306,8 +308,8 @@ async fn a_correct_placement_scores_ten_points_and_hands_the_turn_on() {
         .expect("an id")
         .to_string();
 
-    let (status, _) = action(&app, &session_id, &json!({ "action": "reveal_values" })).await;
-    assert_eq!(status, StatusCode::OK);
+    // The gamemaster sees values without revealing, so the pool stays pickable
+    // (revealing would arrange the whole bar, US3).
     let board = state(&app, &session_id, "gamemaster").await;
 
     // The pool item with the lowest value belongs on the left; the bar is empty, so
@@ -395,14 +397,25 @@ async fn a_correct_placement_scores_ten_points_and_hands_the_turn_on() {
         after["order"]["pending"].is_null(),
         "the selection is spent"
     );
+    assert_eq!(
+        after["order"]["left"][0]["placedBy"],
+        json!(on_turn),
+        "the placing team is recorded on the bar item (US2)"
+    );
+    assert!(
+        after["order"]["pool"]
+            .as_array()
+            .expect("pool")
+            .iter()
+            .all(|entry| entry["placedBy"].is_null()),
+        "a pool item carries no placing team"
+    );
 }
 
 #[tokio::test]
 async fn a_wrong_placement_costs_a_heart_and_leaves_the_item_in_the_pool() {
     let (app, session_id) = started_order_session().await;
-    let (status, _) = action(&app, &session_id, &json!({ "action": "reveal_values" })).await;
-    assert_eq!(status, StatusCode::OK);
-
+    // The gamemaster sees values without revealing, so the pool stays pickable.
     let board = state(&app, &session_id, "gamemaster").await;
     let on_turn = board["teams"]
         .as_array()
@@ -494,8 +507,8 @@ async fn a_wrong_placement_costs_a_heart_and_leaves_the_item_in_the_pool() {
 #[tokio::test]
 async fn the_gamemaster_can_return_a_placed_item_to_the_pool() {
     let (app, session_id) = started_order_session().await;
-    let (status, _) = action(&app, &session_id, &json!({ "action": "reveal_values" })).await;
-    assert_eq!(status, StatusCode::OK);
+    // The gamemaster sees values without revealing, so the pool stays pickable
+    // (revealing would arrange the whole bar, US3).
     let board = state(&app, &session_id, "gamemaster").await;
     let on_turn = board["teams"]
         .as_array()
@@ -533,6 +546,11 @@ async fn the_gamemaster_can_return_a_placed_item_to_the_pool() {
 
     let placed = state(&app, &session_id, "gamemaster").await;
     assert_eq!(placed["order"][&side].as_array().expect("side").len(), 1);
+    assert_eq!(
+        placed["order"][&side][0]["placedBy"],
+        json!(on_turn),
+        "the placing team is recorded before the return (US2)"
+    );
 
     let (status, body) = action(
         &app,
@@ -554,6 +572,15 @@ async fn the_gamemaster_can_return_a_placed_item_to_the_pool() {
             .iter()
             .any(|entry| entry["itemId"] == json!(item)),
         "and back in the pool"
+    );
+    assert!(
+        after["order"]["pool"]
+            .as_array()
+            .expect("pool")
+            .iter()
+            .filter(|entry| entry["itemId"] == json!(item))
+            .all(|entry| entry["placedBy"].is_null()),
+        "the returned item's placing team is cleared (US2)"
     );
     let team = after["teams"]
         .as_array()
@@ -774,5 +801,45 @@ async fn a_chosen_slot_out_of_range_is_refused() {
             .expect("the team")["score"],
         json!(0),
         "a refused slot scores nothing"
+    );
+}
+
+#[tokio::test]
+async fn revealing_arranges_the_bar_and_scores_nothing() {
+    let (app, session_id) = started_order_session().await;
+    let before = state(&app, &session_id, "gamemaster").await;
+    let scores_before: Vec<Value> = before["teams"]
+        .as_array()
+        .expect("teams")
+        .iter()
+        .map(|team| team["score"].clone())
+        .collect();
+
+    let (status, _) = action(&app, &session_id, &json!({ "action": "reveal_values" })).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let after = state(&app, &session_id, "gamemaster").await;
+    let order = &after["order"];
+    assert!(
+        order["pool"].as_array().expect("pool").is_empty(),
+        "the reveal arranges every pool item onto the bar (US3)"
+    );
+    let left = order["left"].as_array().expect("left");
+    let right = order["right"].as_array().expect("right");
+    assert_eq!(
+        left.len() + right.len(),
+        10,
+        "all ten candidates sit on the bar"
+    );
+
+    let scores_after: Vec<Value> = after["teams"]
+        .as_array()
+        .expect("teams")
+        .iter()
+        .map(|team| team["score"].clone())
+        .collect();
+    assert_eq!(
+        scores_before, scores_after,
+        "revealing values awards no points (FR-012)"
     );
 }

@@ -29,6 +29,16 @@ export function getSoundMuted(): boolean {
   return isMuted;
 }
 
+/**
+ * Create and resume the audio context from inside a user gesture. Cues now fire
+ * from the reflected server event, which is not inside the gesture that caused it,
+ * so the view calls this once on the first pointer or key interaction; without it
+ * the context stays suspended and nothing is audible.
+ */
+export function unlockAudio() {
+  getAudioContext();
+}
+
 export function playSnapSound() {
   if (isMuted) return;
   const ctx = getAudioContext();

@@ -2,7 +2,6 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { QuizItem, DragItemPayload } from '../types/quiz';
 import { ItemIcon } from './ItemIcon';
-import { playSlideSound } from '../utils/audio';
 
 interface MiddleItemGridProps {
   items: QuizItem[]; // The 10 pool items
@@ -38,7 +37,6 @@ export const MiddleItemGrid: React.FC<MiddleItemGridProps> = ({
     };
     e.dataTransfer.setData('application/json', JSON.stringify(payload));
     e.dataTransfer.effectAllowed = 'copyMove';
-    playSlideSound();
   };
 
   const handleDragEnd = () => {

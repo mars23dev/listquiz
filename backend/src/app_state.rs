@@ -225,6 +225,9 @@ pub struct OrderItem {
     pub name: String,
     pub value: Option<String>,
     pub revealed: bool,
+    /// The team that placed this item on the bar, or `null` while it is in the pool
+    /// (feature 004, US2). Public: the room watched the placement.
+    pub placed_by: Option<String>,
 }
 
 /// The anchor is public by design: FR-026 says it *must* show its value.
@@ -272,6 +275,9 @@ pub struct TripmineItem {
     /// The answer key. Only `true` for an item the player has already revealed.
     pub is_tripmine: bool,
     pub points_awarded: Option<i32>,
+    /// The team that picked this item, or `null` while it is still hidden
+    /// (feature 004, US2). Public once revealed.
+    pub picked_by: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -436,6 +442,11 @@ pub fn redact(state: &SessionState, role: UserRole) -> SessionState {
                     true_rank: if revealed { item.true_rank } else { None },
                     is_tripmine: if revealed { item.is_tripmine } else { false },
                     points_awarded: if revealed { item.points_awarded } else { None },
+                    picked_by: if revealed {
+                        item.picked_by.clone()
+                    } else {
+                        None
+                    },
                 }
             })
             .collect(),
@@ -458,6 +469,7 @@ fn reveal_order_item(item: &OrderItem, show_values: bool) -> OrderItem {
             None
         },
         revealed: show_values,
+        placed_by: item.placed_by.clone(),
     }
 }
 
@@ -479,6 +491,7 @@ mod tests {
             name: name.to_string(),
             value: Some(value.to_string()),
             revealed: true,
+            placed_by: None,
         }
     }
 
@@ -572,6 +585,7 @@ mod tests {
                     true_rank: Some(10),
                     is_tripmine: true,
                     points_awarded: None,
+                    picked_by: None,
                 },
                 TripmineItem {
                     item_id: "m2".to_string(),
@@ -581,6 +595,7 @@ mod tests {
                     true_rank: Some(4),
                     is_tripmine: false,
                     points_awarded: None,
+                    picked_by: None,
                 },
             ],
         });
@@ -871,6 +886,39 @@ mod tests {
         }
         assert_eq!(UserRole::parse("admin"), None);
         assert_eq!(UserRole::parse("P1"), None);
+    }
+
+    #[test]
+    fn the_placing_team_is_public_and_pool_items_have_none() {
+        let mut state = order_state();
+        state
+            .order
+            .as_mut()
+            .expect("an order board")
+            .left
+            .iter_mut()
+            .for_each(|item| item.placed_by = Some("team_2".to_string()));
+
+        let for_player = redact(&state, UserRole::P1);
+        let order = for_player.order.expect("an order view");
+        assert_eq!(order.left[0].placed_by.as_deref(), Some("team_2"));
+        assert!(
+            order.pool.iter().all(|item| item.placed_by.is_none()),
+            "a pool item carries no placing team"
+        );
+    }
+
+    #[test]
+    fn the_picking_team_is_exposed_only_once_revealed() {
+        let mut state = tripmine_state();
+        let view = state.tripmine.as_mut().expect("a tripmine view");
+        view.items[0].picked_by = Some("team_1".to_string());
+        view.items[1].picked_by = Some("team_2".to_string());
+
+        let for_player = redact(&state, UserRole::P1);
+        let items = for_player.tripmine.expect("a tripmine view").items;
+        assert_eq!(items[0].picked_by.as_deref(), Some("team_1"), "revealed");
+        assert_eq!(items[1].picked_by, None, "still hidden");
     }
 }
 

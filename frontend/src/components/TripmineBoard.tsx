@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { TripmineState, TripmineItem, Team, UserRole } from '../types/quiz';
 import { ItemIcon } from './ItemIcon';
+import { teamBorderStyle, type TeamColorSource } from '../utils/teamColors';
 import {
   Bomb,
   Target,
@@ -21,6 +22,8 @@ interface TripmineBoardProps {
   isMyTurn: boolean;
   activeTeam?: Team;
   currentRole: UserRole;
+  /** Teams for coloring a revealed item's border (US2). */
+  teams?: TeamColorSource[];
   feedbackMessage?: string | null;
 }
 
@@ -30,6 +33,7 @@ export const TripmineBoard: React.FC<TripmineBoardProps> = ({
   isMyTurn,
   activeTeam,
   currentRole,
+  teams = [],
   feedbackMessage,
 }) => {
   const isGamemaster = currentRole === 'gamemaster';
@@ -158,12 +162,18 @@ export const TripmineBoard: React.FC<TripmineBoardProps> = ({
           const isTarget = item.trueRank === currentSearchedRank;
           const canClick = isMyTurn && !isRevealed && !isCompleted;
 
+          // The border names the team that picked the item (US2); mine/safe stays on
+          // the rank badge, the icon, and the point text (FR-009).
+          const pickedBy = isRevealed ? item.revealedByTeamId : undefined;
+          const borderStyle = pickedBy ? teamBorderStyle(pickedBy, teams) : undefined;
+
           return (
             <motion.button
               key={item.id}
               layout
               type="button"
               disabled={!canClick}
+              style={borderStyle}
               aria-label={
                 canClick ? `Pick ${item.name}` : `${item.name}, hidden or already picked`
               }

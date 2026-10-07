@@ -143,6 +143,7 @@ fn read_order_items(
     conn: &Connection,
     column_id: &str,
     ids: &[String],
+    placed_by: &std::collections::BTreeMap<String, String>,
 ) -> ApiResult<Vec<crate::app_state::OrderItem>> {
     if ids.is_empty() {
         return Ok(Vec::new());
@@ -163,6 +164,7 @@ fn read_order_items(
                         value: row.get::<_, Option<String>>(1)?,
                         // Always populated here; redaction happens later.
                         revealed: true,
+                        placed_by: placed_by.get(id).cloned(),
                     })
                 },
             )
@@ -178,13 +180,24 @@ fn parse_ids(raw: &str) -> Vec<String> {
     serde_json::from_str::<Vec<String>>(raw).unwrap_or_default()
 }
 
+/// The `order_state` columns the view is rebuilt from.
+type OrderStateRow = (
+    String,
+    f64,
+    String,
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+);
+
 fn read_order(
     conn: &Connection,
     session_id: &str,
 ) -> ApiResult<Option<crate::app_state::OrderView>> {
-    let row: Option<(String, f64, String, String, String, Option<String>)> = conn
+    let row: Option<OrderStateRow> = conn
         .query_row(
-            "SELECT anchor_item_id, anchor_value, pool, left_ids, right_ids, pending
+            "SELECT anchor_item_id, anchor_value, pool, left_ids, right_ids, pending, placed_by
              FROM order_state WHERE session_id = ?1",
             params![session_id],
             |row| {
@@ -195,13 +208,18 @@ fn read_order(
                     row.get(3)?,
                     row.get(4)?,
                     row.get(5)?,
+                    row.get(6)?,
                 ))
             },
         )
         .optional()?;
-    let Some((anchor_item_id, anchor_value, pool, left, right, pending)) = row else {
+    let Some((anchor_item_id, anchor_value, pool, left, right, pending, placed_by)) = row else {
         return Ok(None);
     };
+    let placed_by: std::collections::BTreeMap<String, String> = placed_by
+        .as_deref()
+        .and_then(|raw| serde_json::from_str(raw).ok())
+        .unwrap_or_default();
 
     let column_id: Option<String> = conn
         .query_row(
@@ -235,19 +253,108 @@ fn read_order(
         )
         .optional()?;
 
+    let anchor = anchor.unwrap_or(crate::app_state::AnchorItem {
+        item_id: anchor_item_id.clone(),
+        name: String::new(),
+        value: format_value(anchor_value),
+    });
+
+    // On reveal (US3) the bar is shown in its correct order: every bar and pool item
+    // is sorted around the anchor and the pool is emptied. This is view-only — the
+    // stored board and the scores are never touched, so the reveal scores nothing.
+    let revealed = conn
+        .query_row(
+            "SELECT reveal_values FROM game_session WHERE id = ?1",
+            params![session_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()?
+        .unwrap_or(0)
+        != 0;
+
+    let (pool_items, left_items, right_items) = if revealed {
+        let mut all = Vec::new();
+        for id in parse_ids(&pool)
+            .into_iter()
+            .chain(parse_ids(&left))
+            .chain(parse_ids(&right))
+        {
+            if let Some(value) = read_value_item(conn, &column_id, &id)? {
+                all.push(value);
+            }
+        }
+        let anchor_value_item = crate::modules::sessions::round_state::ListItemValue {
+            item_id: anchor.item_id.clone(),
+            name: anchor.name.clone(),
+            display: anchor.value.clone(),
+            numeric: anchor_value,
+        };
+        let (sorted_left, sorted_right) =
+            crate::modules::order_round::arrange_revealed_order(&anchor_value_item, &all);
+        (
+            Vec::new(),
+            to_order_items(sorted_left, &placed_by),
+            to_order_items(sorted_right, &placed_by),
+        )
+    } else {
+        (
+            read_order_items(conn, &column_id, &parse_ids(&pool), &placed_by)?,
+            read_order_items(conn, &column_id, &parse_ids(&left), &placed_by)?,
+            read_order_items(conn, &column_id, &parse_ids(&right), &placed_by)?,
+        )
+    };
+
     Ok(Some(crate::app_state::OrderView {
-        anchor: anchor.unwrap_or(crate::app_state::AnchorItem {
-            item_id: anchor_item_id,
-            name: String::new(),
-            value: format_value(anchor_value),
-        }),
-        pool: read_order_items(conn, &column_id, &parse_ids(&pool))?,
-        left: read_order_items(conn, &column_id, &parse_ids(&left))?,
-        right: read_order_items(conn, &column_id, &parse_ids(&right))?,
+        anchor,
+        pool: pool_items,
+        left: left_items,
+        right: right_items,
         pending: pending
             .as_deref()
             .and_then(|raw| serde_json::from_str(raw).ok()),
     }))
+}
+
+/// One item with its value, for arranging the revealed bar (US3).
+fn read_value_item(
+    conn: &Connection,
+    column_id: &str,
+    id: &str,
+) -> ApiResult<Option<crate::modules::sessions::round_state::ListItemValue>> {
+    conn.query_row(
+        "SELECT i.name, v.display, v.numeric
+         FROM item i
+         LEFT JOIN item_value v ON v.item_id = i.id AND v.column_id = ?2
+         WHERE i.id = ?1",
+        params![id, column_id],
+        |row| {
+            Ok(crate::modules::sessions::round_state::ListItemValue {
+                item_id: id.to_string(),
+                name: row.get::<_, Option<String>>(0)?.unwrap_or_default(),
+                display: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
+                numeric: row.get::<_, Option<f64>>(2)?.unwrap_or(0.0),
+            })
+        },
+    )
+    .optional()
+    .map_err(ApiError::from)
+}
+
+/// Turn an arranged list into view items, carrying the placing team (US2).
+fn to_order_items(
+    items: Vec<crate::modules::sessions::round_state::ListItemValue>,
+    placed_by: &std::collections::BTreeMap<String, String>,
+) -> Vec<crate::app_state::OrderItem> {
+    items
+        .into_iter()
+        .map(|item| crate::app_state::OrderItem {
+            placed_by: placed_by.get(&item.item_id).cloned(),
+            item_id: item.item_id,
+            name: item.name,
+            value: Some(item.display),
+            revealed: true,
+        })
+        .collect()
 }
 
 fn read_tripmine(
@@ -325,6 +432,7 @@ fn read_tripmine(
             true_rank: Some(slot.true_rank),
             is_tripmine: slot.is_tripmine,
             points_awarded: slot.points_awarded,
+            picked_by: slot.revealed_by,
         });
     }
 
