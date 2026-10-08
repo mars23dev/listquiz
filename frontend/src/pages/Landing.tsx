@@ -1,7 +1,7 @@
 interface LandingProps {
   onNavigateToLists: () => void;
   onNavigateToSetup: () => void;
-  onNavigateToQuick: (gameType: 'ORDER' | 'TRIPMINE') => void;
+  onNavigateToQuick: (gameType: 'ORDER' | 'TRIPMINE' | 'CONNECT') => void;
 }
 
 export function Landing({ onNavigateToLists, onNavigateToSetup, onNavigateToQuick }: LandingProps) {
@@ -94,6 +94,13 @@ export function Landing({ onNavigateToLists, onNavigateToSetup, onNavigateToQuic
             className="rounded-lg border border-emerald-400/60 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-200 hover:bg-emerald-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
           >
             Tripmine
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigateToQuick('CONNECT')}
+            className="rounded-lg border border-emerald-400/60 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-200 hover:bg-emerald-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+          >
+            Connect
           </button>
         </div>
       </div>

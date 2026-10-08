@@ -132,6 +132,19 @@ describe('App shell', () => {
     expect(screen.queryByRole('button', { name: /gamemaster/i })).not.toBeInTheDocument();
   });
 
+  it('offers a Connect quick game and starts it (feature 018)', async () => {
+    render(<App />);
+
+    // The landing page offers all three quick game types.
+    expect(screen.getByRole('button', { name: /^tripmine$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^connect$/i })).toBeInTheDocument();
+
+    screen.getByRole('button', { name: /^connect$/i }).click();
+
+    await screen.findByText('lq-quick01');
+    expect(window.location.pathname).toBe('/lq-quick01/p1');
+  });
+
   it('uses history paths rather than hash fragments', async () => {
     render(<App />);
 

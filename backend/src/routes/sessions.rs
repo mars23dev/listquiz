@@ -683,7 +683,11 @@ pub async fn create_quick_session(
     Json(request): Json<QuickSessionRequest>,
 ) -> ApiResult<(StatusCode, Json<CreateSessionResponse>)> {
     let session_id = state.with_db(|conn| {
-        let body = quick_game::build_request(&request.game_type, &default_lists::DEFAULT_LISTS)?;
+        let body = quick_game::build_request(
+            &request.game_type,
+            &default_lists::DEFAULT_LISTS,
+            &mut rand::rng(),
+        )?;
         let session_id = sessions::create_session(conn, &body)?;
         // Start the single round at once so the game is playable immediately.
         sessions::advance_round(conn, &session_id)?;

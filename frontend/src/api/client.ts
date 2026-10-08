@@ -101,7 +101,7 @@ export function createSession(body: CreateSessionRequest): Promise<CreateSession
 
 /** Start a one-team quick game of the chosen type (feature 005, US5). */
 export function createQuickSession(
-  gameType: 'ORDER' | 'TRIPMINE',
+  gameType: 'ORDER' | 'TRIPMINE' | 'CONNECT',
 ): Promise<CreateSessionResponse> {
   return request<CreateSessionResponse>('/api/sessions/quick', {
     method: 'POST',

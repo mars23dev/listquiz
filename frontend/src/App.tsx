@@ -66,7 +66,7 @@ export default function App() {
   // US5 (005): a quick game is created then opened straight in the player view;
   // no gamemaster link is ever offered.
   const startQuickGame = useCallback(
-    (gameType: 'ORDER' | 'TRIPMINE') => {
+    (gameType: 'ORDER' | 'TRIPMINE' | 'CONNECT') => {
       createQuickSession(gameType)
         .then((created) => navigate(`/${created.sessionId}/p1`))
         .catch(() => {

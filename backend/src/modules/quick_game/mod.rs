@@ -26,25 +26,28 @@ fn required_items(game_type: QuizType) -> usize {
     }
 }
 
-/// Build the create-session request for a quick game of `game_type`, choosing the
-/// first default list whose size fits. Errors when no list fits.
+/// Build the create-session request for a quick game of `game_type`, choosing one of
+/// the default lists that fit at random, so repeated quick games vary (feature 018).
 pub fn build_request(
     game_type_raw: &str,
     lists: &[DefaultList],
+    rng: &mut impl rand::Rng,
 ) -> ApiResult<CreateSessionRequest> {
     let game_type = QuizType::parse(game_type_raw)
         .ok_or_else(|| ApiError::bad_request("gameType must be ORDER, TRIPMINE, or CONNECT."))?;
     let needed = required_items(game_type);
 
-    let list = lists
+    let eligible: Vec<&DefaultList> = lists
         .iter()
-        .find(|list| !list.columns.is_empty() && list.items.len() >= needed)
-        .ok_or_else(|| {
-            ApiError::not_ready(format!(
-                "No default list is large enough for a quick {game_type} game.",
-                game_type = game_type.as_str()
-            ))
-        })?;
+        .filter(|list| !list.columns.is_empty() && list.items.len() >= needed)
+        .collect();
+    if eligible.is_empty() {
+        return Err(ApiError::not_ready(format!(
+            "No default list is large enough for a quick {game_type} game.",
+            game_type = game_type.as_str()
+        )));
+    }
+    let list = eligible[rng.random_range(0..eligible.len())];
 
     Ok(CreateSessionRequest {
         gm_password: "quick".to_string(),
