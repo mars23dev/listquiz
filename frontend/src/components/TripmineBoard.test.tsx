@@ -227,5 +227,8 @@ describe('TripmineBoard item count', () => {
     );
 
     expect(screen.getByText('Year')).toBeInTheDocument();
+    expect(screen.queryByText(/VALUE:/i)).not.toBeInTheDocument();
+    // The column name comes first, then the value ("Year 1969").
+    expect(screen.getByLabelText('Year 1969')).toBeInTheDocument();
   });
 });

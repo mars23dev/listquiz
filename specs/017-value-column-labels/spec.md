@@ -8,6 +8,12 @@
 
 **Input**: User description: "regardless of the game mode the name of the value column has to be displayed e.g. If i have the countries by Area in square kilometers i only get the numbers displayed but not what they are meaning no unit etc this should be handled by giving the list column a name and display that name accordingly where the values are presented. I do not want to change the current visibility of the values, but whenever they are visible it should include the column name to now the unit"
 
+## Clarifications
+
+### Session 2026-10-08
+
+- Q: How should the Tripmine value be labelled? → A: As the column name followed by the value (e.g. "Year 1957"), with no "VALUE:" prefix and no colon.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Values show their column name in every game mode (Priority: P1)
@@ -31,7 +37,7 @@ no hidden value becomes visible.
 2. **Given** an Order round, **When** the anchor's value is shown, **Then** the column name is shown with it.
 3. **Given** an Order round where values are hidden from a player, **When** the player views the board, **Then** no value and no column label appear for hidden items (visibility is unchanged).
 4. **Given** a Connect round, **When** the value column is shown, **Then** the column name is shown as the heading of that column.
-5. **Given** a Tripmine round, **When** a value is revealed (or the gamemaster sees all values), **Then** the column name is shown with the value.
+5. **Given** a Tripmine round, **When** a value is revealed (or the gamemaster sees all values), **Then** the value is shown as the column name followed by the value (e.g. "Year 1957"), with no "VALUE:" prefix and no colon.
 6. **Given** the gamemaster's answer key shows values, **When** it is displayed, **Then** the column name is shown there too.
 
 ---
@@ -45,6 +51,7 @@ no hidden value becomes visible.
 - A column name with a unit (e.g. "Height (m)", "Area (km²)") is shown exactly as the list defines it.
 - The label must not reveal a hidden value or the answer.
 - The column name shown must be the one for the round's configured column, not another column of the list.
+- Tripmine formatting: the column name comes first, then the value ("Year 1957"); no "VALUE:" label and no colon.
 
 ## Requirements *(mandatory)*
 
@@ -54,7 +61,7 @@ no hidden value becomes visible.
 - **FR-002**: Value visibility MUST NOT change: hidden values stay hidden and no label is shown for a hidden value.
 - **FR-003**: The label MUST be the name of the round's configured column (the list column chosen for the round).
 - **FR-004**: The Order board MUST show the column name with the values it displays (including the anchor).
-- **FR-005**: The Tripmine board MUST show the column name with the values it displays (revealed values and the gamemaster's full view).
+- **FR-005**: The Tripmine board MUST show each value as the column name followed by the value (e.g. "Year 1957"), with no "VALUE:" prefix and no colon.
 - **FR-006**: The Connect board MUST show the column name with its value column.
 - **FR-007**: The gamemaster's answer key (Connect) and any gamemaster-only value display MUST show the column name too.
 - **FR-008**: Showing the column name MUST NOT reveal a hidden value or otherwise change the game rules.
@@ -80,3 +87,4 @@ no hidden value becomes visible.
 - The column name is displayed as a short label/heading near where the values are shown (for example the heading of the Connect value column, or a label beside the Order bar / Tripmine values), so it reads as the unit/meaning of the numbers.
 - The column name is not a secret; it may be shown even to players, but only where a value is already visible (hidden values keep both hidden).
 - Every shipped and user list column already has a name; no new naming is required.
+- The Tripmine value reads "<column name> <value>" (e.g. "Year 1957"); the other modes keep their existing placement (Order label beside the anchor value, Connect heading above the value column).

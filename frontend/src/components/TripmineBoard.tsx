@@ -65,14 +65,14 @@ export const TripmineBoard: React.FC<TripmineBoardProps> = ({
             {tripmineState.targetValue ? (
               <span
                 className="text-amber-300"
-                aria-label={`Tripmine value ${tripmineState.targetValue}`}
+                aria-label={`${columnName ? `${columnName} ` : ''}${tripmineState.targetValue}`}
               >
-                · VALUE: {tripmineState.targetValue}
-              </span>
-            ) : null}
-            {columnName ? (
-              <span className="ml-1 font-mono text-[10px] uppercase tracking-wider text-slate-400">
-                {columnName}
+                {columnName ? (
+                  <span className="mr-1 font-mono text-[10px] uppercase tracking-wider text-slate-400">
+                    {columnName}
+                  </span>
+                ) : null}
+                {tripmineState.targetValue}
               </span>
             ) : null}
           </div>
