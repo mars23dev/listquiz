@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TopBarOrdering } from './TopBarOrdering';
 import type { QuizItem } from '../types/quiz';
@@ -39,6 +39,18 @@ describe('order bar keyboard operation', () => {
     renderBar({ columnName: 'Area (km²)' });
 
     expect(screen.getByText('Area (km²)')).toBeInTheDocument();
+  });
+
+  it('shows a revealed slot value in the middle of the card, like the anchor (feature 017)', () => {
+    const item: QuizItem = { id: 'i1', name: 'Alpha', value: '100', numericValue: 100 };
+    renderBar({ leftItems: [item], revealAllValues: true, columnName: 'Area (km²)' });
+
+    // The value and its column name sit with the name in the card's middle content,
+    // not in a footer line.
+    const name = screen.getByText('Alpha');
+    const middle = name.parentElement as HTMLElement;
+    expect(within(middle).getByText('100')).toBeInTheDocument();
+    expect(within(middle).getByText('Area (km²)')).toBeInTheDocument();
   });
 
   it('every bar slot is a button and a slot is chosen with the keyboard', async () => {

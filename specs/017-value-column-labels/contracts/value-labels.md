@@ -15,6 +15,7 @@
 | **G3** | The label is the round's configured column name (with its unit). |
 | **G4** | The label is non-interactive and does not add scrolling. |
 | **G5** | No scoring, hearts, matching, or turn rule changes. |
+| **G6** | A revealed Order item shows its value and column name in the middle of the card, in the same position as the anchor (not in the footer). |
 
 ## Non-goals
 

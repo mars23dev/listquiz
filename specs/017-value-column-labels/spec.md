@@ -13,6 +13,7 @@
 ### Session 2026-10-08
 
 - Q: How should the Tripmine value be labelled? → A: As the column name followed by the value (e.g. "Year 1957"), with no "VALUE:" prefix and no colon.
+- Q: Where should a revealed Order item's value and column name appear? → A: In the middle of the item card, in the same position as the anchor's value/column name — not in the card footer.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -34,7 +35,8 @@ no hidden value becomes visible.
 **Acceptance Scenarios**:
 
 1. **Given** a round whose column is "Area (km²)", **When** a value is shown in any game mode, **Then** the label "Area (km²)" is shown with it.
-2. **Given** an Order round, **When** the anchor's value is shown, **Then** the column name is shown with it.
+2. **Given** an Order round, **When** the anchor's value is shown, **Then** the column name is shown with it, in the middle of the card.
+2b. **Given** an Order round where an item has been revealed, **When** its value is shown, **Then** the value and its column name appear in the middle of the card, in the same position as the anchor — not in the card footer.
 3. **Given** an Order round where values are hidden from a player, **When** the player views the board, **Then** no value and no column label appear for hidden items (visibility is unchanged).
 4. **Given** a Connect round, **When** the value column is shown, **Then** the column name is shown as the heading of that column.
 5. **Given** a Tripmine round, **When** a value is revealed (or the gamemaster sees all values), **Then** the value is shown as the column name followed by the value (e.g. "Year 1957"), with no "VALUE:" prefix and no colon.
@@ -46,6 +48,7 @@ no hidden value becomes visible.
 
 - Values hidden (players before reveal): no value and no label for hidden items; the label appears only where a value is visible.
 - The anchor value is always public: its column name is always shown with it.
+- Order revealed items: the value and its column name appear in the middle of the card, matching the anchor's position, not at the card footer.
 - The gamemaster sees every value: the column name is shown with those values too.
 - A column with a long name (e.g. "Box Office ($)") must still display without breaking the layout.
 - A column name with a unit (e.g. "Height (m)", "Area (km²)") is shown exactly as the list defines it.
@@ -60,7 +63,7 @@ no hidden value becomes visible.
 - **FR-001**: Wherever a value is displayed in any game mode (Order, Tripmine, Connect), the name of the value's column MUST be displayed with it.
 - **FR-002**: Value visibility MUST NOT change: hidden values stay hidden and no label is shown for a hidden value.
 - **FR-003**: The label MUST be the name of the round's configured column (the list column chosen for the round).
-- **FR-004**: The Order board MUST show the column name with the values it displays (including the anchor).
+- **FR-004**: The Order board MUST show each displayed value and its column name in the middle of the item card, in the same position as the anchor's value/column name (not in the card footer).
 - **FR-005**: The Tripmine board MUST show each value as the column name followed by the value (e.g. "Year 1957"), with no "VALUE:" prefix and no colon.
 - **FR-006**: The Connect board MUST show the column name with its value column.
 - **FR-007**: The gamemaster's answer key (Connect) and any gamemaster-only value display MUST show the column name too.

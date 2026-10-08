@@ -50,3 +50,17 @@ value because the gamemaster already sees the value.
 **Rationale**: Presentation only (FR-008; Principle VII).
 
 **Alternatives considered**: none needed.
+
+## D-1706: A revealed Order item's value moves to the middle, like the anchor
+
+**Decision**: In `TopBarOrdering.tsx`, render a revealed slot item's value (and its column name) in the
+middle of the card using the same value-box markup as the anchor, instead of the footer line. Applies to
+both the left and right slot groups.
+
+**Rationale**: The user reports that the anchor shows its value in the middle (with the column name) while
+revealed items show it at the footer, which looks inconsistent (FR-004). Reusing the anchor's markup keeps
+one visual treatment (Principle VII). Visibility is unchanged: the slot value still appears only when
+values are revealed (`revealAllValues`).
+
+**Alternatives considered**: restyling the footer to look like the middle box (two treatments); leaving the
+anchor as the odd one out (contradicts the user).

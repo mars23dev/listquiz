@@ -14,7 +14,7 @@ Source: the list column chosen for the round. Already served in the session stat
 
 | Board | Values shown | Label placement |
 |---|---|---|
-| Order | The anchor value (always) and any revealed values | Beside the bar/anchor values |
+| Order | The anchor value (always) and any revealed values | Middle of the card (value + column name), matching the anchor |
 | Tripmine | Revealed values; the gamemaster's full view | Beside the values |
 | Connect | The value column (always) and the gamemaster answer key | Heading of the value column |
 

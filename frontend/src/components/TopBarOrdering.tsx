@@ -278,7 +278,7 @@ export const TopBarOrdering: React.FC<TopBarOrderingProps> = ({
                       animate={{ scale: 1, opacity: 1 }}
                       exit={{ scale: 0.85, opacity: 0 }}
                       transition={{ duration: 0.15 }}
-                      className={`flex-1 flex flex-col justify-between items-center py-1 ${
+                      className={`flex-1 flex flex-col justify-center items-center py-1 ${
                         isPending ? 'cursor-grab active:cursor-grabbing' : ''
                       }`}
                     >
@@ -289,14 +289,21 @@ export const TopBarOrdering: React.FC<TopBarOrderingProps> = ({
                         <p className="text-[11px] sm:text-xs font-semibold text-slate-100 line-clamp-2 leading-snug px-0.5 text-center">
                           {item.name}
                         </p>
-                      </div>
 
-                      {/* Reveal Value if Game is Over */}
-                      {revealAllValues && (
-                        <div className="mt-1 pt-1 border-t border-slate-700/60 w-full text-[11px] font-mono font-bold tabular-nums text-cyan-300">
-                          {item.value}
-                        </div>
-                      )}
+                        {/* Revealed value in the middle, like the anchor (feature 017) */}
+                        {revealAllValues && (
+                          <div className="mt-2 py-0.5 px-1.5 rounded bg-slate-800/80 border border-slate-600/60">
+                            <span className="text-xs sm:text-sm font-black font-mono tabular-nums text-cyan-300">
+                              {item.value}
+                            </span>
+                          </div>
+                        )}
+                        {revealAllValues && columnName ? (
+                          <span className="mt-1 font-mono text-[9px] uppercase tracking-wider text-slate-400">
+                            {columnName}
+                          </span>
+                        ) : null}
+                      </div>
                     </motion.div>
                   ) : (
                     <div className="flex-1 flex flex-col items-center justify-center text-slate-700">
@@ -410,7 +417,7 @@ export const TopBarOrdering: React.FC<TopBarOrderingProps> = ({
                       animate={{ scale: 1, opacity: 1 }}
                       exit={{ scale: 0.85, opacity: 0 }}
                       transition={{ duration: 0.15 }}
-                      className={`flex-1 flex flex-col justify-between items-center py-1 ${
+                      className={`flex-1 flex flex-col justify-center items-center py-1 ${
                         isPending ? 'cursor-grab active:cursor-grabbing' : ''
                       }`}
                     >
@@ -421,14 +428,21 @@ export const TopBarOrdering: React.FC<TopBarOrderingProps> = ({
                         <p className="text-[11px] sm:text-xs font-semibold text-slate-100 line-clamp-2 leading-snug px-0.5 text-center">
                           {item.name}
                         </p>
-                      </div>
 
-                      {/* Reveal Value if Game is Over */}
-                      {revealAllValues && (
-                        <div className="mt-1 pt-1 border-t border-slate-700/60 w-full text-[11px] font-mono font-bold tabular-nums text-rose-300">
-                          {item.value}
-                        </div>
-                      )}
+                        {/* Revealed value in the middle, like the anchor (feature 017) */}
+                        {revealAllValues && (
+                          <div className="mt-2 py-0.5 px-1.5 rounded bg-slate-800/80 border border-slate-600/60">
+                            <span className="text-xs sm:text-sm font-black font-mono tabular-nums text-rose-300">
+                              {item.value}
+                            </span>
+                          </div>
+                        )}
+                        {revealAllValues && columnName ? (
+                          <span className="mt-1 font-mono text-[9px] uppercase tracking-wider text-slate-400">
+                            {columnName}
+                          </span>
+                        ) : null}
+                      </div>
                     </motion.div>
                   ) : (
                     <div className="flex-1 flex flex-col items-center justify-center text-slate-700">

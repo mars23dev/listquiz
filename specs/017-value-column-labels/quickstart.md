@@ -28,6 +28,7 @@ npm --prefix frontend run build
 ## Manual end-to-end check
 
 1. Start an Order round on Countries / Area. Confirm the anchor and any revealed values show "Area (km²)".
+1b. Reveal the Order values and confirm each item's value and column name appear in the middle of its card (like the anchor), not in the footer.
 2. As a player before reveal, confirm hidden values show neither the number nor the label.
 3. Start a Tripmine round; confirm revealed values (and the gamemaster's view) show the column name.
 4. Start a Connect round on Countries / Area; confirm the value column is headed "Area (km²)".

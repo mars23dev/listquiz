@@ -34,3 +34,4 @@
 - Items marked incomplete require spec updates before `/speckit.clarify` or `/speckit.plan`
 - The round's configured column name is already part of the session state, so no new data is required.
 - Session 2026-10-08: Tripmine value format clarified as "<column name> <value>" (e.g. "Year 1957"), no "VALUE:" prefix or colon.
+- Session 2026-10-08: Order revealed items show the value and column name in the middle of the card, matching the anchor (not in the footer).
