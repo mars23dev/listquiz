@@ -64,16 +64,18 @@ pub struct ConfirmOutcome {
     pub round_over: bool,
 }
 
-/// One drawn pair: the item id, its name, its icon, and its value's display text.
+/// One drawn pair: the item id, its name, its icon, its value's display text, and the
+/// value's number (used to order the value column).
 pub struct ConnectPair {
     pub item_id: String,
     pub name: String,
     pub icon_name: Option<String>,
     pub display: String,
+    pub numeric: f64,
 }
 
-/// Draw ten pairs at random from `pairs`. The values keep the list's order; only the
-/// names are shuffled (feature 012).
+/// Draw ten pairs at random from `pairs`. The value column is ordered low-to-high by the
+/// round column's value; only the names are shuffled (features 012, 015, 017).
 pub fn sample_connect_round(
     pairs: &[ConnectPair],
     rng: &mut impl rand::Rng,
@@ -87,8 +89,6 @@ pub fn sample_connect_round(
     let mut indices: Vec<usize> = (0..pairs.len()).collect();
     shuffle(&mut indices, rng);
     indices.truncate(PAIRS);
-    // The values keep the list's order; only the names are randomized (feature 012).
-    indices.sort_unstable();
     let chosen: Vec<&ConnectPair> = indices.iter().map(|i| &pairs[*i]).collect();
 
     let mut names: Vec<ConnectName> = chosen
@@ -99,7 +99,16 @@ pub fn sample_connect_round(
             icon_name: pair.icon_name.clone(),
         })
         .collect();
-    let values: Vec<ConnectValue> = chosen
+
+    // The value column reads low-to-high by the round's value, not by list position, so a
+    // round on any column is ordered (feature 017).
+    let mut ordered: Vec<&ConnectPair> = chosen.clone();
+    ordered.sort_by(|a, b| {
+        a.numeric
+            .partial_cmp(&b.numeric)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    let values: Vec<ConnectValue> = ordered
         .iter()
         .map(|pair| ConnectValue {
             item_id: pair.item_id.clone(),
@@ -107,7 +116,7 @@ pub fn sample_connect_round(
         })
         .collect();
 
-    // Only the name column is shuffled; the value column follows the list (feature 012).
+    // Only the name column is shuffled; the value column stays ordered (feature 012).
     shuffle(&mut names, rng);
 
     Ok(ConnectBoard {
@@ -224,7 +233,7 @@ pub fn load_pairs(
 ) -> ApiResult<Vec<ConnectPair>> {
     let mut statement = conn
         .prepare(
-            "SELECT i.id, i.name, i.icon_name, v.display
+            "SELECT i.id, i.name, i.icon_name, v.display, v.numeric
              FROM item i
              JOIN item_value v ON v.item_id = i.id AND v.column_id = ?2
              WHERE i.list_id = ?1
@@ -238,6 +247,7 @@ pub fn load_pairs(
                 name: row.get(1)?,
                 icon_name: row.get(2)?,
                 display: row.get(3)?,
+                numeric: row.get(4)?,
             })
         })
         .map_err(ApiError::from)?;

@@ -18,6 +18,7 @@ fn pairs(count: usize) -> Vec<ConnectPair> {
             name: format!("Name {n}"),
             icon_name: Some("BookOpen".to_string()),
             display: n.to_string(),
+            numeric: n as f64,
         })
         .collect()
 }
@@ -70,32 +71,106 @@ fn a_board_has_ten_names_and_ten_values() {
 }
 
 #[test]
-fn the_value_column_follows_the_list_order_and_names_are_shuffled() {
+fn the_value_column_is_ordered_by_value_and_names_are_shuffled() {
     let board = board();
 
-    // The pairs were built in ascending list order, so list order is 1, 2, 3, ...
-    let value_ids: Vec<u32> = board
+    // The values read low-to-high (the pairs are numbered 1..=12).
+    let values: Vec<u32> = board
         .values
         .iter()
-        .map(|v| v.item_id.trim_start_matches("item_").parse().unwrap())
+        .map(|v| v.display.parse().unwrap())
         .collect();
-    let mut list_order = value_ids.clone();
-    list_order.sort_unstable();
-    assert_eq!(
-        value_ids, list_order,
-        "the value column keeps the list's order"
-    );
+    let mut ordered = values.clone();
+    ordered.sort_unstable();
+    assert_eq!(values, ordered, "the value column is ordered by value");
 
-    // The names are shuffled, so they do not follow the list order.
-    let name_ids: Vec<u32> = board
+    // The names are shuffled, so they are not in value order.
+    let names: Vec<u32> = board
         .names
         .iter()
-        .map(|n| n.item_id.trim_start_matches("item_").parse().unwrap())
+        .map(|n| n.name.trim_start_matches("Name ").parse().unwrap())
         .collect();
-    assert_ne!(
-        name_ids, list_order,
-        "the name column is shuffled, not in list order"
+    assert_ne!(names, ordered, "the name column is shuffled");
+}
+
+#[test]
+fn the_value_column_is_ordered_by_value_not_list_position() {
+    let pairs: Vec<ConnectPair> = (1..=12)
+        .rev()
+        .map(|n| ConnectPair {
+            item_id: format!("item_{n}"),
+            name: format!("Name {n}"),
+            icon_name: None,
+            display: n.to_string(),
+            numeric: n as f64,
+        })
+        .collect();
+    let board = sample_connect_round(&pairs, &mut rng(3)).expect("a board");
+
+    let values: Vec<u32> = board
+        .values
+        .iter()
+        .map(|v| v.display.parse().unwrap())
+        .collect();
+    let mut ordered = values.clone();
+    ordered.sort_unstable();
+    assert_eq!(
+        values, ordered,
+        "the value column is ascending regardless of list position"
     );
+}
+
+#[test]
+fn every_shipped_list_column_reads_ascending_in_connect() {
+    use crate::modules::default_lists::DEFAULT_LISTS;
+
+    for list in DEFAULT_LISTS.iter() {
+        for column in list.columns.iter() {
+            let pairs: Vec<ConnectPair> = list
+                .items
+                .iter()
+                .map(|item| {
+                    let (display, numeric) = item
+                        .values
+                        .iter()
+                        .find(|(c, _, _)| *c == column.id)
+                        .map(|(_, display, numeric)| (display.to_string(), *numeric))
+                        .expect("every shipped item has this column");
+                    ConnectPair {
+                        item_id: item.id.to_string(),
+                        name: item.name.to_string(),
+                        icon_name: Some(item.icon_name.to_string()),
+                        display,
+                        numeric,
+                    }
+                })
+                .collect();
+
+            let board = sample_connect_round(&pairs, &mut rng(7)).expect("a board");
+            let values: Vec<f64> = board
+                .values
+                .iter()
+                .map(|value| {
+                    pairs
+                        .iter()
+                        .find(|pair| pair.item_id == value.item_id)
+                        .expect("a pair for the value")
+                        .numeric
+                })
+                .collect();
+
+            for window in values.windows(2) {
+                assert!(
+                    window[0] <= window[1],
+                    "{} / {} is not ascending in Connect: {} then {}",
+                    list.id,
+                    column.id,
+                    window[0],
+                    window[1]
+                );
+            }
+        }
+    }
 }
 
 #[test]
