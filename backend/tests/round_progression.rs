@@ -161,3 +161,32 @@ async fn pass_turn_and_adjust_hearts_change_the_board() {
         .as_i64();
     assert_eq!(hearts, Some(2));
 }
+
+#[tokio::test]
+async fn advancing_a_round_clears_the_reveal_flag() {
+    let (server_db, _side) = seeded_shared_db();
+    let app = test_app(server_db);
+    let session_id = create_session(&app).await;
+
+    // Round 1 (ORDER): reveal the values.
+    action(&app, &session_id, &json!({ "action": "next_round" })).await;
+    action(&app, &session_id, &json!({ "action": "reveal_values" })).await;
+    let revealed = get_state(&app, &session_id, "gamemaster").await.1;
+    assert_eq!(revealed["revealValues"], json!(true));
+
+    // Advancing to round 2 must reset the reveal so the new round starts hidden.
+    action(&app, &session_id, &json!({ "action": "next_round" })).await;
+    let next = get_state(&app, &session_id, "gamemaster").await.1;
+    assert_eq!(
+        next["revealValues"],
+        json!(false),
+        "a freshly started round is hidden"
+    );
+
+    // Reveal the last round, then finish: the reveal stays for the standings.
+    action(&app, &session_id, &json!({ "action": "reveal_values" })).await;
+    action(&app, &session_id, &json!({ "action": "next_round" })).await;
+    let finished = get_state(&app, &session_id, "gamemaster").await.1;
+    assert_eq!(finished["status"], json!("finished"));
+    assert_eq!(finished["revealValues"], json!(true));
+}

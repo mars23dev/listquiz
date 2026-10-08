@@ -444,7 +444,8 @@ pub fn advance_round(conn: &Connection, session_id: &str) -> ApiResult<RoundAdva
     round_state::reset_hearts(&tx, session_id)?;
     round_state::store_round_start(&tx, session_id, &round, &starting_team)?;
     tx.execute(
-        "UPDATE game_session SET last_message = ?2 WHERE id = ?1",
+        // Starting a round hides the values again, so the reveal is per round (feature 020).
+        "UPDATE game_session SET reveal_values = 0, last_message = ?2 WHERE id = ?1",
         params![
             session_id,
             format!(
