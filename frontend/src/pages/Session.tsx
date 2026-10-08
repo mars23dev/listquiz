@@ -875,7 +875,7 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
             onPickName={handlePickName}
             onPickValue={handlePickValue}
             onConfirm={handleConfirmConnect}
-            showAnswerKey={isGamemaster}
+            showAnswerKey={isGamemaster || (state?.revealValues ?? false)}
             columnName={state?.round?.columnName}
           />
         </section>

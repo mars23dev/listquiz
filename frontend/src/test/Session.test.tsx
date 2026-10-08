@@ -953,6 +953,15 @@ describe('round start affordance', () => {
     expect(within(viewAlpha).queryByText('100')).not.toBeInTheDocument();
     spectator.unmount();
   });
+
+  it('reveals the Connect answer key to players when values are revealed (US1)', async () => {
+    stub({ ...connectState(), revealValues: true });
+    render(<Session sessionId="lq-abcd1234" role="p1" onNavigate={() => {}} />);
+
+    // Alpha's value is 100; the reveal shows it to the player.
+    const alpha = await screen.findByRole('button', { name: /alpha/i });
+    expect(within(alpha).getByText('100')).toBeInTheDocument();
+  });
 });
 
 describe('turn timer (005 US2)', () => {

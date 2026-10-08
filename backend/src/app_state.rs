@@ -451,7 +451,8 @@ pub fn redact(state: &SessionState, role: UserRole) -> SessionState {
             .items
             .iter()
             .map(|item| {
-                let revealed = is_gamemaster || item.revealed;
+                // Revealing the round shows the whole answer: value, rank, and mine (feature 021).
+                let revealed = is_gamemaster || item.revealed || reveal;
                 TripmineItem {
                     item_id: item.item_id.clone(),
                     name: item.name.clone(),
@@ -767,6 +768,20 @@ mod tests {
         let order = order_of(&spectator);
         assert!(order.pool.iter().all(|i| i.value.is_some()));
         assert!(order.left.iter().all(|i| i.value.is_some()));
+    }
+
+    #[test]
+    fn revealing_values_shows_the_tripmine_answer_to_players() {
+        let mut state = tripmine_state();
+        state.reveal_values = true;
+
+        let spectator = redact(&state, UserRole::View);
+        let tripmine = spectator.tripmine.as_ref().expect("a tripmine round");
+
+        assert!(tripmine.items.iter().all(|item| item.revealed));
+        assert!(tripmine.items.iter().all(|item| item.value.is_some()));
+        assert!(tripmine.items.iter().all(|item| item.true_rank.is_some()));
+        assert!(tripmine.items.iter().any(|item| item.is_tripmine));
     }
 
     #[test]
