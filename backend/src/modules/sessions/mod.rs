@@ -94,6 +94,21 @@ impl QuizType {
             QuizType::Connect => "CONNECT",
         }
     }
+
+    /// The order the game mode applies to its round column (feature 019). All modes
+    /// currently order ascending; the rule lives here so a mode can differ later.
+    pub fn sort_order(self) -> SortOrder {
+        match self {
+            QuizType::Order | QuizType::Tripmine | QuizType::Connect => SortOrder::Ascending,
+        }
+    }
+}
+
+/// How a game mode orders its round column (feature 019).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SortOrder {
+    Ascending,
+    Descending,
 }
 
 /// Which end of the ranking Tripmine hunts for.

@@ -24,7 +24,6 @@ fn list_body(title: &str) -> Value {
     json!({
         "title": title,
         "description": "A test list",
-        "orderDirection": "low_to_high",
         "columns": [{ "id": "year", "name": "Year" }],
         "items": items,
     })
@@ -197,7 +196,7 @@ async fn export_returns_csv_and_import_returns_the_list_and_report() {
         password_request(
             "POST",
             &format!("/api/folders/{folder_id}/lists/import"),
-            Some(&json!({ "title": "Imported", "orderDirection": "low_to_high", "csv": body })),
+            Some(&json!({ "title": "Imported", "csv": body })),
             PASSWORD,
         ),
     )
@@ -229,7 +228,7 @@ async fn a_ten_row_import_is_rejected_naming_the_range() {
         password_request(
             "POST",
             &format!("/api/folders/{folder_id}/lists/import"),
-            Some(&json!({ "title": "Too small", "orderDirection": "low_to_high", "csv": body })),
+            Some(&json!({ "title": "Too small", "csv": body })),
             PASSWORD,
         ),
     )

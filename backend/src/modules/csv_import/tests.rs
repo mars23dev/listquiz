@@ -15,7 +15,7 @@ fn csv_with_rows(rows: usize) -> String {
 
 #[test]
 fn a_leading_icon_header_is_detected_case_insensitively() {
-    let parsed = parse_csv("History", "low_to_high", &csv_with_rows(11)).expect("parsed");
+    let parsed = parse_csv("History", &csv_with_rows(11)).expect("parsed");
 
     assert_eq!(parsed.columns.len(), 1);
     assert_eq!(parsed.columns[0].id, "year");
@@ -35,7 +35,7 @@ fn without_an_icon_header_the_first_column_is_the_name() {
     for index in 0..11 {
         many.push_str(&format!("Item {index},{}\n", index + 1));
     }
-    let parsed = parse_csv("Scores", "high_to_low", &many).expect("parsed");
+    let parsed = parse_csv("Scores", &many).expect("parsed");
     assert_eq!(parsed.columns[0].id, "score");
     assert_eq!(parsed.items[0].name, "Item 0");
     let _ = body;
@@ -49,7 +49,7 @@ fn a_quoted_field_containing_a_comma_survives() {
     for index in 0..11 {
         body.push_str(&format!("\"Item, {index}\",\"{index}\"\n"));
     }
-    let parsed = parse_csv("Quoted", "low_to_high", &body).expect("parsed");
+    let parsed = parse_csv("Quoted", &body).expect("parsed");
 
     assert_eq!(parsed.items[0].name, "Item, 0");
 }
@@ -63,7 +63,7 @@ fn an_unparseable_value_falls_back_to_the_row_position() {
     for index in 1..11 {
         body.push_str(&format!("Item {index},{}\n", 1900 + index));
     }
-    let parsed = parse_csv("History", "low_to_high", &body).expect("parsed");
+    let parsed = parse_csv("History", &body).expect("parsed");
 
     let first = &parsed.items[0].values[0];
     assert!(first.was_defaulted);
@@ -78,11 +78,11 @@ fn an_unparseable_value_falls_back_to_the_row_position() {
 
 #[test]
 fn the_row_count_must_be_between_eleven_and_one_hundred() {
-    let small = parse_csv("Small", "low_to_high", &csv_with_rows(10)).expect_err("too few");
+    let small = parse_csv("Small", &csv_with_rows(10)).expect_err("too few");
     assert_eq!(small.code, ErrorCode::TooSmall);
     assert!(small.message.contains("11"));
 
-    let large = parse_csv("Large", "low_to_high", &csv_with_rows(101)).expect_err("too many");
+    let large = parse_csv("Large", &csv_with_rows(101)).expect_err("too many");
     assert_eq!(large.code, ErrorCode::TooLarge);
     assert!(large.message.contains("100"));
 }
@@ -91,7 +91,7 @@ fn the_row_count_must_be_between_eleven_and_one_hundred() {
 
 #[test]
 fn export_round_trips_through_import_including_the_direction() {
-    let parsed = parse_csv("History", "high_to_low", &csv_with_rows(11)).expect("parsed");
+    let parsed = parse_csv("History", &csv_with_rows(11)).expect("parsed");
     let column_names: Vec<String> = parsed.columns.iter().map(|c| c.name.clone()).collect();
     let export_items: Vec<ExportItem> = parsed
         .items
@@ -110,8 +110,7 @@ fn export_round_trips_through_import_including_the_direction() {
     let csv = export_csv(&column_names, &export_items).expect("export");
     assert!(csv.starts_with("Icon,Name,Year"));
 
-    let reimported = parse_csv("History", "high_to_low", &csv).expect("re-import");
-    assert_eq!(reimported.order_direction, "high_to_low");
+    let reimported = parse_csv("History", &csv).expect("re-import");
     assert_eq!(reimported.columns, parsed.columns);
     assert_eq!(reimported.items.len(), parsed.items.len());
     assert_eq!(reimported.items[0].name, parsed.items[0].name);

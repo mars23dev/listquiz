@@ -54,7 +54,6 @@ function emptyDraft(folderId: string): ListDetail {
     folderId,
     title: '',
     description: '',
-    orderDirection: 'low_to_high',
     columns: [{ id: 'value', name: 'Value' }],
     itemCount: 0,
     isDefault: false,
@@ -167,7 +166,6 @@ export function ListManagement({ onBackToHome }: ListManagementProps) {
     return {
       title: draft.title,
       description: draft.description,
-      orderDirection: draft.orderDirection,
       columns: draft.columns.map((column) => ({ id: column.id, name: column.name })),
       items: draft.items.map((item) => ({
         id: item.id,
@@ -303,12 +301,12 @@ export function ListManagement({ onBackToHome }: ListManagementProps) {
     }
   }
 
-  async function importCsv(title: string, direction: string, body: string): Promise<ImportReport | null> {
+  async function importCsv(title: string, body: string): Promise<ImportReport | null> {
     if (!csv) return null;
     try {
       const answer = await importListCsv(
         csv.folderId,
-        { title, orderDirection: direction, csv: body },
+        { title, csv: body },
         csv.password,
       );
       await loadLists();
@@ -430,7 +428,7 @@ export function ListManagement({ onBackToHome }: ListManagementProps) {
       {csv ? (
         <CsvImportModal
           onCancel={() => setCsv(null)}
-          onSubmit={(title, direction, body) => importCsv(title, direction, body)}
+          onSubmit={(title, body) => importCsv(title, body)}
           onDone={() => setCsv(null)}
         />
       ) : null}
@@ -626,9 +624,6 @@ function ListGrid({
         >
           <div>
             <div className="mb-2 flex items-center justify-between gap-2">
-              <span className="rounded border border-slate-700 bg-slate-800 px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-cyan-300">
-                {list.orderDirection === 'high_to_low' ? 'High → Low' : 'Low → High'}
-              </span>
               {list.isDefault ? (
                 <span className="rounded border border-slate-700 px-2 py-0.5 font-mono text-[10px] uppercase text-slate-400">
                   Read-only
@@ -715,7 +710,6 @@ function ListEditor({
   onDuplicate: (draft: ListDetail) => Promise<void>;
 }) {
   const [title, setTitle] = useState(draft.title);
-  const [direction, setDirection] = useState(draft.orderDirection);
   const [columns, setColumns] = useState(draft.columns);
   const [items, setItems] = useState(draft.items);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -731,7 +725,6 @@ function ListEditor({
     return {
       ...draft,
       title: title.trim(),
-      orderDirection: direction,
       columns,
       items,
       itemCount: items.length,
@@ -856,19 +849,6 @@ function ListEditor({
               onChange={(event) => setTitle(event.target.value)}
               className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
             />
-          </label>
-          <label className="block text-sm font-semibold text-slate-200">
-            Order Direction
-            <select
-              value={direction}
-              onChange={(event) =>
-                setDirection(event.target.value as ListDetail['orderDirection'])
-              }
-              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
-            >
-              <option value="low_to_high">Low to High (Ascending / Earliest to Latest)</option>
-              <option value="high_to_low">High to Low (Descending / Highest to Lowest)</option>
-            </select>
           </label>
         </div>
 
@@ -1062,11 +1042,10 @@ function CsvImportModal({
   onDone,
 }: {
   onCancel: () => void;
-  onSubmit: (title: string, direction: string, body: string) => Promise<ImportReport | null>;
+  onSubmit: (title: string, body: string) => Promise<ImportReport | null>;
   onDone: () => void;
 }) {
   const [title, setTitle] = useState('Imported List');
-  const [direction, setDirection] = useState('low_to_high');
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
   const [report, setReport] = useState<ImportReport | null>(null);
@@ -1083,7 +1062,7 @@ function CsvImportModal({
   async function submit() {
     setBusy(true);
     setProblem(null);
-    const result = await onSubmit(title, direction, body);
+    const result = await onSubmit(title, body);
     setBusy(false);
     if (result) {
       setReport(result);
@@ -1111,17 +1090,6 @@ function CsvImportModal({
             onChange={(event) => setTitle(event.target.value)}
             className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
           />
-        </label>
-        <label className="mt-3 block text-sm font-semibold text-slate-200">
-          Order direction
-          <select
-            value={direction}
-            onChange={(event) => setDirection(event.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
-          >
-            <option value="low_to_high">Low to High (Ascending / Earliest to Latest)</option>
-            <option value="high_to_low">High to Low (Descending / Highest to Lowest)</option>
-          </select>
         </label>
 
         <p className="mt-4 text-xs font-semibold text-slate-300">

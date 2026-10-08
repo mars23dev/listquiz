@@ -44,7 +44,6 @@ describe('App shell', () => {
                 id: 'default_world_history',
                 title: 'World History & Inventions',
                 description: '',
-                orderDirection: 'low_to_high',
                 itemCount: 12,
                 isDefault: true,
                 columns: [{ id: 'year', name: 'Year' }],

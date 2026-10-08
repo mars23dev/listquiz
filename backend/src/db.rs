@@ -28,7 +28,6 @@ CREATE TABLE IF NOT EXISTS quiz_list (
     folder_id       TEXT NOT NULL REFERENCES folder(id) ON DELETE CASCADE,
     title           TEXT NOT NULL,
     description     TEXT,
-    order_direction TEXT NOT NULL,
     item_count      INTEGER NOT NULL,
     is_default      INTEGER NOT NULL DEFAULT 0,
     created_at      INTEGER NOT NULL,
@@ -148,6 +147,16 @@ pub fn apply_schema(conn: &Connection) -> rusqlite::Result<()> {
     add_order_state_placed_by(conn)?;
     add_turn_timer_columns(conn)?;
     add_tripmine_slots_column(conn)?;
+    drop_list_order_direction(conn)?;
+    Ok(())
+}
+
+/// Migration (feature 019): the list-level order direction is gone; ordering is now a
+/// game-mode property. Guarded so an existing database upgrades in place.
+fn drop_list_order_direction(conn: &Connection) -> rusqlite::Result<()> {
+    if column_exists(conn, "quiz_list", "order_direction")? {
+        conn.execute_batch("ALTER TABLE quiz_list DROP COLUMN order_direction")?;
+    }
     Ok(())
 }
 

@@ -27,7 +27,6 @@ pub struct DefaultList {
     pub id: &'static str,
     pub title: &'static str,
     pub description: &'static str,
-    pub order_direction: &'static str,
     pub columns: &'static [DefaultColumn],
     pub items: &'static [DefaultItem],
 }
@@ -2648,7 +2647,6 @@ pub const DEFAULT_LISTS: [DefaultList; 4] = [
         id: "default_world_history",
         title: "World History & Inventions",
         description: "Key human milestones from the printing press to the smartphone",
-        order_direction: "low_to_high",
         columns: HISTORY_COLUMNS,
         items: HISTORY_ITEMS,
     },
@@ -2656,7 +2654,6 @@ pub const DEFAULT_LISTS: [DefaultList; 4] = [
         id: "default_statues_monuments",
         title: "Iconic Statues & Architectural Marvels",
         description: "World wonders with height and construction date columns",
-        order_direction: "low_to_high",
         columns: STATUE_COLUMNS,
         items: STATUE_ITEMS,
     },
@@ -2664,7 +2661,6 @@ pub const DEFAULT_LISTS: [DefaultList; 4] = [
         id: "default_cinema_box_office",
         title: "Blockbuster Cinema Box Office",
         description: "Record-setting movies with box office revenue and budget",
-        order_direction: "low_to_high",
         columns: CINEMA_COLUMNS,
         items: CINEMA_ITEMS,
     },
@@ -2672,7 +2668,6 @@ pub const DEFAULT_LISTS: [DefaultList; 4] = [
         id: "default_countries",
         title: "Countries of the World",
         description: "Every sovereign state with its flag, area, population, and founding year",
-        order_direction: "low_to_high",
         columns: COUNTRIES_COLUMNS,
         items: COUNTRIES_ITEMS,
     },
@@ -2763,7 +2758,6 @@ pub struct ListSummary {
     pub id: String,
     pub title: String,
     pub description: String,
-    pub order_direction: String,
     pub columns: Vec<ColumnSummary>,
     pub item_count: i64,
     pub is_default: bool,
@@ -2781,7 +2775,7 @@ pub struct ListSummaries {
 pub fn list_summaries(conn: &Connection, folder_id: &str) -> ApiResult<ListSummaries> {
     let mut lists = Vec::new();
     let mut statement = conn.prepare(
-        "SELECT id, title, description, order_direction, item_count, is_default
+        "SELECT id, title, description, item_count, is_default
          FROM quiz_list WHERE folder_id = ?1 ORDER BY created_at ASC, title ASC",
     )?;
     let rows = statement.query_map(params![folder_id], |row| {
@@ -2789,10 +2783,9 @@ pub fn list_summaries(conn: &Connection, folder_id: &str) -> ApiResult<ListSumma
             id: row.get(0)?,
             title: row.get(1)?,
             description: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
-            order_direction: row.get(3)?,
             columns: Vec::new(),
-            item_count: row.get(4)?,
-            is_default: row.get::<_, i64>(5)? != 0,
+            item_count: row.get(3)?,
+            is_default: row.get::<_, i64>(4)? != 0,
         })
     })?;
     for row in rows {
@@ -2825,19 +2818,17 @@ pub fn seed_default_lists(conn: &Connection, folder_id: &str) -> ApiResult<()> {
     for list in DEFAULT_LISTS.iter() {
         tx.execute(
             "INSERT INTO quiz_list
-                (id, folder_id, title, description, order_direction, item_count, is_default, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1, ?7, ?7)
+                (id, folder_id, title, description, item_count, is_default, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6, ?6)
              ON CONFLICT(id) DO UPDATE SET
                 title = excluded.title,
                 description = excluded.description,
-                order_direction = excluded.order_direction,
                 item_count = excluded.item_count",
             params![
                 list.id,
                 folder_id,
                 list.title,
                 list.description,
-                list.order_direction,
                 list.items.len() as i64,
                 SEED_TIME,
             ],

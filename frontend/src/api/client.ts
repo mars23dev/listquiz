@@ -256,7 +256,7 @@ export function exportListCsv(listId: string, password?: string): Promise<string
 
 export function importListCsv(
   folderId: string,
-  payload: { title: string; orderDirection: string; csv: string },
+  payload: { title: string; csv: string },
   password?: string,
 ): Promise<{ list: ListDetail; report: ImportReport }> {
   return request<{ list: ListDetail; report: ImportReport }>(

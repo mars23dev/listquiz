@@ -45,8 +45,8 @@ async fn create_folder(app: &Router, name: &str, password: &str) -> String {
 fn plant_list(conn: &Connection, folder_id: &str, list_id: &str, title: &str) {
     conn.execute(
         "INSERT INTO quiz_list
-            (id, folder_id, title, description, order_direction, item_count, is_default, created_at, updated_at)
-         VALUES (?1, ?2, ?3, '', 'low_to_high', 0, 0, 0, 0)",
+            (id, folder_id, title, description, item_count, is_default, created_at, updated_at)
+         VALUES (?1, ?2, ?3, '', 0, 0, 0, 0)",
         rusqlite::params![list_id, folder_id, title],
     )
     .expect("plant list");

@@ -66,7 +66,6 @@ export interface ManagedList {
   id: string;
   title: string;
   description?: string;
-  orderDirection: 'low_to_high' | 'high_to_low';
   columns: ListColumn[]; // First value column is columns[0], further optional columns follow
   items: ListRowItem[]; // Minimum 11 items needed for a full 11-slot round
   createdAt: number;

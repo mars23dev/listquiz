@@ -55,7 +55,6 @@ pub struct ParsedItem {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParsedList {
     pub title: String,
-    pub order_direction: String,
     pub columns: Vec<ParsedColumn>,
     pub items: Vec<ParsedItem>,
     pub report: ImportReport,
@@ -96,7 +95,7 @@ pub fn parse_number(raw: &str) -> Option<f64> {
 }
 
 /// Parse a CSV body into a list, with the report naming any defaulted rows.
-pub fn parse_csv(title: &str, order_direction: &str, body: &str) -> ApiResult<ParsedList> {
+pub fn parse_csv(title: &str, body: &str) -> ApiResult<ParsedList> {
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)
         .flexible(true)
@@ -217,7 +216,6 @@ pub fn parse_csv(title: &str, order_direction: &str, body: &str) -> ApiResult<Pa
 
     Ok(ParsedList {
         title: title.to_string(),
-        order_direction: order_direction.to_string(),
         columns,
         items,
         report: ImportReport {

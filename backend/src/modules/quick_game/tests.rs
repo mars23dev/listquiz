@@ -77,7 +77,6 @@ fn a_single_eligible_list_is_always_chosen() {
         id: "only",
         title: "Only",
         description: "",
-        order_direction: "low_to_high",
         columns: DEFAULT_LISTS[0].columns,
         items: DEFAULT_LISTS[0].items,
     }];
@@ -100,7 +99,6 @@ fn no_fitting_list_is_an_error() {
         id: "tiny",
         title: "Tiny",
         description: "",
-        order_direction: "low_to_high",
         columns: &[],
         items: &[],
     }];

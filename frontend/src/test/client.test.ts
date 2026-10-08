@@ -231,7 +231,7 @@ describe('folder and list endpoints', () => {
 
     const result = await importListCsv(
       'fld-1',
-      { title: 'Imported', orderDirection: 'low_to_high', csv: 'Icon,Name,Year\n' },
+      { title: 'Imported', csv: 'Icon,Name,Year\n' },
       'hunter2',
     );
 

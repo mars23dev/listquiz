@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::errors::{ApiError, ApiResult};
 use crate::modules::scoring;
-use crate::modules::sessions::{QuizType, TripmineSide};
+use crate::modules::sessions::{QuizType, SortOrder, TripmineSide};
 use crate::modules::tripmine_round;
 
 /// One item of a list, as the round builder sees it.
@@ -70,7 +70,6 @@ pub struct RoundToStart {
     pub column_id: String,
     pub list_title: String,
     pub column_name: String,
-    pub low_to_high: bool,
 }
 
 /// Read the round configuration, or explain why it cannot run.
@@ -82,7 +81,7 @@ pub fn load_round(
     let row = conn
         .query_row(
             "SELECT rc.quiz_type, rc.tripmine_side, rc.tripmine_slots, rc.list_id, rc.column_id,
-                    l.title, l.order_direction, c.name
+                    l.title, c.name
              FROM round_config rc
              JOIN quiz_list l ON l.id = rc.list_id
              JOIN list_item_column c ON c.list_id = rc.list_id AND c.id = rc.column_id
@@ -97,14 +96,13 @@ pub fn load_round(
                     row.get::<_, String>(4)?,
                     row.get::<_, String>(5)?,
                     row.get::<_, String>(6)?,
-                    row.get::<_, String>(7)?,
                 ))
             },
         )
         .optional()?;
 
-    let (quiz_type_raw, side_raw, slots, list_id, column_id, list_title, direction, column_name) =
-        row.ok_or_else(|| {
+    let (quiz_type_raw, side_raw, slots, list_id, column_id, list_title, column_name) = row
+        .ok_or_else(|| {
             ApiError::not_ready(format!(
                 "Round {round_number} is not ready: its list or column no longer exists."
             ))
@@ -125,7 +123,6 @@ pub fn load_round(
         column_id,
         list_title,
         column_name,
-        low_to_high: direction == "low_to_high",
     })
 }
 
@@ -192,8 +189,9 @@ pub fn store_round_start(
             // US3 replaced the old "five items pre-placed on each side" layout: the
             // bar starts with only the anchor and the ten candidates are sampled at
             // random around it (FR-026, FR-027).
-            let items =
-                load_ordered_items(conn, &round.list_id, &round.column_id, round.low_to_high)?;
+            // The ordering is the game mode's, not a list-level direction (feature 019).
+            let low_to_high = matches!(round.quiz_type.sort_order(), SortOrder::Ascending);
+            let items = load_ordered_items(conn, &round.list_id, &round.column_id, low_to_high)?;
             let setup = crate::modules::order_round::sample_order_round(&items, &mut rand::rng())?;
             let board = setup.into_board();
             crate::modules::order_round::save_board(conn, session_id, &board)?;

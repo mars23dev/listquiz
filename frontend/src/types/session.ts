@@ -187,7 +187,6 @@ export interface ListSummary {
   id: string;
   title: string;
   description: string;
-  orderDirection: 'low_to_high' | 'high_to_low';
   columns: ListColumnSummary[];
   itemCount: number;
   isDefault: boolean;

@@ -28,7 +28,6 @@ fn input_with(title: &str, count: usize) -> ListInput {
         id: None,
         title: title.to_string(),
         description: None,
-        order_direction: "low_to_high".to_string(),
         columns: vec![ColumnInput {
             id: Some("year".to_string()),
             name: "Year".to_string(),

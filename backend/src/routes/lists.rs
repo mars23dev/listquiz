@@ -163,7 +163,6 @@ async fn export_list(
 #[serde(rename_all = "camelCase")]
 struct ImportRequest {
     title: String,
-    order_direction: String,
     csv: String,
 }
 
@@ -185,7 +184,7 @@ async fn import_list(
         if !folders::password_matches(conn, &folder_id, &header_password(&headers))? {
             return Err(ApiError::unauthorized());
         }
-        let parsed = csv_import::parse_csv(&request.title, &request.order_direction, &request.csv)?;
+        let parsed = csv_import::parse_csv(&request.title, &request.csv)?;
         let detail = lists::create_from_import(conn, &folder_id, &parsed)?;
         Ok::<_, ApiError>((detail, parsed.report))
     })?;

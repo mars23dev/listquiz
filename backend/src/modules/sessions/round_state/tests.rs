@@ -1,10 +1,10 @@
 //! Unit tests for the round builder: value loading and its sort direction.
 
 use super::*;
-use crate::modules::sessions::QuizType;
+use crate::modules::sessions::{QuizType, SortOrder};
 
 #[test]
-fn items_load_sorted_low_to_high_unless_the_list_says_otherwise() {
+fn items_load_sorted_ascending_or_descending_as_asked() {
     let conn = rusqlite::Connection::open_in_memory().expect("memory database");
     crate::db::apply_schema(&conn).expect("schema");
     conn.execute(
@@ -14,8 +14,8 @@ fn items_load_sorted_low_to_high_unless_the_list_says_otherwise() {
     )
     .expect("folder");
     conn.execute(
-        "INSERT INTO quiz_list (id, folder_id, title, description, item_count, order_direction, created_at, updated_at)
-         VALUES ('l', 'default', 'List', '', 3, 'low_to_high', 0, 0)",
+        "INSERT INTO quiz_list (id, folder_id, title, description, item_count, created_at, updated_at)
+         VALUES ('l', 'default', 'List', '', 3, 0, 0)",
         [],
     )
     .expect("list");
@@ -81,4 +81,12 @@ fn quiz_type_and_side_survive_a_round_trip_through_strings() {
         TripmineSide::parse(TripmineSide::Lowest.as_str()),
         Some(TripmineSide::Lowest)
     );
+}
+
+#[test]
+fn every_game_mode_orders_ascending() {
+    // Ordering is a game-mode property (feature 019); all three ascend today.
+    assert_eq!(QuizType::Order.sort_order(), SortOrder::Ascending);
+    assert_eq!(QuizType::Tripmine.sort_order(), SortOrder::Ascending);
+    assert_eq!(QuizType::Connect.sort_order(), SortOrder::Ascending);
 }

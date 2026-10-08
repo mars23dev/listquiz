@@ -25,7 +25,6 @@ pub struct ListInput {
     pub title: String,
     #[serde(default)]
     pub description: Option<String>,
-    pub order_direction: String,
     #[serde(default)]
     pub columns: Vec<ColumnInput>,
     #[serde(default)]
@@ -99,7 +98,6 @@ pub struct NewList {
     pub id: String,
     pub title: String,
     pub description: String,
-    pub order_direction: String,
     pub columns: Vec<NewColumn>,
     pub items: Vec<NewItem>,
 }
@@ -137,7 +135,6 @@ pub struct ListDetail {
     pub folder_id: String,
     pub title: String,
     pub description: String,
-    pub order_direction: String,
     pub columns: Vec<ColumnView>,
     pub item_count: i64,
     pub is_default: bool,
@@ -169,14 +166,6 @@ fn valid_id(id: &str, prefix: &str) -> bool {
 /// Turn a `ListInput` into a validated `NewList` (T120).
 pub fn build_new(input: &ListInput) -> ApiResult<NewList> {
     default_lists::validate_list_title(&input.title)?;
-    let order_direction = match input.order_direction.as_str() {
-        "low_to_high" | "high_to_low" => input.order_direction.clone(),
-        other => {
-            return Err(ApiError::bad_request(format!(
-                "orderDirection must be low_to_high or high_to_low, not '{other}'."
-            )));
-        }
-    };
 
     if input.columns.is_empty() {
         return Err(ApiError::bad_request(
@@ -270,7 +259,6 @@ pub fn build_new(input: &ListInput) -> ApiResult<NewList> {
         id,
         title: input.title.trim().to_string(),
         description: input.description.clone().unwrap_or_default(),
-        order_direction,
         columns,
         items,
     })
@@ -318,7 +306,6 @@ pub fn build_from_import(parsed: &csv_import::ParsedList) -> ApiResult<NewList> 
         id: None,
         title: parsed.title.clone(),
         description: None,
-        order_direction: parsed.order_direction.clone(),
         columns,
         items,
     })
@@ -355,14 +342,13 @@ fn persist(conn: &Connection, folder_id: &str, list: &NewList, is_default: bool)
     let now = crate::db::now_ms();
     conn.execute(
         "INSERT INTO quiz_list
-            (id, folder_id, title, description, order_direction, item_count, is_default, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8)",
+            (id, folder_id, title, description, item_count, is_default, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)",
         params![
             list.id,
             folder_id,
             list.title,
             list.description,
-            list.order_direction,
             list.items.len() as i64,
             i64::from(is_default),
             now,
@@ -461,9 +447,9 @@ pub fn delete(conn: &Connection, list_id: &str) -> ApiResult<()> {
 
 /// Read a list with its columns, items, and values (T121).
 pub fn read(conn: &Connection, list_id: &str) -> ApiResult<ListDetail> {
-    let row: Option<(String, String, Option<String>, String, i64, i64)> = conn
+    let row: Option<(String, String, Option<String>, i64, i64)> = conn
         .query_row(
-            "SELECT folder_id, title, description, order_direction, item_count, is_default
+            "SELECT folder_id, title, description, item_count, is_default
              FROM quiz_list WHERE id = ?1",
             params![list_id],
             |row| {
@@ -473,12 +459,11 @@ pub fn read(conn: &Connection, list_id: &str) -> ApiResult<ListDetail> {
                     row.get::<_, Option<String>>(2)?,
                     row.get(3)?,
                     row.get(4)?,
-                    row.get(5)?,
                 ))
             },
         )
         .optional()?;
-    let Some((folder_id, title, description, order_direction, item_count, is_default)) = row else {
+    let Some((folder_id, title, description, item_count, is_default)) = row else {
         return Err(ApiError::not_found(format!("No list with id '{list_id}'.")));
     };
 
@@ -490,7 +475,6 @@ pub fn read(conn: &Connection, list_id: &str) -> ApiResult<ListDetail> {
         folder_id,
         title,
         description: description.unwrap_or_default(),
-        order_direction,
         columns,
         item_count,
         is_default: is_default != 0,
