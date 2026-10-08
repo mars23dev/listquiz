@@ -119,4 +119,19 @@ describe('ConnectBoard', () => {
     expect(valueRow.className).toContain('h-12');
     expect(nameRow.className).not.toContain('min-h-');
   });
+
+  it('shows the value column name (feature 017)', () => {
+    render(
+      <ConnectBoard
+        view={VIEW}
+        interactive
+        onPickName={vi.fn()}
+        onPickValue={vi.fn()}
+        onConfirm={vi.fn()}
+        columnName="Area (km²)"
+      />,
+    );
+
+    expect(screen.getByText('Area (km²)')).toBeInTheDocument();
+  });
 });

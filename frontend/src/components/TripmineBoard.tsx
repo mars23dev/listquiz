@@ -35,6 +35,7 @@ export const TripmineBoard: React.FC<TripmineBoardProps> = ({
   currentRole,
   teams = [],
   feedbackMessage,
+  columnName,
 }) => {
   const isGamemaster = currentRole === 'gamemaster';
   const { currentSearchedRank, tripmineSide, items, tripmineHit, isCompleted, mineRank } = tripmineState;
@@ -67,6 +68,11 @@ export const TripmineBoard: React.FC<TripmineBoardProps> = ({
                 aria-label={`Tripmine value ${tripmineState.targetValue}`}
               >
                 · VALUE: {tripmineState.targetValue}
+              </span>
+            ) : null}
+            {columnName ? (
+              <span className="ml-1 font-mono text-[10px] uppercase tracking-wider text-slate-400">
+                {columnName}
               </span>
             ) : null}
           </div>

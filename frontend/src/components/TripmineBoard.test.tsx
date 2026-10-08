@@ -202,4 +202,30 @@ describe('TripmineBoard item count', () => {
     expect(screen.getByText('#10')).toBeInTheDocument();
     expect(screen.queryByText('#11')).not.toBeInTheDocument();
   });
+
+  it('shows the value column name with the values (feature 017)', () => {
+    const state: TripmineState = {
+      tripmineSide: 'highest',
+      currentSearchedRank: 1,
+      tripmineHit: false,
+      isCompleted: false,
+      mineRank: 10,
+      targetValue: '1969',
+      items: [
+        { id: 'm1', name: 'A', value: '', numericValue: 0, trueRank: 0, isTripmine: false, isRevealed: false },
+      ],
+    };
+    render(
+      <TripmineBoard
+        tripmineState={state}
+        onPickItem={vi.fn()}
+        isMyTurn={false}
+        currentRole="view"
+        teams={TEAMS}
+        columnName="Year"
+      />,
+    );
+
+    expect(screen.getByText('Year')).toBeInTheDocument();
+  });
 });

@@ -35,6 +35,12 @@ function renderBar(overrides: Partial<Parameters<typeof TopBarOrdering>[0]> = {}
 }
 
 describe('order bar keyboard operation', () => {
+  it('shows the value column name with the values (feature 017)', () => {
+    renderBar({ columnName: 'Area (km²)' });
+
+    expect(screen.getByText('Area (km²)')).toBeInTheDocument();
+  });
+
   it('every bar slot is a button and a slot is chosen with the keyboard', async () => {
     const handlers = renderBar();
     const user = userEvent.setup();

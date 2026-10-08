@@ -35,6 +35,8 @@ interface TopBarOrderingProps {
    * the server's arranged layout. Distinct from `revealAllValues`, which is also
    * true for the gamemaster during normal play. */
   neutralBorders?: boolean;
+  /** The round's value-column name (e.g. "Area (km²)"), shown with the values (feature 017). */
+  columnName?: string;
   feedbackMessage?: string | null;
 }
 
@@ -57,6 +59,7 @@ export const TopBarOrdering: React.FC<TopBarOrderingProps> = ({
   revealAllValues,
   neutralBorders = false,
   feedbackMessage,
+  columnName,
 }) => {
   // Currently hovered slot while dragging
   const [hoveredSlot, setHoveredSlot] = useState<{ side: 'left' | 'right'; slotIndex: number } | null>(null);
@@ -345,6 +348,11 @@ export const TopBarOrdering: React.FC<TopBarOrderingProps> = ({
                   {anchorItem.value}
                 </span>
               </div>
+              {columnName ? (
+                <span className="mt-1 font-mono text-[9px] uppercase tracking-wider text-amber-400/80">
+                  {columnName}
+                </span>
+              ) : null}
             </div>
 
             {/* 5 RIGHT SLOTS */}

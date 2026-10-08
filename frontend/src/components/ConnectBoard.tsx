@@ -13,6 +13,8 @@ interface ConnectBoardProps {
   onConfirm: () => void;
   /** Gamemaster only (feature 012): show each name's correct value beside it. */
   showAnswerKey?: boolean;
+  /** The round's value-column name (e.g. "Area (km²)"), shown above the value column (feature 017). */
+  columnName?: string;
 }
 
 /**
@@ -28,6 +30,7 @@ export const ConnectBoard: React.FC<ConnectBoardProps> = ({
   onPickValue,
   onConfirm,
   showAnswerKey = false,
+  columnName,
 }) => {
   const matched = new Set(view.matched);
   const pendingName = view.pending.nameItemId
@@ -113,6 +116,11 @@ export const ConnectBoard: React.FC<ConnectBoardProps> = ({
 
         {/* Right: values, no icons */}
         <div className="flex flex-col gap-2" aria-label="Values">
+          {columnName ? (
+            <div className="px-1 text-center font-mono text-[10px] font-bold uppercase tracking-wider text-amber-300/80">
+              {columnName}
+            </div>
+          ) : null}
           {view.values.map((value) => {
             const isPicked = view.pending.valueItemId === value.itemId;
             const isMatched = matched.has(value.itemId);

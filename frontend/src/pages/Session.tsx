@@ -818,6 +818,7 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
             onDragEndItem={() => setDraggingItem(null)}
             revealAllValues={revealAllValues}
             neutralBorders={state?.revealValues === true}
+            columnName={state?.round?.columnName}
           />
 
           {isGamemaster && (leftItems.length > 0 || rightItems.length > 0) ? (
@@ -861,6 +862,7 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
             currentRole={role}
             teams={teams}
             feedbackMessage={tripmineFeedback}
+            columnName={state?.round?.columnName}
           />
         </section>
       ) : null}
@@ -874,6 +876,7 @@ export function Session({ sessionId, role, onNavigate }: SessionProps) {
             onPickValue={handlePickValue}
             onConfirm={handleConfirmConnect}
             showAnswerKey={isGamemaster}
+            columnName={state?.round?.columnName}
           />
         </section>
       ) : null}
