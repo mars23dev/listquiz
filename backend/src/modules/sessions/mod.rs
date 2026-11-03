@@ -6,14 +6,15 @@
 
 pub mod round_state;
 
+use std::collections::HashMap;
+
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 
 use crate::errors::{ApiError, ApiResult};
-use crate::modules::order_round;
-use crate::modules::scoring;
 use crate::modules::teams::{self, NewTeam, TeamColorInput};
 use crate::modules::turn_timer;
+use crate::modules::{folders, lists, order_round, scoring};
 
 pub const MIN_ROUNDS: i32 = 1;
 pub const MAX_ROUNDS: i32 = 10;
@@ -53,6 +54,10 @@ pub struct CreateSessionRequest {
     pub round_count: Option<i32>,
     #[serde(default)]
     pub rounds: Vec<RoundInput>,
+    /// Request-scoped proof that the gamemaster unlocked each custom folder a
+    /// round references. The default folder needs no entry.
+    #[serde(default)]
+    pub folder_passwords: HashMap<String, String>,
 }
 
 impl CreateSessionRequest {
@@ -309,12 +314,32 @@ pub fn validate_round_references(conn: &Connection, round: &ValidRound) -> ApiRe
     Ok(())
 }
 
+/// A round's list must come from the default folder or from a custom folder whose
+/// password the request proved. This keeps a direct request from using a list the
+/// gamemaster never unlocked.
+pub fn validate_round_folder_access(
+    conn: &Connection,
+    round: &ValidRound,
+    folder_passwords: &HashMap<String, String>,
+) -> ApiResult<()> {
+    let folder_id = lists::folder_id(conn, &round.list_id)?;
+    let attempt = folder_passwords
+        .get(&folder_id)
+        .map(String::as_str)
+        .unwrap_or_default();
+    if !folders::password_matches(conn, &folder_id, attempt)? {
+        return Err(ApiError::unauthorized());
+    }
+    Ok(())
+}
+
 /// Create the session and write its teams and rounds in one transaction.
 /// Returns the new session id.
 pub fn create_session(conn: &Connection, request: &CreateSessionRequest) -> ApiResult<String> {
     let (team_count, round_count, built_teams, rounds) = validate_request(request)?;
     for round in &rounds {
         validate_round_references(conn, round)?;
+        validate_round_folder_access(conn, round, &request.folder_passwords)?;
     }
 
     let now = crate::db::now_ms();

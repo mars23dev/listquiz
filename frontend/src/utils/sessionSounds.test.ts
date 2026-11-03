@@ -3,7 +3,14 @@ import { deriveSessionCues, isFinalTickSecond } from './sessionSounds';
 import type { OrderItem, PendingPlacement, SessionState, TripmineItem } from '../types/session';
 
 function item(itemId: string): OrderItem {
-  return { itemId, name: itemId, value: null, revealed: false, placedBy: null };
+  return {
+    itemId,
+    name: itemId,
+    value: null,
+    revealed: false,
+    placedBy: null,
+    iconName: null,
+  };
 }
 
 function pending(itemId: string): PendingPlacement {
@@ -20,6 +27,7 @@ function tripmineItem(overrides: Partial<TripmineItem> = {}): TripmineItem {
     isTripmine: false,
     pointsAwarded: null,
     pickedBy: null,
+    iconName: null,
     ...overrides,
   };
 }
@@ -49,7 +57,7 @@ function state(overrides: Partial<SessionState> = {}): SessionState {
       { id: 'team_1', name: 'One', color: 'cyan', primaryHex: '#06b6d4', accentGlow: '', score: 0, hearts: 3, onTurn: true },
       { id: 'team_2', name: 'Two', color: 'rose', primaryHex: '#f43f5e', accentGlow: '', score: 0, hearts: 3, onTurn: false },
     ],
-    order: { anchor: { itemId: 'a', name: 'A', value: '5' }, pool: [], left: [], right: [], pending: null },
+    order: { anchor: { itemId: 'a', name: 'A', value: '5', iconName: null }, pool: [], left: [], right: [], pending: null },
     tripmine: null,
     connect: null,
     links: { gamemaster: '', players: [], spectator: '' },
@@ -86,11 +94,11 @@ describe('deriveSessionCue', () => {
   it('plays a slide when an item is selected', () => {
     const base = state({
       revision: 1,
-      order: { anchor: { itemId: 'a', name: 'A', value: '5' }, pool: [item('x')], left: [], right: [], pending: null },
+      order: { anchor: { itemId: 'a', name: 'A', value: '5', iconName: null }, pool: [item('x')], left: [], right: [], pending: null },
     });
     const selected = state({
       revision: 2,
-      order: { anchor: { itemId: 'a', name: 'A', value: '5' }, pool: [item('x')], left: [], right: [], pending: pending('x') },
+      order: { anchor: { itemId: 'a', name: 'A', value: '5', iconName: null }, pool: [item('x')], left: [], right: [], pending: pending('x') },
     });
     expect(deriveSessionCues(base, selected)).toEqual(['slide']);
   });
@@ -103,7 +111,7 @@ describe('deriveSessionCue', () => {
         { id: 'team_1', name: 'One', color: 'cyan', primaryHex: '#06b6d4', accentGlow: '', score: 10, hearts: 3, onTurn: false },
         { id: 'team_2', name: 'Two', color: 'rose', primaryHex: '#f43f5e', accentGlow: '', score: 0, hearts: 3, onTurn: true },
       ],
-      order: { anchor: { itemId: 'a', name: 'A', value: '5' }, pool: [], left: [item('x')], right: [], pending: null },
+      order: { anchor: { itemId: 'a', name: 'A', value: '5', iconName: null }, pool: [], left: [item('x')], right: [], pending: null },
     });
     expect(deriveSessionCues(base, placed)).toEqual(['chime']);
   });
@@ -159,11 +167,11 @@ describe('deriveSessionCue', () => {
   it('plays a remove cue when an item returns to the pool', () => {
     const base = state({
       revision: 1,
-      order: { anchor: { itemId: 'a', name: 'A', value: '5' }, pool: [], left: [item('x')], right: [], pending: null },
+      order: { anchor: { itemId: 'a', name: 'A', value: '5', iconName: null }, pool: [], left: [item('x')], right: [], pending: null },
     });
     const returned = state({
       revision: 2,
-      order: { anchor: { itemId: 'a', name: 'A', value: '5' }, pool: [item('x')], left: [], right: [], pending: null },
+      order: { anchor: { itemId: 'a', name: 'A', value: '5', iconName: null }, pool: [item('x')], left: [], right: [], pending: null },
     });
     expect(deriveSessionCues(base, returned)).toEqual(['remove']);
   });
@@ -269,7 +277,7 @@ describe('deriveSessionCues order (round end before game end)', () => {
         { id: 'team_1', name: 'One', color: 'cyan', primaryHex: '#06b6d4', accentGlow: '', score: 10, hearts: 3, onTurn: false },
         { id: 'team_2', name: 'Two', color: 'rose', primaryHex: '#f43f5e', accentGlow: '', score: 0, hearts: 3, onTurn: true },
       ],
-      order: { anchor: { itemId: 'a', name: 'A', value: '5' }, pool: [], left: [item('x')], right: [], pending: null },
+      order: { anchor: { itemId: 'a', name: 'A', value: '5', iconName: null }, pool: [], left: [item('x')], right: [], pending: null },
     });
     expect(deriveSessionCues(base, finished)).toEqual(['chime', 'bonus']);
   });

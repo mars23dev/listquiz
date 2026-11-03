@@ -93,6 +93,7 @@ export interface CreateSessionRequest {
     columnId: string;
     tripmineSide?: 'highest' | 'lowest' | 'random';
   }[];
+  folderPasswords?: Record<string, string>;
 }
 
 export function createSession(body: CreateSessionRequest): Promise<CreateSessionResponse> {

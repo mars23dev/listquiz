@@ -25,6 +25,8 @@ interface TripmineBoardProps {
   /** Teams for coloring a revealed item's border (US2). */
   teams?: TeamColorSource[];
   feedbackMessage?: string | null;
+  /** The round's value-column label, shown with the target value. */
+  columnName?: string;
 }
 
 export const TripmineBoard: React.FC<TripmineBoardProps> = ({

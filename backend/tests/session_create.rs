@@ -6,12 +6,69 @@
 mod common;
 
 use axum::Router;
+use rusqlite::Connection;
 use serde_json::{Value, json};
 
-use common::{call, error_code, get_state, json_request, seeded_db, test_app, valid_session_body};
+use common::{
+    call, error_code, get_state, json_request, seeded_db, seeded_shared_db, test_app,
+    valid_session_body,
+};
+
+const FOLDER_PASSWORD: &str = "hunter2";
 
 async fn create(app: &Router, body: Value) -> (axum::http::StatusCode, Value) {
     call(app, json_request("POST", "/api/sessions", Some(&body))).await
+}
+
+async fn create_folder(app: &Router, name: &str, password: &str) -> String {
+    let (status, body) = call(
+        app,
+        json_request(
+            "POST",
+            "/api/folders",
+            Some(&json!({ "name": name, "password": password })),
+        ),
+    )
+    .await;
+    assert_eq!(status, 201, "folder created: {body}");
+    body["id"].as_str().expect("a folder id").to_string()
+}
+
+fn plant_custom_list(conn: &Connection, folder_id: &str, list_id: &str, column_id: &str) {
+    conn.execute(
+        "INSERT INTO quiz_list
+            (id, folder_id, title, description, item_count, is_default, created_at, updated_at)
+         VALUES (?1, ?2, 'Test', '', 0, 0, 0, 0)",
+        rusqlite::params![list_id, folder_id],
+    )
+    .expect("plant list");
+    conn.execute(
+        "INSERT INTO list_item_column (list_id, id, name, position)
+         VALUES (?1, ?2, 'Value', 0)",
+        rusqlite::params![list_id, column_id],
+    )
+    .expect("plant column");
+}
+
+fn folder_passwords(entries: &[(&str, &str)]) -> Value {
+    let mut map = serde_json::Map::new();
+    for (folder_id, password) in entries {
+        map.insert((*folder_id).to_string(), json!(*password));
+    }
+    Value::Object(map)
+}
+
+fn custom_session_body(list_id: &str, column_id: &str, passwords: Value) -> Value {
+    json!({
+        "gmPassword": "letmein",
+        "teamCount": 2,
+        "teams": [{ "name": "Team Cyan Pulsar" }, { "name": "Team Ruby Spark" }],
+        "roundCount": 1,
+        "rounds": [
+            { "roundNumber": 1, "quizType": "ORDER", "listId": list_id, "columnId": column_id }
+        ],
+        "folderPasswords": passwords
+    })
 }
 
 #[tokio::test]
@@ -179,4 +236,113 @@ async fn both_teams_start_on_zero_points_and_three_hearts() {
         assert_eq!(team["hearts"], json!(3));
     }
     assert_eq!(state["currentRound"], json!(0), "no round has started yet");
+}
+
+#[tokio::test]
+async fn a_custom_list_session_needs_and_accepts_its_folder_password() {
+    let (server_db, side) = seeded_shared_db();
+    let app = test_app(server_db);
+    let folder_id = create_folder(&app, "Family facts", FOLDER_PASSWORD).await;
+    plant_custom_list(&side, &folder_id, "lst-test", "value");
+
+    let (status, response) = create(
+        &app,
+        custom_session_body(
+            "lst-test",
+            "value",
+            folder_passwords(&[(&folder_id, FOLDER_PASSWORD)]),
+        ),
+    )
+    .await;
+
+    assert_eq!(status, 201, "custom-list session created: {response}");
+    let session_id = response["sessionId"].as_str().expect("a session id");
+    let (list_id, column_id): (String, String) = side
+        .query_row(
+            "SELECT list_id, column_id FROM round_config WHERE session_id = ?1",
+            [session_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .expect("the configured round");
+    assert_eq!(list_id, "lst-test");
+    assert_eq!(column_id, "value");
+}
+
+#[tokio::test]
+async fn a_locked_custom_list_is_refused_without_proof() {
+    let (server_db, side) = seeded_shared_db();
+    let app = test_app(server_db);
+    let folder_id = create_folder(&app, "Family facts", FOLDER_PASSWORD).await;
+    plant_custom_list(&side, &folder_id, "lst-test", "value");
+
+    let mut missing = custom_session_body("lst-test", "value", json!({}));
+    missing.as_object_mut().unwrap().remove("folderPasswords");
+    let (status, answer) = create(&app, missing).await;
+    assert_eq!(status, 400, "missing proof: {answer}");
+    assert_eq!(error_code(&answer), "unauthorized");
+    assert_eq!(answer["error"]["message"], json!("Incorrect password!"));
+
+    let (status, answer) = create(
+        &app,
+        custom_session_body(
+            "lst-test",
+            "value",
+            folder_passwords(&[(&folder_id, "wrong")]),
+        ),
+    )
+    .await;
+    assert_eq!(status, 400, "wrong proof: {answer}");
+    assert_eq!(error_code(&answer), "unauthorized");
+
+    let sessions: i64 = side
+        .query_row("SELECT COUNT(*) FROM game_session", [], |row| row.get(0))
+        .expect("session count");
+    assert_eq!(sessions, 0, "a refused request writes no session");
+}
+
+#[tokio::test]
+async fn two_unlocked_folders_can_supply_two_rounds_but_one_cannot_vouch_for_the_other() {
+    let (server_db, side) = seeded_shared_db();
+    let app = test_app(server_db);
+    let family = create_folder(&app, "Family facts", "family-pw").await;
+    let work = create_folder(&app, "Work trivia", "work-pw").await;
+    plant_custom_list(&side, &family, "lst-family", "value");
+    plant_custom_list(&side, &work, "lst-work", "value");
+
+    let body = json!({
+        "gmPassword": "letmein",
+        "teamCount": 2,
+        "teams": [{ "name": "Team Cyan Pulsar" }, { "name": "Team Ruby Spark" }],
+        "roundCount": 2,
+        "rounds": [
+            { "roundNumber": 1, "quizType": "ORDER", "listId": "lst-family", "columnId": "value" },
+            { "roundNumber": 2, "quizType": "ORDER", "listId": "lst-work", "columnId": "value" }
+        ],
+        "folderPasswords": folder_passwords(&[
+            (&family, "family-pw"),
+            (&work, "work-pw")
+        ])
+    });
+    let (status, response) = create(&app, body).await;
+    assert_eq!(status, 201, "both folders unlocked: {response}");
+
+    let partial = json!({
+        "gmPassword": "letmein",
+        "teamCount": 2,
+        "teams": [{ "name": "Team Cyan Pulsar" }, { "name": "Team Ruby Spark" }],
+        "roundCount": 2,
+        "rounds": [
+            { "roundNumber": 1, "quizType": "ORDER", "listId": "lst-family", "columnId": "value" },
+            { "roundNumber": 2, "quizType": "ORDER", "listId": "lst-work", "columnId": "value" }
+        ],
+        "folderPasswords": folder_passwords(&[(&family, "family-pw")])
+    });
+    let (status, answer) = create(&app, partial).await;
+    assert_eq!(status, 400, "one password cannot unlock both: {answer}");
+    assert_eq!(error_code(&answer), "unauthorized");
+
+    let sessions: i64 = side
+        .query_row("SELECT COUNT(*) FROM game_session", [], |row| row.get(0))
+        .expect("session count");
+    assert_eq!(sessions, 1, "only the fully proven request was written");
 }
