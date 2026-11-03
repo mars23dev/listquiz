@@ -68,6 +68,7 @@ pub fn build_request(
             },
             tripmine_slots: None,
         }],
+        folder_passwords: Default::default(),
     })
 }
 

@@ -34,6 +34,7 @@ fn request() -> CreateSessionRequest {
         teams: Vec::new(),
         round_count: Some(1),
         rounds: vec![order_round()],
+        folder_passwords: Default::default(),
     }
 }
 

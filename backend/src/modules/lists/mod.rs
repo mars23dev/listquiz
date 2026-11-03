@@ -445,6 +445,17 @@ pub fn delete(conn: &Connection, list_id: &str) -> ApiResult<()> {
     Ok(())
 }
 
+/// The folder that owns `list_id`, or `not_found` when it does not exist.
+pub fn folder_id(conn: &Connection, list_id: &str) -> ApiResult<String> {
+    conn.query_row(
+        "SELECT folder_id FROM quiz_list WHERE id = ?1",
+        params![list_id],
+        |row| row.get::<_, String>(0),
+    )
+    .optional()?
+    .ok_or_else(|| ApiError::not_found(format!("No list with id '{list_id}'.")))
+}
+
 /// Read a list with its columns, items, and values (T121).
 pub fn read(conn: &Connection, list_id: &str) -> ApiResult<ListDetail> {
     let row: Option<(String, String, Option<String>, i64, i64)> = conn

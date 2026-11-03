@@ -39,25 +39,13 @@ async fn folder_lists(
     Ok(Json(summaries))
 }
 
-/// The folder a list belongs to, or `not_found`.
-fn folder_of(conn: &rusqlite::Connection, list_id: &str) -> ApiResult<String> {
-    use rusqlite::OptionalExtension;
-    conn.query_row(
-        "SELECT folder_id FROM quiz_list WHERE id = ?1",
-        rusqlite::params![list_id],
-        |row| row.get::<_, String>(0),
-    )
-    .optional()?
-    .ok_or_else(|| ApiError::not_found(format!("No list with id '{list_id}'.")))
-}
-
 /// A list's folder password gate, shared by read, write, and export.
 fn require_list_password(
     conn: &rusqlite::Connection,
     list_id: &str,
     headers: &HeaderMap,
 ) -> ApiResult<()> {
-    let folder_id = folder_of(conn, list_id)?;
+    let folder_id = lists::folder_id(conn, list_id)?;
     if !folders::password_matches(conn, &folder_id, &header_password(headers))? {
         return Err(ApiError::unauthorized());
     }

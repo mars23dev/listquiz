@@ -16,6 +16,41 @@ const LISTS = {
   ],
 };
 
+const FOLDERS = [
+  { id: 'default', name: 'Default Lists', isDefault: true, locked: false },
+  { id: 'fld-family1', name: 'Family facts', isDefault: false, locked: true },
+  { id: 'fld-work1', name: 'Work trivia', isDefault: false, locked: true },
+];
+
+const FAMILY_LISTS = {
+  lists: [
+    {
+      id: 'lst-test',
+      title: 'Test',
+      description: '',
+      itemCount: 11,
+      isDefault: false,
+      columns: [
+        { id: 'value', name: 'Value' },
+        { id: 'year', name: 'Year' },
+      ],
+    },
+  ],
+};
+
+const WORK_LISTS = {
+  lists: [
+    {
+      id: 'lst-work',
+      title: 'Test',
+      description: '',
+      itemCount: 14,
+      isDefault: false,
+      columns: [{ id: 'value', name: 'Value' }],
+    },
+  ],
+};
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -27,9 +62,48 @@ describe('setup wizard', () => {
   beforeEach(() => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (input: RequestInfo | URL) => {
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
+        const method = init?.method ?? 'GET';
+        const headers = (init?.headers ?? {}) as Record<string, string>;
+        const body = init?.body
+          ? (JSON.parse(String(init.body)) as Record<string, unknown>)
+          : undefined;
+
         if (url === '/api/default-lists') return jsonResponse(LISTS);
+        if (url === '/api/folders' && method === 'GET') return jsonResponse(FOLDERS);
+        if (url === '/api/folders/fld-family1/unlock' && method === 'POST') {
+          return body?.password === 'hunter2'
+            ? jsonResponse({ name: 'Family facts' })
+            : jsonResponse(
+                { error: { code: 'unauthorized', message: 'Incorrect password!' } },
+                400,
+              );
+        }
+        if (url === '/api/folders/fld-work1/unlock' && method === 'POST') {
+          return body?.password === 'workpw'
+            ? jsonResponse({ name: 'Work trivia' })
+            : jsonResponse(
+                { error: { code: 'unauthorized', message: 'Incorrect password!' } },
+                400,
+              );
+        }
+        if (url === '/api/folders/fld-family1/lists') {
+          return headers['X-Quiz-Password'] === 'hunter2'
+            ? jsonResponse(FAMILY_LISTS)
+            : jsonResponse(
+                { error: { code: 'unauthorized', message: 'Incorrect password!' } },
+                400,
+              );
+        }
+        if (url === '/api/folders/fld-work1/lists') {
+          return headers['X-Quiz-Password'] === 'workpw'
+            ? jsonResponse(WORK_LISTS)
+            : jsonResponse(
+                { error: { code: 'unauthorized', message: 'Incorrect password!' } },
+                400,
+              );
+        }
         if (url === '/api/sessions') {
           return jsonResponse(
             {
@@ -126,6 +200,7 @@ describe('setup wizard', () => {
       columnId: 'year',
     });
     expect(body.rounds[0]).not.toHaveProperty('tripmineSide');
+    expect(body.folderPasswords).toBeUndefined();
 
     expect(screen.getByText('/lq-abcd1234/gamemaster')).toBeInTheDocument();
     expect(screen.getByText('HOST')).toBeInTheDocument();
@@ -223,5 +298,129 @@ describe('setup wizard', () => {
     expect(within(side).getByRole('option', { name: /random \(hard\)/i })).toBeInTheDocument();
     expect(within(side).getByRole('option', { name: /^highest$/i })).toBeInTheDocument();
     expect(within(side).getByRole('option', { name: /^lowest$/i })).toBeInTheDocument();
+  });
+
+  it('unlocks a protected folder and selects its custom list', async () => {
+    const user = userEvent.setup();
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    render(<SetupQuiz onBackToHome={() => {}} onLaunchRole={() => {}} />);
+
+    await user.type(await screen.findByLabelText(/moderator password/i), 'letmein');
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+    await screen.findByRole('heading', { name: /step 2/i });
+
+    await user.click(screen.getByRole('button', { name: /family facts/i }));
+    await user.type(
+      screen.getByLabelText(/password for family facts/i),
+      'hunter2',
+    );
+    await user.click(screen.getByRole('button', { name: /^unlock$/i }));
+
+    expect(
+      await screen.findByRole('option', {
+        name: /family facts \/ test \(11 items\)/i,
+      }),
+    ).toBeInTheDocument();
+
+    const listSelect = screen.getAllByLabelText(/^list$/i)[0];
+    await user.selectOptions(listSelect, 'lst-test');
+    const valueColumn = screen.getByLabelText(/value column/i);
+    await user.selectOptions(valueColumn, 'year');
+    await user.click(screen.getByRole('button', { name: /create session/i }));
+
+    expect(await screen.findByText(/session ready:/i)).toBeInTheDocument();
+    const call = fetchMock.mock.calls.find(([url]) => String(url) === '/api/sessions');
+    const body = JSON.parse(String((call?.[1] as { body: string }).body));
+    expect(body.rounds[0]).toMatchObject({
+      listId: 'lst-test',
+      columnId: 'year',
+    });
+    expect(body.folderPasswords).toEqual({ 'fld-family1': 'hunter2' });
+  });
+
+  it('keeps a locked folder list hidden and rejects a wrong password', async () => {
+    const user = userEvent.setup();
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    render(<SetupQuiz onBackToHome={() => {}} onLaunchRole={() => {}} />);
+
+    await user.type(await screen.findByLabelText(/moderator password/i), 'letmein');
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+    await screen.findByRole('heading', { name: /step 2/i });
+
+    expect(
+      screen.queryByRole('option', { name: /family facts \/ test/i }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /family facts/i }));
+    await user.type(
+      screen.getByLabelText(/password for family facts/i),
+      'wrong',
+    );
+    await user.click(screen.getByRole('button', { name: /^unlock$/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/incorrect password/i);
+    expect(
+      screen.queryByRole('option', { name: /family facts \/ test/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.filter(([url]) => String(url).includes('fld-family1/lists')),
+    ).toHaveLength(0);
+  });
+
+  it('unlocks two folders and distinguishes duplicate custom list titles', async () => {
+    const user = userEvent.setup();
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    render(<SetupQuiz onBackToHome={() => {}} onLaunchRole={() => {}} />);
+
+    await user.type(await screen.findByLabelText(/moderator password/i), 'letmein');
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+    await screen.findByRole('heading', { name: /step 2/i });
+
+    await user.click(screen.getByRole('button', { name: /family facts/i }));
+    await user.type(
+      screen.getByLabelText(/password for family facts/i),
+      'hunter2',
+    );
+    await user.click(screen.getByRole('button', { name: /^unlock$/i }));
+    await screen.findByRole('option', {
+      name: /family facts \/ test \(11 items\)/i,
+    });
+
+    await user.click(screen.getByRole('button', { name: /work trivia/i }));
+    await user.type(screen.getByLabelText(/password for work trivia/i), 'workpw');
+    await user.click(screen.getByRole('button', { name: /^unlock$/i }));
+
+    expect(
+      await screen.findByRole('option', {
+        name: /family facts \/ test \(11 items\)/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('option', { name: /work trivia \/ test \(14 items\)/i }),
+    ).toBeInTheDocument();
+
+    const firstLists = screen.getAllByLabelText(/^list$/i);
+    await user.selectOptions(firstLists[0], 'lst-test');
+    const valueColumn = screen.getByLabelText(/value column/i);
+    await user.selectOptions(valueColumn, 'year');
+
+    await user.click(screen.getByRole('button', { name: /add round/i }));
+    const secondLists = screen.getAllByLabelText(/^list$/i);
+    await user.selectOptions(secondLists[1], 'lst-work');
+    expect(screen.getAllByLabelText(/value column/i)).toHaveLength(1);
+
+    await user.click(screen.getByRole('button', { name: /create session/i }));
+    expect(await screen.findByText(/session ready:/i)).toBeInTheDocument();
+
+    const call = fetchMock.mock.calls.find(([url]) => String(url) === '/api/sessions');
+    const body = JSON.parse(String((call?.[1] as { body: string }).body));
+    expect(body.rounds).toMatchObject([
+      { listId: 'lst-test', columnId: 'year' },
+      { listId: 'lst-work', columnId: 'value' },
+    ]);
+    expect(body.folderPasswords).toEqual({
+      'fld-family1': 'hunter2',
+      'fld-work1': 'workpw',
+    });
   });
 });

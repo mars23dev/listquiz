@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ApiError, createSession, fetchDefaultLists } from '../api/client';
+import {
+  ApiError,
+  createSession,
+  fetchDefaultLists,
+  fetchFolderLists,
+  fetchFolders,
+  unlockFolder,
+  type FolderSummary,
+} from '../api/client';
 import type { ListSummary } from '../types/session';
 
 const MAX_TEAMS = 4;
@@ -21,7 +29,15 @@ interface SetupQuizProps {
   onLaunchRole: (path: string) => void;
 }
 
-function newRound(roundNumber: number, lists: ListSummary[]): RoundDraft {
+interface SourceList extends ListSummary {
+  folderId: string;
+  folderName: string;
+}
+
+function newRound(
+  roundNumber: number,
+  lists: Array<Pick<ListSummary, 'id' | 'columns'>>,
+): RoundDraft {
   const first = lists[0];
   return {
     roundNumber,
@@ -39,6 +55,12 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
   const [teamCount, setTeamCount] = useState(2);
   const [teamNames, setTeamNames] = useState<string[]>(['', '']);
   const [lists, setLists] = useState<ListSummary[]>([]);
+  const [folders, setFolders] = useState<FolderSummary[]>([]);
+  const [folderLists, setFolderLists] = useState<Record<string, ListSummary[]>>({});
+  const [folderPasswords, setFolderPasswords] = useState<Record<string, string>>({});
+  const [unlockTarget, setUnlockTarget] = useState<string | null>(null);
+  const [unlockPassword, setUnlockPassword] = useState('');
+  const [unlocking, setUnlocking] = useState<string | null>(null);
   const [rounds, setRounds] = useState<RoundDraft[]>([]);
   const [copied, setCopied] = useState<string | null>(null);
   const [created, setCreated] = useState<{ sessionId: string; links: CreatedLinks } | null>(null);
@@ -46,21 +68,53 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchDefaultLists()
-      .then((answer) => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const answer = await fetchDefaultLists();
+        if (cancelled) return;
         setLists(answer.lists);
         setRounds((current) =>
           current.length === 0 ? [newRound(1, answer.lists)] : current,
         );
-      })
-      .catch((cause: unknown) => {
+      } catch (cause: unknown) {
+        if (cancelled) return;
         setLists([]);
         setRounds((current) =>
           current.length === 0 ? [newRound(1, [])] : current,
         );
         setError(cause instanceof Error ? cause.message : 'Lists could not be loaded.');
-      });
+      }
+
+      try {
+        const answer = await fetchFolders();
+        if (!cancelled) setFolders(answer);
+      } catch (cause: unknown) {
+        if (!cancelled) {
+          setError(cause instanceof Error ? cause.message : 'Folders could not be loaded.');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const availableLists = useMemo<SourceList[]>(() => {
+    const defaultFolderName =
+      folders.find((folder) => folder.isDefault)?.name ?? 'Default Lists';
+    const defaults = lists.map((list) => ({
+      ...list,
+      folderId: 'default',
+      folderName: defaultFolderName,
+    }));
+    const custom = Object.entries(folderLists).flatMap(([folderId, folderItems]) => {
+      const folderName =
+        folders.find((folder) => folder.id === folderId)?.name ?? folderId;
+      return folderItems.map((list) => ({ ...list, folderId, folderName }));
+    });
+    return [...defaults, ...custom];
+  }, [folders, folderLists, lists]);
 
   const teams = useMemo(
     () =>
@@ -89,13 +143,53 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
   }
 
   function pickList(index: number, listId: string) {
-    const list = lists.find((candidate) => candidate.id === listId);
+    const list = availableLists.find((candidate) => candidate.id === listId);
     updateRound(index, { listId, columnId: list?.columns[0]?.id ?? '' });
   }
 
   function addRound() {
     if (rounds.length >= MAX_ROUNDS) return;
-    setRounds((current) => [...current, newRound(current.length + 1, lists)]);
+    setRounds((current) => [...current, newRound(current.length + 1, availableLists)]);
+  }
+
+  function chooseFolder(folder: FolderSummary) {
+    if (folder.isDefault || folderPasswords[folder.id]) return;
+    setUnlockTarget(folder.id);
+    setUnlockPassword('');
+    setError(null);
+  }
+
+  async function submitFolderUnlock(folder: FolderSummary) {
+    if (!unlockPassword.trim()) return;
+    setUnlocking(folder.id);
+    setError(null);
+    try {
+      await unlockFolder(folder.id, unlockPassword);
+      const answer = await fetchFolderLists(folder.id, unlockPassword);
+      setFolderPasswords((current) => ({ ...current, [folder.id]: unlockPassword }));
+      setFolderLists((current) => ({ ...current, [folder.id]: answer.lists }));
+      setUnlockTarget(null);
+      setUnlockPassword('');
+    } catch (cause) {
+      setFolderPasswords((current) => {
+        const next = { ...current };
+        delete next[folder.id];
+        return next;
+      });
+      setFolderLists((current) => {
+        const next = { ...current };
+        delete next[folder.id];
+        return next;
+      });
+      setUnlockPassword('');
+      setError(
+        cause instanceof ApiError
+          ? cause.message
+          : 'The folder could not be unlocked.',
+      );
+    } finally {
+      setUnlocking(null);
+    }
   }
 
   function removeRound(index: number) {
@@ -126,6 +220,14 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
     setBusy(true);
     setError(null);
     try {
+      const selectedFolderPasswords: Record<string, string> = {};
+      for (const round of rounds) {
+        const list = availableLists.find((candidate) => candidate.id === round.listId);
+        if (list && !list.isDefault && folderPasswords[list.folderId]) {
+          selectedFolderPasswords[list.folderId] = folderPasswords[list.folderId];
+        }
+      }
+
       const response = await createSession({
         gmPassword,
         teamCount,
@@ -140,6 +242,9 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
             ? { tripmineSide: round.tripmineSide, tripmineSlots: round.tripmineSlots }
             : {}),
         })),
+        ...(Object.keys(selectedFolderPasswords).length > 0
+          ? { folderPasswords: selectedFolderPasswords }
+          : {}),
       });
       setCreated({
         sessionId: response.sessionId,
@@ -313,9 +418,83 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
             plays from.
           </p>
 
+          {folders.length > 0 ? (
+            <section
+              aria-label="List folders"
+              className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-4"
+            >
+              <h2 className="text-xs font-bold uppercase tracking-wide text-slate-300">
+                Source Folders
+              </h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Default lists are always available. Unlock a protected folder to use its
+                lists in this setup.
+              </p>
+              <div className="mt-3 flex flex-wrap items-start gap-3">
+                {folders.map((folder) => {
+                  const unlocked = folder.isDefault || Boolean(folderPasswords[folder.id]);
+                  const isTarget = unlockTarget === folder.id;
+                  return (
+                    <div key={folder.id} className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        aria-expanded={isTarget}
+                        onClick={() => chooseFolder(folder)}
+                        disabled={unlocked}
+                        className={[
+                          'rounded-lg border px-3 py-1.5 text-xs font-semibold',
+                          unlocked
+                            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                            : isTarget
+                              ? 'border-cyan-500 bg-cyan-500/15 text-cyan-200'
+                              : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500',
+                        ].join(' ')}
+                      >
+                        {folder.isDefault ? '' : unlocked ? 'Unlocked: ' : '\u{1F512} '}
+                        {folder.name}
+                      </button>
+                      {isTarget && !unlocked ? (
+                        <form
+                          className="flex items-center gap-2"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            void submitFolderUnlock(folder);
+                          }}
+                        >
+                          <label
+                            htmlFor={`folder-password-${folder.id}`}
+                            className="sr-only"
+                          >
+                            Password for {folder.name}
+                          </label>
+                          <input
+                            id={`folder-password-${folder.id}`}
+                            type="password"
+                            value={unlockPassword}
+                            onChange={(event) => setUnlockPassword(event.target.value)}
+                            placeholder={`${folder.name} password`}
+                            autoFocus
+                            className="w-40 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-100"
+                          />
+                          <button
+                            type="submit"
+                            disabled={unlocking === folder.id || !unlockPassword.trim()}
+                            className="rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
+                          >
+                            {unlocking === folder.id ? 'Unlocking...' : 'Unlock'}
+                          </button>
+                        </form>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+
           <ol className="mt-6 space-y-4">
             {rounds.map((round, index) => {
-              const list = lists.find((candidate) => candidate.id === round.listId);
+              const list = availableLists.find((candidate) => candidate.id === round.listId);
               return (
                 <li key={round.roundNumber} className="rounded-xl border border-slate-800 bg-slate-950 p-4">
                   <div className="flex items-center justify-between">
@@ -358,9 +537,11 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
                         className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
                       >
                         <option value="">Select a list</option>
-                        {lists.map((candidate) => (
+                        {availableLists.map((candidate) => (
                           <option key={candidate.id} value={candidate.id}>
-                            {candidate.title} ({candidate.itemCount} items)
+                            {candidate.isDefault
+                              ? `${candidate.title} (${candidate.itemCount} items)`
+                              : `${candidate.folderName} / ${candidate.title} (${candidate.itemCount} items)`}
                           </option>
                         ))}
                       </select>
