@@ -1,0 +1,220 @@
+// The session state the backend serves, mirroring the Rust DTOs in
+// backend/src/app_state.rs field for field, per
+// specs/001-listquiz-game/contracts/realtime.md. If the contract changes, this file
+// and that one change together.
+import type { UserRole } from './quiz';
+
+export interface TeamView {
+  id: string;
+  name: string;
+  color: string;
+  primaryHex: string;
+  accentGlow: string;
+  score: number;
+  hearts: number;
+  onTurn: boolean;
+}
+
+export interface OrderItem {
+  itemId: string;
+  name: string;
+  /** Null for a player until the gamemaster reveals values (FR-027). */
+  value: string | null;
+  revealed: boolean;
+  /** The team that placed this item, or null while it is in the pool (US2). */
+  placedBy: string | null;
+  /** The list item's icon (or `flag:<cc>`), shown by every game type (feature 016). */
+  iconName: string | null;
+}
+
+export interface AnchorItem {
+  itemId: string;
+  name: string;
+  /** Public by design: FR-026 requires the anchor to show its value. */
+  value: string;
+  iconName: string | null;
+}
+
+export interface PendingPlacement {
+  itemId: string;
+  name: string;
+  side: 'left' | 'right';
+  slotIndex: number;
+  teamId: string;
+}
+
+/** The gamemaster's turn timer (feature 005, US2). Public to every role. */
+export interface TimerView {
+  totalSeconds: number;
+  secondsLeft: number;
+}
+
+export interface OrderView {
+  anchor: AnchorItem;
+  pool: OrderItem[];
+  left: OrderItem[];
+  right: OrderItem[];
+  pending: PendingPlacement | null;
+}
+
+export interface TripmineItem {
+  itemId: string;
+  name: string;
+  value: string | null;
+  revealed: boolean;
+  /** Position 1-10; null for a player until that item is revealed (FR-039). */
+  trueRank: number | null;
+  /** Only true for an item this view is allowed to know the answer for. */
+  isTripmine: boolean;
+  pointsAwarded: number | null;
+  /** The team that picked this item, or null while it is hidden (US2). */
+  pickedBy: string | null;
+  /** The list item's icon (or `flag:<cc>`), shown by every game type (feature 016). */
+  iconName: string | null;
+}
+
+export interface TripmineView {
+  side: 'highest' | 'lowest' | 'random';
+  searchedRank: number;
+  hit: boolean;
+  completed: boolean;
+  /** The mined item's value, shown as a public hint (FR-015). */
+  targetValue: string | null;
+  /** The rank (1..=10) of the mine, shown to every role as a position only (010). */
+  mineRank: number;
+  items: TripmineItem[];
+}
+
+/** A name in the Connect left column (feature 010). */
+export interface ConnectName {
+  itemId: string;
+  name: string;
+  iconName: string | null;
+}
+
+/** A value in the Connect right column. */
+export interface ConnectValue {
+  itemId: string;
+  display: string;
+}
+
+/** The pair staged in the Connect middle box. */
+export interface ConnectPending {
+  nameItemId: string | null;
+  valueItemId: string | null;
+}
+
+/** The Connect board (feature 010). Values are public: it is a matching game. */
+export interface ConnectView {
+  names: ConnectName[];
+  values: ConnectValue[];
+  matched: string[];
+  pending: ConnectPending;
+}
+
+export interface RoundSummary {
+  roundNumber: number;
+  quizType: 'ORDER' | 'TRIPMINE' | 'CONNECT';
+  tripmineSide: 'highest' | 'lowest' | 'random' | null;
+  listTitle: string;
+  listId: string;
+  columnId: string;
+  columnName: string;
+}
+
+export interface PlayerLink {
+  role: string;
+  path: string;
+  hasTeam: boolean;
+}
+
+export interface SessionLinks {
+  gamemaster: string;
+  players: PlayerLink[];
+  spectator: string;
+}
+
+export interface SessionState {
+  revision: number;
+  sessionId: string;
+  status: 'setup' | 'running' | 'finished';
+  teamCount: number;
+  roundCount: number;
+  currentRound: number;
+  muted: boolean;
+  revealValues: boolean;
+  lastMessage: string | null;
+  timer: TimerView | null;
+  round: RoundSummary | null;
+  teams: TeamView[];
+  order: OrderView | null;
+  tripmine: TripmineView | null;
+  connect: ConnectView | null;
+  links: SessionLinks;
+}
+
+export interface CreateSessionResponse {
+  sessionId: string;
+  links: SessionLinks;
+}
+
+export type ApiErrorCode =
+  | 'bad_request'
+  | 'unauthorized'
+  | 'not_found'
+  | 'conflict'
+  | 'too_small'
+  | 'too_large'
+  | 'not_ready'
+  | 'frontend_missing';
+
+export interface ApiErrorBody {
+  error: { code: ApiErrorCode; message: string };
+}
+
+export interface RoleQuery {
+  role: UserRole;
+}
+
+// --- Lists (contracts/rest-api.md) ---------------------------------------
+
+export interface ListColumnSummary {
+  id: string;
+  name: string;
+}
+
+export interface ListSummary {
+  id: string;
+  title: string;
+  description: string;
+  columns: ListColumnSummary[];
+  itemCount: number;
+  isDefault: boolean;
+}
+
+export interface ListItemValueView {
+  display: string;
+  numeric: number;
+  /** True when a CSV import filled this value in (FR-060). */
+  wasDefaulted: boolean;
+}
+
+export interface ListItemView {
+  id: string;
+  name: string;
+  iconName: string | null;
+  iconImage: string | null;
+  position: number;
+  values: Record<string, ListItemValueView>;
+}
+
+export interface ListDetail extends ListSummary {
+  folderId: string;
+  items: ListItemView[];
+}
+
+export interface ImportReport {
+  rowCount: number;
+  defaultedRows: { position: number; raw: string }[];
+  warnings: string[];
+}

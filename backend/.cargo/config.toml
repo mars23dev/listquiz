@@ -1,0 +1,4 @@
+# Build output stays inside the repository: constitution v2.1.1 forbids
+# writing compilation state under %APPDATA% or any other AppData location.
+[build]
+target-dir = "target"

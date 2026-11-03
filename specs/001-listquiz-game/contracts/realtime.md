@@ -1,5 +1,39 @@
 # Contract: Realtime Updates and Role Redaction
 
+> **Amended by `specs/002-fix-play-findings/contracts/realtime-amendment.md`:** the rule below that
+> "player and spectator views have no controls" is narrowed — the player role that owns the team on
+> turn may act, and the Tripmine view gains `targetValue`.
+>
+> **Amended by `specs/004-fix-session-feedback/contracts/session-feedback.md`:** the Order view gains
+> `order[].placedBy` and the Tripmine view gains `tripmine.items[].pickedBy` (the acting team, public);
+> when `revealValues` is set the Order bar is sent in its correct arrangement with an empty pool; and
+> cues are driven from the reflected event (the client diffs consecutive revisions).
+>
+> **Amended by `specs/005-session-flow/contracts/session-flow.md`:** the state gains `timer`
+> (`{ totalSeconds, secondsLeft }` or `null`), driven by the `start_timer`/`stop_timer`/`time_out`
+> actions; a finished session can be deleted; and quick games are created through
+> `POST /api/sessions/quick`. The Tripmine gamemaster view always carries the answer key.
+>
+> **Amended by `specs/007-fix-game-end/contracts/game-end.md`:** the last configured round ending
+> finishes the session by itself (no gamemaster action), which is what makes the game-end dialog
+> appear in a gamemaster-less quick game.
+>
+> **Amended by `specs/006-fix-turn-timer/contracts/turn-timer.md`:** a timeout costs a heart only in
+> an Order round (a Tripmine timeout just passes the turn), and the timer plays a start cue and a
+> timeout cue.
+>
+> **Amended by `specs/008-fix-timer-timeout/contracts/timer-timeout.md`:** the server schedules the
+> timer's timeout at its end time and applies it itself, so no client posts `time_out`; the client
+> shows the countdown, ticks the last five seconds, and shows no timer error.
+>
+> **Amended by `specs/009-tripmine-mode/contracts/tripmine-mode.md`:** Tripmine adds a Random (Hard)
+> side, hides hearts (hearts are Order-only), and a round end that also finishes the game plays the
+> round cue before the game-end cue.
+>
+> **Amended by `specs/010-connect-game/contracts/connect.md`:** adds a Connect game type
+> (`quizType: "CONNECT"`, a `connect` state with public names/values/matched/pending, and
+> `pick_name`/`pick_value`/`confirm_connect` actions) and a public `tripmine.mineRank`.
+
 ## Why revisions instead of pushed state
 
 Every mutation in ListQuiz comes from the gamemaster view; player and spectator views have no controls
