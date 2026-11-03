@@ -3,6 +3,11 @@
 A single-room, gamemaster-hosted quiz game. A Rust backend owns the game state, serves the exported
 React frontend, and keeps sessions, folders, and lists in a SQLite file inside the repository.
 
+## How this project was built
+
+This is a vibecoding project. It was built with AI assistance from Google AI Studio (Gemini) and
+opencode (deepseek v4.1 flash), with human review and manual testing.
+
 The feature specification, plan, data model, contracts, and task breakdown live in
 [`specs/001-listquiz-game/`](specs/001-listquiz-game/). Start with
 [`quickstart.md`](specs/001-listquiz-game/quickstart.md) for the full run-and-verify guide.
@@ -39,6 +44,11 @@ read-only default folder. Open `http://localhost:8080/`.
 
 There is no separate frontend server: the backend serves `frontend/dist`, so the frontend never runs
 without it.
+
+## Releases
+
+Publishing a GitHub release runs `.github/workflows/release.yml`, builds the Windows executable, and
+attaches `listquiz.exe` to that release.
 
 ## Checks
 
