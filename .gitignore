@@ -6,6 +6,7 @@ frontend/.npm-cache/
 
 backend/target/
 backend/data/
+release/
 
 node_modules/
 .vite/

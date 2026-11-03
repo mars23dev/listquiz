@@ -3,11 +3,9 @@ use std::path::{Path, PathBuf};
 use rusqlite::Connection;
 
 /// The project-local SQLite file. Constitution v2.1.1 requires all state to stay
-/// inside the repository, never under `%APPDATA%`.
+/// inside the project, never under `%APPDATA%`.
 pub fn default_db_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("data")
-        .join("listquiz.db")
+    crate::paths::default_db_path()
 }
 
 /// Schema DDL, one statement per table, from `data-model.md`. Idempotent, so it is

@@ -7,5 +7,6 @@ pub mod app_state;
 pub mod db;
 pub mod errors;
 pub mod modules;
+pub mod paths;
 pub mod routes;
 pub mod state_reader;

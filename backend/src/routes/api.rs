@@ -94,13 +94,10 @@ pub fn not_ready_response() -> Response {
         .into_response()
 }
 
-/// The backend owns the built frontend; the path is fixed by the constitution's
-/// no-`%APPDATA%` rule.
+/// The backend owns the built frontend. In development it is beside the source;
+/// in a release zip it is beside the executable.
 pub fn default_dist_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .map(|root| root.join("frontend").join("dist"))
-        .unwrap_or_else(|| PathBuf::from("frontend/dist"))
+    crate::paths::default_dist_dir()
 }
 
 #[cfg(test)]

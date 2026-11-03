@@ -45,6 +45,18 @@ default folder. Open `http://localhost:8080/`.
 There is no separate frontend server. The backend serves `frontend/dist`, so the frontend cannot run
 without it (Principle IV).
 
+## Package a portable release
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1
+```
+
+This builds the frontend and backend, then writes `release/listquiz-windows-x64.zip` and its SHA-256
+checksum. The zip holds `listquiz.exe`, `frontend/dist`, `start.bat`, `README.txt`, and `LICENSE`; no
+bare executable is published. Extracting and running `start.bat` on another Windows PC needs no Rust,
+Node.js, or npm. The backend resolves `frontend/dist` and `data/listquiz.db` relative to the extracted
+folder, so the database stays portable.
+
 ## Verifying no build state escapes the repository
 
 ```bash
