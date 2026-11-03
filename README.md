@@ -20,6 +20,8 @@ The feature specification, plan, data model, contracts, and task breakdown live 
 | Node.js | 24 or newer | `node --version` |
 | npm | 11 or newer | `npm --version` |
 
+These are build prerequisites only. The release zip runs without them.
+
 `bun` is not used. All build state stays inside the repository (Rust `backend/target/`, the npm cache,
 Vite's cache, and `backend/data/listquiz.db`), so nothing is written under `%APPDATA%`.
 
@@ -45,10 +47,29 @@ read-only default folder. Open `http://localhost:8080/`.
 There is no separate frontend server: the backend serves `frontend/dist`, so the frontend never runs
 without it.
 
-## Releases
+## Portable release
 
-Publishing a GitHub release runs `.github/workflows/release.yml`, builds the Windows executable, and
-attaches `listquiz.exe` to that release.
+The release artifact is a zip containing everything a Windows PC needs at runtime: the compiled
+`listquiz.exe`, the built frontend, the license, a `README.txt`, and `start.bat`. No bare `.exe` is
+published. The Rust backend must still be compiled to an executable; `start.bat` is the launcher, not a
+replacement for it.
+
+Build the same zip locally:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1
+```
+
+That writes `release/listquiz-windows-x64.zip` and its SHA-256 checksum. Extract it on another PC and
+run `start.bat`; the game opens at `http://localhost:8080` and keeps its database in `data\listquiz.db`
+inside the extracted folder. No Rust, Node.js, or npm is needed on the target machine.
+
+The backend resolves paths at runtime: in development it still uses `backend/data/` and
+`frontend/dist/`; in the release zip it uses the folder next to the executable. `LISTQUIZ_ROOT`,
+`LISTQUIZ_DB`, and `LISTQUIZ_DIST` override those locations if needed.
+
+Publishing a GitHub release runs `.github/workflows/release.yml`, builds the frontend and backend, and
+attaches only the portable zip plus its checksum.
 
 ## Checks
 

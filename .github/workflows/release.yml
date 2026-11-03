@@ -41,7 +41,13 @@ jobs:
         working-directory: backend
         run: cargo build --release --locked
 
-      - name: Attach the executable to the release
+      - name: Package the portable release
+        shell: pwsh
+        run: ./scripts/package-release.ps1 -SkipBuild
+
+      - name: Attach the portable archive to the release
         uses: softprops/action-gh-release@v2
         with:
-          files: backend/target/release/listquiz.exe
+          files: |
+            release/listquiz-windows-x64.zip
+            release/listquiz-windows-x64.zip.sha256
