@@ -236,3 +236,26 @@ async fn a_ten_row_import_is_rejected_naming_the_range() {
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(error_code(&answer), "too_small");
 }
+
+#[tokio::test]
+async fn list_summaries_report_valued_item_counts_per_column() {
+    let (server_db, _side) = seeded_shared_db();
+    let app = test_app(server_db);
+
+    let (status, body) = call(
+        &app,
+        common::json_request("GET", "/api/default-lists", None),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    let lists = body["lists"].as_array().expect("lists");
+    let history = lists
+        .iter()
+        .find(|list| list["id"] == json!("default_world_history"))
+        .expect("the history list");
+    assert_eq!(
+        history["columns"][0]["valueCount"], history["itemCount"],
+        "every seeded history item carries a year"
+    );
+}

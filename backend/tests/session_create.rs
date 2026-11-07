@@ -34,12 +34,34 @@ async fn create_folder(app: &Router, name: &str, password: &str) -> String {
     body["id"].as_str().expect("a folder id").to_string()
 }
 
+fn plant_items_with_values(conn: &Connection, list_id: &str, column_id: &str, count: usize) {
+    for index in 0..count {
+        let item_id = format!("{list_id}-itm-{index}");
+        conn.execute(
+            "INSERT INTO item (id, list_id, name, position, icon_name)
+             VALUES (?1, ?2, ?3, ?4, NULL)",
+            rusqlite::params![item_id, list_id, format!("Item {index}"), index as i64],
+        )
+        .expect("plant item");
+        conn.execute(
+            "INSERT INTO item_value (item_id, column_id, display, numeric, was_defaulted)
+             VALUES (?1, ?2, ?3, ?4, 0)",
+            rusqlite::params![item_id, column_id, index.to_string(), index as f64],
+        )
+        .expect("plant value");
+    }
+}
+
 fn plant_custom_list(conn: &Connection, folder_id: &str, list_id: &str, column_id: &str) {
+    plant_list(conn, folder_id, list_id, column_id, 11);
+}
+
+fn plant_list(conn: &Connection, folder_id: &str, list_id: &str, column_id: &str, count: usize) {
     conn.execute(
         "INSERT INTO quiz_list
             (id, folder_id, title, description, item_count, is_default, created_at, updated_at)
-         VALUES (?1, ?2, 'Test', '', 0, 0, 0, 0)",
-        rusqlite::params![list_id, folder_id],
+         VALUES (?1, ?2, 'Test', '', ?3, 0, 0, 0)",
+        rusqlite::params![list_id, folder_id, count as i64],
     )
     .expect("plant list");
     conn.execute(
@@ -48,6 +70,34 @@ fn plant_custom_list(conn: &Connection, folder_id: &str, list_id: &str, column_i
         rusqlite::params![list_id, column_id],
     )
     .expect("plant column");
+    plant_items_with_values(conn, list_id, column_id, count);
+}
+
+fn one_round_body(
+    list_id: &str,
+    column_id: &str,
+    quiz_type: &str,
+    tripmine_slots: Option<i32>,
+) -> Value {
+    let mut round = json!({
+        "roundNumber": 1,
+        "quizType": quiz_type,
+        "listId": list_id,
+        "columnId": column_id
+    });
+    if quiz_type == "TRIPMINE" {
+        round["tripmineSide"] = json!("highest");
+        if let Some(slots) = tripmine_slots {
+            round["tripmineSlots"] = json!(slots);
+        }
+    }
+    json!({
+        "gmPassword": "letmein",
+        "teamCount": 1,
+        "teams": [{ "name": "Player" }],
+        "roundCount": 1,
+        "rounds": [round]
+    })
 }
 
 fn folder_passwords(entries: &[(&str, &str)]) -> Value {
@@ -345,4 +395,107 @@ async fn two_unlocked_folders_can_supply_two_rounds_but_one_cannot_vouch_for_the
         .query_row("SELECT COUNT(*) FROM game_session", [], |row| row.get(0))
         .expect("session count");
     assert_eq!(sessions, 1, "only the fully proven request was written");
+}
+
+#[tokio::test]
+async fn capacity_minimums_are_enforced_for_every_mode() {
+    let cases = [
+        ("ORDER", 10, 11, None),
+        ("CONNECT", 9, 10, None),
+        ("TRIPMINE", 9, 10, Some(10)),
+        ("TRIPMINE", 19, 20, Some(20)),
+    ];
+
+    for (mode, short_count, exact_count, slots) in cases {
+        let short_id = format!("lst-short-{mode}-{short_count}");
+        let conn = seeded_db();
+        plant_list(&conn, "default", &short_id, "value", short_count);
+        let app = test_app(conn);
+
+        let (status, body) = create(&app, one_round_body(&short_id, "value", mode, slots)).await;
+        assert_eq!(status, 400, "{mode} short: {body}");
+        assert_eq!(error_code(&body), "bad_request");
+        let message = body["error"]["message"].as_str().unwrap_or_default();
+        assert!(
+            message.contains(&format!("at least {exact_count}")),
+            "{mode} message: {message}"
+        );
+
+        let exact_id = format!("lst-exact-{mode}-{exact_count}");
+        let conn = seeded_db();
+        plant_list(&conn, "default", &exact_id, "value", exact_count);
+        let app = test_app(conn);
+
+        let (status, body) = create(&app, one_round_body(&exact_id, "value", mode, slots)).await;
+        assert_eq!(status, 201, "{mode} exact minimum: {body}");
+    }
+}
+
+#[tokio::test]
+async fn a_short_round_writes_no_session_teams_or_rounds() {
+    let (server_db, side) = seeded_shared_db();
+    plant_list(&server_db, "default", "lst-short", "value", 19);
+    let app = test_app(server_db);
+
+    let (status, body) = create(
+        &app,
+        one_round_body("lst-short", "value", "TRIPMINE", Some(20)),
+    )
+    .await;
+
+    assert_eq!(status, 400, "{body}");
+    for table in ["game_session", "team", "round_config"] {
+        let count: i64 = side
+            .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                row.get(0)
+            })
+            .expect("count");
+        assert_eq!(count, 0, "{table} must stay empty");
+    }
+}
+
+#[tokio::test]
+async fn one_short_round_refuses_the_whole_multi_round_session() {
+    let (server_db, side) = seeded_shared_db();
+    plant_list(&server_db, "default", "lst-short", "value", 9);
+    let app = test_app(server_db);
+    let mut body = valid_session_body();
+    body["rounds"][1]["listId"] = json!("lst-short");
+    body["rounds"][1]["columnId"] = json!("value");
+    body["rounds"][1]["tripmineSlots"] = json!(10);
+
+    let (status, answer) = create(&app, body).await;
+
+    assert_eq!(status, 400, "{answer}");
+    assert_eq!(error_code(&answer), "bad_request");
+    for table in ["game_session", "team", "round_config"] {
+        let count: i64 = side
+            .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                row.get(0)
+            })
+            .expect("count");
+        assert_eq!(count, 0, "{table} must stay empty");
+    }
+}
+
+#[tokio::test]
+async fn items_without_a_value_in_the_selected_column_do_not_count() {
+    let (server_db, side) = seeded_shared_db();
+    plant_list(&server_db, "default", "lst-missing", "value", 20);
+    side.execute(
+        "DELETE FROM item_value WHERE item_id = 'lst-missing-itm-0'",
+        [],
+    )
+    .expect("remove one value");
+    let app = test_app(server_db);
+
+    let (status, body) = create(
+        &app,
+        one_round_body("lst-missing", "value", "TRIPMINE", Some(20)),
+    )
+    .await;
+
+    assert_eq!(status, 400, "{body}");
+    let message = body["error"]["message"].as_str().unwrap_or_default();
+    assert!(message.contains("list has 19"), "{message}");
 }

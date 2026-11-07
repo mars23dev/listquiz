@@ -8,7 +8,7 @@ import {
   unlockFolder,
   type FolderSummary,
 } from '../api/client';
-import type { ListSummary } from '../types/session';
+import type { ListColumnSummary, ListSummary } from '../types/session';
 
 const MAX_TEAMS = 4;
 const MIN_ROUNDS = 1;
@@ -34,16 +34,60 @@ interface SourceList extends ListSummary {
   folderName: string;
 }
 
+const MODE_MINIMUM: Record<RoundDraft['quizType'], number> = {
+  ORDER: 11,
+  CONNECT: 10,
+  TRIPMINE: 10,
+};
+
+function requiredItems(round: Pick<RoundDraft, 'quizType' | 'tripmineSlots'>): number {
+  return round.quizType === 'TRIPMINE' ? round.tripmineSlots : MODE_MINIMUM[round.quizType];
+}
+
+function modeLabel(round: Pick<RoundDraft, 'quizType' | 'tripmineSlots'>): string {
+  if (round.quizType === 'TRIPMINE') return `Tripmine with ${round.tripmineSlots} items`;
+  return round.quizType === 'ORDER' ? 'Order' : 'Connect';
+}
+
+function bestValueColumn(list: Pick<ListSummary, 'columns'>): ListColumnSummary | undefined {
+  let best: ListColumnSummary | undefined;
+  for (const column of list.columns) {
+    if (!best || (column.valueCount ?? 0) > (best.valueCount ?? 0)) best = column;
+  }
+  return best;
+}
+
+function selectedColumnValueCount(list: ListSummary, round: RoundDraft): number {
+  const columnId =
+    round.listId === list.id && round.columnId
+      ? round.columnId
+      : bestValueColumn(list)?.id;
+  return list.columns.find((column) => column.id === columnId)?.valueCount ?? 0;
+}
+
+function supportsModeMinimum(list: ListSummary, round: RoundDraft): boolean {
+  return selectedColumnValueCount(list, round) >= MODE_MINIMUM[round.quizType];
+}
+
+function capacityError(round: RoundDraft, list: ListSummary): string | null {
+  const required = requiredItems(round);
+  const available = selectedColumnValueCount(list, round);
+  if (available >= required) return null;
+  return `Round ${round.roundNumber}: ${modeLabel(round)} needs at least ${required} items with values in the selected column; the list has ${available}.`;
+}
+
 function newRound(
   roundNumber: number,
   lists: Array<Pick<ListSummary, 'id' | 'columns'>>,
 ): RoundDraft {
-  const first = lists[0];
+  const first =
+    lists.find((list) => (bestValueColumn(list)?.valueCount ?? 0) >= MODE_MINIMUM.ORDER) ??
+    lists[0];
   return {
     roundNumber,
     quizType: 'ORDER',
     listId: first?.id ?? '',
-    columnId: first?.columns[0]?.id ?? '',
+    columnId: bestValueColumn(first ?? { columns: [] })?.id ?? first?.columns[0]?.id ?? '',
     tripmineSide: 'highest',
     tripmineSlots: 10,
   };
@@ -116,6 +160,15 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
     return [...defaults, ...custom];
   }, [folders, folderLists, lists]);
 
+  const capacityErrors = useMemo(
+    () =>
+      rounds.map((round) => {
+        const list = availableLists.find((candidate) => candidate.id === round.listId);
+        return list ? capacityError(round, list) : null;
+      }),
+    [rounds, availableLists],
+  );
+
   const teams = useMemo(
     () =>
       Array.from({ length: teamCount }, (_, index) => ({
@@ -135,6 +188,7 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
   }
 
   function updateRound(index: number, patch: Partial<RoundDraft>) {
+    setError(null);
     setRounds((current) =>
       current.map((round, position) =>
         position === index ? { ...round, ...patch } : round,
@@ -144,7 +198,12 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
 
   function pickList(index: number, listId: string) {
     const list = availableLists.find((candidate) => candidate.id === listId);
-    updateRound(index, { listId, columnId: list?.columns[0]?.id ?? '' });
+    const round = rounds[index];
+    const minimum = round ? MODE_MINIMUM[round.quizType] : MODE_MINIMUM.ORDER;
+    const column =
+      list?.columns.find((candidate) => (candidate.valueCount ?? 0) >= minimum) ??
+      list?.columns[0];
+    updateRound(index, { listId, columnId: column?.id ?? '' });
   }
 
   function addRound() {
@@ -212,6 +271,18 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
     const incomplete = rounds.find((round) => !round.listId || !round.columnId);
     if (incomplete) {
       return `Round ${incomplete.roundNumber} needs a list and a column.`;
+    }
+    for (const round of rounds) {
+      const list = availableLists.find((candidate) => candidate.id === round.listId);
+      if (!list) return `Round ${round.roundNumber} needs a list and a column.`;
+      if (!list.columns.some((column) => column.id === round.columnId)) {
+        return `Round ${round.roundNumber} needs a valid value column.`;
+      }
+      const problem = capacityError(round, list);
+      if (problem) return problem;
+      if (!availableLists.some((candidate) => supportsModeMinimum(candidate, round))) {
+        return `Round ${round.roundNumber}: no list can support ${modeLabel(round)}.`;
+      }
     }
     return null;
   }
@@ -495,6 +566,14 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
           <ol className="mt-6 space-y-4">
             {rounds.map((round, index) => {
               const list = availableLists.find((candidate) => candidate.id === round.listId);
+              const options = availableLists.filter(
+                (candidate) =>
+                  supportsModeMinimum(candidate, round) || candidate.id === round.listId,
+              );
+              const noCompatibleList = !availableLists.some((candidate) =>
+                supportsModeMinimum(candidate, round),
+              );
+              const roundError = capacityErrors[index];
               return (
                 <li key={round.roundNumber} className="rounded-xl border border-slate-800 bg-slate-950 p-4">
                   <div className="flex items-center justify-between">
@@ -537,7 +616,7 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
                         className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2"
                       >
                         <option value="">Select a list</option>
-                        {availableLists.map((candidate) => (
+                        {options.map((candidate) => (
                           <option key={candidate.id} value={candidate.id}>
                             {candidate.isDefault
                               ? `${candidate.title} (${candidate.itemCount} items)`
@@ -602,6 +681,22 @@ export function SetupQuiz({ onBackToHome, onLaunchRole }: SetupQuizProps) {
                       </label>
                     ) : null}
                   </div>
+
+                  {noCompatibleList ? (
+                    <p className="mt-3 text-xs font-semibold text-amber-200">
+                      No list can support {modeLabel(round)}. Choose another mode or add a larger
+                      list.
+                    </p>
+                  ) : null}
+
+                  {roundError ? (
+                    <p
+                      role="alert"
+                      className="mt-3 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200"
+                    >
+                      {roundError}
+                    </p>
+                  ) : null}
                 </li>
               );
             })}

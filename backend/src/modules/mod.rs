@@ -7,6 +7,7 @@ pub mod order_round;
 pub mod quick_game;
 pub mod scoring;
 pub mod sessions;
+pub mod setup_capacity;
 pub mod teams;
 pub mod tripmine_round;
 pub mod turn_timer;

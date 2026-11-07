@@ -67,6 +67,21 @@ async fn a_quick_tripmine_game_starts_immediately() {
 }
 
 #[tokio::test]
+async fn a_quick_connect_game_starts_immediately() {
+    let conn: Connection = common::seeded_db();
+    let app = test_app(conn);
+
+    let (status, created) = quick(&app, &json!({ "gameType": "CONNECT" })).await;
+    assert_eq!(status, StatusCode::CREATED, "created: {created}");
+    let session_id = created["sessionId"].as_str().expect("an id").to_string();
+
+    let body = state(&app, &session_id, "p1").await;
+    assert_eq!(body["status"], json!("running"));
+    assert_eq!(body["round"]["quizType"], json!("CONNECT"));
+    assert!(!body["connect"].is_null(), "the board exists at once");
+}
+
+#[tokio::test]
 async fn an_unknown_quick_game_type_is_rejected() {
     let conn: Connection = common::seeded_db();
     let app = test_app(conn);
