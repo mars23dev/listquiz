@@ -65,9 +65,15 @@ pub fn router(state: AppState) -> Router {
         .with_state(state)
 }
 
-pub async fn serve(state: AppState, addr: SocketAddr) -> std::io::Result<()> {
+pub async fn serve(
+    state: AppState,
+    addr: SocketAddr,
+    shutdown: impl std::future::Future<Output = ()> + Send + 'static,
+) -> std::io::Result<()> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, router(state)).await
+    axum::serve(listener, router(state))
+        .with_graceful_shutdown(shutdown)
+        .await
 }
 
 /// True when the frontend has been built into the backend's expected location.

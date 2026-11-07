@@ -36,8 +36,35 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // server listens on all interfaces rather than loopback only.
     let addr: SocketAddr = ([0, 0, 0, 0], 8080).into();
     let state = AppState::new(conn, dist_dir);
-    api::serve(state, addr).await?;
+    api::serve(state, addr, shutdown_signal()).await?;
     Ok(())
+}
+
+/// Resolve on Ctrl+C or, on Unix, on SIGTERM (the Docker stop signal). The
+/// server then stops accepting requests and lets in-flight work finish before
+/// the process exits, so SQLite closes cleanly.
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install SIGTERM handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
 }
 
 /// `--db <path>` overrides the default project-local database file.
