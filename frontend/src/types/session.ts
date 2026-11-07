@@ -181,6 +181,8 @@ export interface RoleQuery {
 export interface ListColumnSummary {
   id: string;
   name: string;
+  /** Items in this list carrying a value in this column; 0..=itemCount. */
+  valueCount?: number;
 }
 
 export interface ListSummary {

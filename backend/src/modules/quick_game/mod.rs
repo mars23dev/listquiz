@@ -26,6 +26,18 @@ fn required_items(game_type: QuizType) -> usize {
     }
 }
 
+/// Items in `list` that carry a value in `column_id`.
+fn valued_item_count(list: &DefaultList, column_id: &str) -> usize {
+    list.items
+        .iter()
+        .filter(|item| {
+            item.values
+                .iter()
+                .any(|(column, _, _)| *column == column_id)
+        })
+        .count()
+}
+
 /// Build the create-session request for a quick game of `game_type`, choosing one of
 /// the default lists that fit at random, so repeated quick games vary (feature 018).
 pub fn build_request(
@@ -39,7 +51,11 @@ pub fn build_request(
 
     let eligible: Vec<&DefaultList> = lists
         .iter()
-        .filter(|list| !list.columns.is_empty() && list.items.len() >= needed)
+        .filter(|list| {
+            list.columns
+                .first()
+                .is_some_and(|column| valued_item_count(list, column.id) >= needed)
+        })
         .collect();
     if eligible.is_empty() {
         return Err(ApiError::not_ready(format!(

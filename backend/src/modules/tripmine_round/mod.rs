@@ -23,6 +23,8 @@ use crate::modules::sessions::round_state::{self, ListItemValue};
 
 /// Items in a Tripmine grid (FR-035).
 pub const TRIPMINE_SLOTS: usize = 10;
+/// Items in the optional larger Tripmine grid.
+pub const TRIPMINE_SLOTS_LARGE: usize = 20;
 /// Points for the item at the searched position (FR-040).
 pub const POINTS_SEARCHED: i32 = 10;
 /// Points for a wrong, non-mined pick (FR-041).

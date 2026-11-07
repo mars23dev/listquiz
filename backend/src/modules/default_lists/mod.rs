@@ -2746,9 +2746,12 @@ fn group_thousands(n: f64) -> String {
 
 /// One column as the API reports it.
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ColumnSummary {
     pub id: String,
     pub name: String,
+    /// Items in this list carrying a value in this column.
+    pub value_count: i64,
 }
 
 /// A list as the API reports it: enough to pick a round, never the items.
@@ -2799,12 +2802,20 @@ pub fn list_summaries(conn: &Connection, folder_id: &str) -> ApiResult<ListSumma
 /// A list's columns in display order; `columns[0]` is the default value column.
 fn columns_of(conn: &Connection, list_id: &str) -> ApiResult<Vec<ColumnSummary>> {
     let mut statement = conn.prepare(
-        "SELECT id, name FROM list_item_column WHERE list_id = ?1 ORDER BY position ASC",
+        "SELECT c.id, c.name,
+                (SELECT COUNT(*)
+                 FROM item i
+                 JOIN item_value v ON v.item_id = i.id AND v.column_id = c.id
+                 WHERE i.list_id = c.list_id) AS value_count
+         FROM list_item_column c
+         WHERE c.list_id = ?1
+         ORDER BY c.position ASC",
     )?;
     let rows = statement.query_map(params![list_id], |row| {
         Ok(ColumnSummary {
             id: row.get(0)?,
             name: row.get(1)?,
+            value_count: row.get(2)?,
         })
     })?;
     let columns = rows.collect::<Result<Vec<_>, _>>()?;

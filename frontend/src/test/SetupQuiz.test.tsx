@@ -11,7 +11,34 @@ const LISTS = {
       description: '',
       itemCount: 12,
       isDefault: true,
-      columns: [{ id: 'year', name: 'Year' }],
+      columns: [{ id: 'year', name: 'Year', valueCount: 12 }],
+    },
+    {
+      id: 'default_small_order',
+      title: 'Small Order List',
+      description: '',
+      itemCount: 10,
+      isDefault: true,
+      columns: [{ id: 'year', name: 'Year', valueCount: 10 }],
+    },
+    {
+      id: 'default_tripmine15',
+      title: 'Tripmine Fifteen',
+      description: '',
+      itemCount: 15,
+      isDefault: true,
+      columns: [{ id: 'year', name: 'Year', valueCount: 15 }],
+    },
+    {
+      id: 'default_mixed',
+      title: 'Mixed Values',
+      description: '',
+      itemCount: 15,
+      isDefault: true,
+      columns: [
+        { id: 'year', name: 'Year', valueCount: 15 },
+        { id: 'value', name: 'Value', valueCount: 9 },
+      ],
     },
   ],
 };
@@ -31,8 +58,8 @@ const FAMILY_LISTS = {
       itemCount: 11,
       isDefault: false,
       columns: [
-        { id: 'value', name: 'Value' },
-        { id: 'year', name: 'Year' },
+        { id: 'value', name: 'Value', valueCount: 11 },
+        { id: 'year', name: 'Year', valueCount: 11 },
       ],
     },
   ],
@@ -46,7 +73,7 @@ const WORK_LISTS = {
       description: '',
       itemCount: 14,
       isDefault: false,
-      columns: [{ id: 'value', name: 'Value' }],
+      columns: [{ id: 'value', name: 'Value', valueCount: 14 }],
     },
   ],
 };
@@ -422,5 +449,112 @@ describe('setup wizard', () => {
       'fld-family1': 'hunter2',
       'fld-work1': 'workpw',
     });
+  });
+
+  it('hides lists that cannot support the chosen mode and shows them for a smaller mode', async () => {
+    const user = userEvent.setup();
+    render(<SetupQuiz onBackToHome={() => {}} onLaunchRole={() => {}} />);
+
+    await user.type(await screen.findByLabelText(/moderator password/i), 'letmein');
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+    await screen.findByRole('heading', { name: /step 2/i });
+
+    const listSelect = screen.getAllByLabelText(/^list$/i)[0];
+    expect(
+      within(listSelect).queryByRole('option', { name: /small order list/i }),
+    ).not.toBeInTheDocument();
+
+    const quizType = screen.getAllByRole('combobox')[0];
+    await user.selectOptions(quizType, 'TRIPMINE');
+
+    expect(
+      within(screen.getAllByLabelText(/^list$/i)[0]).getByRole('option', {
+        name: /small order list/i,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps a 10-only Tripmine list visible and blocks the 20-item choice', async () => {
+    const user = userEvent.setup();
+    render(<SetupQuiz onBackToHome={() => {}} onLaunchRole={() => {}} />);
+
+    await user.type(await screen.findByLabelText(/moderator password/i), 'letmein');
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+    await screen.findByRole('heading', { name: /step 2/i });
+
+    await user.selectOptions(screen.getAllByRole('combobox')[0], 'TRIPMINE');
+    await user.selectOptions(
+      screen.getAllByLabelText(/^list$/i)[0],
+      'default_small_order',
+    );
+    await user.selectOptions(screen.getByLabelText(/tripmine items/i), '20');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/needs at least 20/i);
+    expect(screen.getByLabelText(/tripmine items/i)).toHaveValue('20');
+
+    await user.click(screen.getByRole('button', { name: /create session/i }));
+    expect(screen.queryByText(/session ready:/i)).not.toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText(/tripmine items/i), '10');
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  });
+
+  it('retains a list when a column change makes it incompatible', async () => {
+    const user = userEvent.setup();
+    render(<SetupQuiz onBackToHome={() => {}} onLaunchRole={() => {}} />);
+
+    await user.type(await screen.findByLabelText(/moderator password/i), 'letmein');
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+    await screen.findByRole('heading', { name: /step 2/i });
+
+    await user.selectOptions(screen.getAllByLabelText(/^list$/i)[0], 'default_mixed');
+    const columnSelect = screen.getByLabelText(/value column/i);
+    await user.selectOptions(columnSelect, 'value');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/list has 9/i);
+    expect((screen.getAllByLabelText(/^list$/i)[0] as HTMLSelectElement).value).toBe(
+      'default_mixed',
+    );
+
+    await user.selectOptions(columnSelect, 'year');
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  });
+
+  it('shows an empty state when no list supports the chosen mode', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === '/api/default-lists') {
+          return jsonResponse({
+            lists: [
+              {
+                id: 'default_tiny',
+                title: 'Tiny List',
+                description: '',
+                itemCount: 5,
+                isDefault: true,
+                columns: [{ id: 'year', name: 'Year', valueCount: 5 }],
+              },
+            ],
+          });
+        }
+        if (url === '/api/folders') return jsonResponse([]);
+        return jsonResponse(
+          { error: { code: 'bad_request', message: 'unexpected' } },
+          400,
+        );
+      }),
+    );
+    const user = userEvent.setup();
+    render(<SetupQuiz onBackToHome={() => {}} onLaunchRole={() => {}} />);
+
+    await user.type(await screen.findByLabelText(/moderator password/i), 'letmein');
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+    await screen.findByRole('heading', { name: /step 2/i });
+
+    expect(screen.getByText(/no list can support order/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /create session/i }));
+    expect(screen.queryByText(/session ready:/i)).not.toBeInTheDocument();
   });
 });

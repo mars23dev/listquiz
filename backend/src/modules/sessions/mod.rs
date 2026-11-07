@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use crate::errors::{ApiError, ApiResult};
 use crate::modules::teams::{self, NewTeam, TeamColorInput};
 use crate::modules::turn_timer;
-use crate::modules::{folders, lists, order_round, scoring};
+use crate::modules::{folders, lists, order_round, scoring, setup_capacity};
 
 pub const MIN_ROUNDS: i32 = 1;
 pub const MAX_ROUNDS: i32 = 10;
@@ -340,6 +340,7 @@ pub fn create_session(conn: &Connection, request: &CreateSessionRequest) -> ApiR
     for round in &rounds {
         validate_round_references(conn, round)?;
         validate_round_folder_access(conn, round, &request.folder_passwords)?;
+        setup_capacity::validate_round_capacity(conn, round)?;
     }
 
     let now = crate::db::now_ms();
