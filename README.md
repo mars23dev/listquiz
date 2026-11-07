@@ -47,6 +47,38 @@ read-only default folder. Open `http://localhost:8080/`.
 There is no separate frontend server: the backend serves `frontend/dist`, so the frontend never runs
 without it.
 
+## Docker container (local)
+
+The image builds the frontend and backend inside Docker, so the host needs Docker but no Rust or Node.js
+toolchain. The image is local only; it is not published with releases.
+
+Build from the repository root:
+
+```powershell
+docker build --tag listquiz:local .
+```
+
+Run it with a named volume so lists, folders, and sessions survive container replacement:
+
+```powershell
+docker run --rm --name listquiz --publish 8080:8080 --volume listquiz-data:/app/data listquiz:local
+```
+
+Open `http://localhost:8080/`. The database lives in the `listquiz-data` volume at
+`/app/data/listquiz.db`. Stop the container with `docker stop listquiz`; the volume remains.
+
+If host port 8080 is busy, publish a different host port and keep container port 8080:
+
+```powershell
+docker run --rm --name listquiz --publish 8090:8080 --volume listquiz-data:/app/data listquiz:local
+```
+
+Then open `http://localhost:8090/`. To reset the game data, remove the volume explicitly (destructive):
+
+```powershell
+docker volume rm listquiz-data
+```
+
 ## Portable release
 
 The release artifact is a zip containing everything a Windows PC needs at runtime: the compiled
